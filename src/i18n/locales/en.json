@@ -1,0 +1,163 @@
+{  
+  "welcome": {  
+    "title": "Join Investí Community!",  
+    "subtitle": "The first social network for financial education",  
+    "getStarted": "Get Started",  
+    "signIn": "I already have an account"  
+  },  
+  "auth": {  
+    "signIn": "Sign In",  
+    "signUp": "Sign Up",  
+    "email": "Email",  
+    "password": "Password",  
+    "name": "Full Name",  
+    "username": "Username",  
+    "forgotPassword": "Forgot your password?",  
+    "createAccount": "Create Account",  
+    "alreadyHaveAccount": "Already have an account? Sign in",  
+    "completeAllFields": "Please complete all fields",  
+    "signInWith": "Sign in with",  
+    "signUpWith": "Sign up with",  
+    "linkedin": "LinkedIn",  
+    "google": "Google",  
+    "apple": "Apple",  
+    "facebook": "Facebook",  
+    "terms": "By signing up for Investí, you accept our Terms and Privacy Policies"  
+  },  
+  "avatar": {  
+    "title": "Upload your profile photo",  
+    "skip": "Skip",  
+    "continue": "Save photo and continue",  
+    "changePhoto": "Change profile photo",  
+    "subtitle": "Upload a profile photo so they can easily recognize you"  
+  },  
+  "goals": {  
+    "title": "What are your investment goals?",  
+    "subtitle": "You can choose at least one and maximum 3 in order of priority",  
+    "continue": "Continue"  
+  },  
+  "interests": {  
+    "title": "What are your interests?",  
+    "subtitle": "Select at least 3 topics to get started",  
+    "continue": "Continue"  
+  },  
+  "knowledge": {  
+    "title": "What is your level of financial knowledge?",  
+    "continue": "Continue",  
+    "noKnowledge": "No knowledge",  
+    "littleKnowledge": "Little knowledge",  
+    "someKnowledge": "Some knowledge",  
+    "expert": "Expert"  
+  },  
+  "communities": {  
+    "title": "Recommended communities",  
+    "subtitle": "Here are communities recommended based on your interests",  
+    "join": "Join",  
+    "finish": "Finish",  
+    "members": "members",  
+    "publicCommunity": "Public community",  
+    "privateCommunity": "Private community",  
+    "joined": "Joined",  
+    "noCommunitiesAvailable": "No communities available"  
+  },  
+  "feed": {  
+    "title": "For You",  
+    "following": "Following",  
+    "popular": "Popular",  
+    "connect": "Connect",  
+    "suggestions": "People you might know from beginner investments group",  
+    "loadingFeed": "Loading feed...",  
+    "noPostsAvailable": "No posts available"  
+  },  
+  "createPost": {  
+    "title": "Share post",  
+    "publish": "Publish",  
+    "publishing": "Publishing...",  
+    "placeholder": "What are you thinking?",  
+    "community": "Community",  
+    "addPhoto": "Add a photo",  
+    "addVideo": "Add a video",  
+    "celebrate": "Celebrate a moment",  
+    "addDocument": "Add a document",  
+    "findPartner": "Find a partner",  
+    "createPoll": "Create a poll"  
+  },  
+  "postDetail": {  
+    "title": "Post",  
+    "comments": "Comments",  
+    "writeComment": "Write a comment...",  
+    "send": "Send",  
+    "loadingPost": "Loading post...",  
+    "postNotFound": "Post not found",  
+    "postNotFoundMessage": "The post you are looking for does not exist or has been deleted"  
+  },  
+  "profile": {  
+    "title": "Profile",  
+    "goToProfile": "Go to my profile",  
+    "quickAccess": "Your quick access",  
+    "edit": "Edit",  
+    "savedPosts": "Saved posts",  
+    "communities": "Communities",  
+    "consultIri": "Consult Iri",  
+    "configuration": "Configuration",  
+    "loadingProfile": "Loading profile..."  
+  },  
+  "settings": {  
+    "title": "Settings",  
+    "language": "Language",  
+    "loginSecurity": "Login and security",  
+    "dataPrivacy": "Data privacy",  
+    "notifications": "Notifications",  
+    "angelInvestor": "Angel Investor",  
+    "startups": "Startups / Entrepreneurship",  
+    "helpCenter": "Help center",  
+    "privacyPolicy": "Privacy policy",  
+    "accessibility": "Accessibility",  
+    "recommendationsTransparency": "Recommendations transparency",  
+    "userLicense": "End user license agreement",  
+    "signOut": "Sign out",  
+    "signOutConfirmTitle": "Sign Out",  
+    "signOutConfirmMessage": "Are you sure you want to sign out?",  
+    "cancel": "Cancel",  
+    "version": "VERSION: 1.0.45.42"  
+  },  
+  "market": {  
+    "title": "Stock market information",  
+    "search": "Search",  
+    "relevantUpdates": "Relevant updates",  
+    "seeAll": "See all",  
+    "currentMarket": "Current market"  
+  },  
+  "common": {  
+    "error": "Error",  
+    "retry": "Retry",  
+    "loading": "Loading...",  
+    "noData": "No data available",  
+    "back": "Back",  
+    "create": "Create",  
+    "save": "Save",  
+    "cancel": "Cancel",  
+    "seeAll": "See all",  
+    "lessons": "lessons"  
+  },  
+  "home": {  
+    "forYou": "For You",  
+    "following": "Following",  
+    "popular": "Popular",  
+    "searchPlace": "Search investments...",  
+    "searchPlaceholder": "Investments"  
+  },  
+  "promotions": {  
+    "title": "Promotions",  
+    "loadError": "Error loading promotions",  
+    "noPromotions": "No promotions available",  
+    "endOfList": "No more promotions",  
+    "loadingMore": "Loading more..."  
+  },  
+  "onboarding": {  
+    "complete": "Complete onboarding",  
+    "skip": "Skip",  
+    "next": "Next",  
+    "previous": "Previous"  
+  }  
+}

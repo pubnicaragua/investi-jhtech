@@ -1,0 +1,10 @@
+{
+  "urlRandomness": "5x2rxvc",
+  "dev": true,
+  "minify": false,
+  "https": false,
+  "scheme": "exp+investi-app",
+  "hostType": "lan",
+  "lanType": "ip",
+  "devClient": false
+}

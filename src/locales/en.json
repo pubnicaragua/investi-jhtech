@@ -1,0 +1,113 @@
+{
+  "welcome": {
+    "title": "Investí Community",
+    "subtitle": "Join the first social network for financial education and investors in the world!",
+    "users": "More than 100k registered users",
+    "start": "Get Started",
+    "hasAccount": "I already have an account"
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "username": "Username",
+    "createAccount": "Create Account",
+    "forgotPassword": "Forgot your password?",
+    "signInWith": "Sign in with",
+    "signUpWith": "Sign up with",
+    "linkedin": "LinkedIn",
+    "google": "Google",
+    "apple": "Apple",
+    "facebook": "Facebook",
+    "terms": "By signing up for Investí, you accept our Terms and Privacy Policies"
+  },
+  "avatar": {
+    "title": "Upload your profile photo",
+    "skip": "Skip",
+    "subtitle": "Upload a profile photo so they can easily recognize you",
+    "changePhoto": "Change profile photo",
+    "saveAndContinue": "Save photo and continue"
+  },
+  "goals": {
+    "title": "What are your financial goals?",
+    "subtitle": "Select the goals that interest you most",
+    "continue": "Continue"
+  },
+  "interests": {
+    "title": "What are you interested in learning?",
+    "subtitle": "Select topics of your interest",
+    "continue": "Continue"
+  },
+  "knowledge": {
+    "title": "What is your level of financial knowledge?",
+    "subtitle": "This will help us personalize your experience",
+    "none": "None",
+    "basic": "Basic",
+    "intermediate": "Intermediate",
+    "advanced": "Advanced",
+    "continue": "Continue"
+  },
+  "recommendations": {
+    "title": "Recommended communities",
+    "subtitle": "Based on your interests",
+    "join": "Join",
+    "continue": "Continue"
+  },
+  "home": {
+    "forYou": "For You",
+    "following": "Following",
+    "popular": "Popular",
+    "searchPlaceholder": "Investments"
+  },
+  "createPost": {
+    "title": "Share post",
+    "publish": "Publish",
+    "community": "Community",
+    "placeholder": "What are you thinking?",
+    "addPhoto": "Add a photo",
+    "addVideo": "Add a video",
+    "celebrate": "Celebrate a moment",
+    "addDocument": "Add a document",
+    "findPartner": "Find a partner",
+    "createPoll": "Create a poll"
+  },
+  "profile": {
+    "goToProfile": "Go to my profile",
+    "quickAccess": "Your quick access",
+    "edit": "Edit",
+    "savedPosts": "Saved posts",
+    "communities": "Communities",
+    "consultIri": "Consult Iri",
+    "configuration": "Configuration"
+  },
+  "settings": {
+    "title": "Settings",
+    "loginSecurity": "Login and security",
+    "dataPrivacy": "Data privacy",
+    "notifications": "Notifications",
+    "angelInvestor": "Angel Investor",
+    "startups": "Startups / Entrepreneurship",
+    "helpCenter": "Help center",
+    "privacyPolicy": "Privacy policy",
+    "accessibility": "Accessibility",
+    "recommendationsTransparency": "Recommendations transparency",
+    "userLicense": "End user license agreement",
+    "signOut": "Sign out",
+    "version": "VERSION: 1.0.45.42"
+  },
+  "market": {
+    "title": "Stock market information",
+    "search": "Search",
+    "relevantUpdates": "Relevant updates",
+    "seeAll": "See all",
+    "currentMarket": "Current market"
+  },
+  "communities": {
+    "title": "Suggested communities",
+    "members": "members",
+    "publicCommunity": "Public community",
+    "join": "Join"
+  }
+}

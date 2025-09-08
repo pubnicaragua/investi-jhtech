@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "Investi App",
+    "slug": "investi-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "jsEngine": "hermes",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "icon": "https://www.investiiapp.com/investi-logo-new-main.png",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.investi.app",
+      "jsEngine": "hermes"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "https://www.investiiapp.com/investi-logo-new-main.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "jsEngine": "hermes",
+      "package": "com.investi.app"
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      "expo-localization",
+      "expo-secure-store",
+      "expo-router"
+    ],
+    "scheme": "investi-community",
+    "extra": {
+      "eas": {
+        "projectId": "82b22488-cbbd-45ea-bd0e-dd6ec1f2b7fb"
+      }
+    }
+  }
+}

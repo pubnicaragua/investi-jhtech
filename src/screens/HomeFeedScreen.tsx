@@ -1,0 +1,778 @@
+"use client"  
+  
+import { useState, useEffect, useRef } from "react"  
+import {  
+  View,  
+  Text,  
+  TouchableOpacity,  
+  StyleSheet,  
+  SafeAreaView,  
+  ScrollView,  
+  TextInput,  
+  Image,  
+  ActivityIndicator,  
+  Keyboard,  
+  FlatList,  
+  Share,  
+  Alert,  
+} from "react-native"  
+import { useTranslation } from "react-i18next"  
+import {  
+  Search,  
+  MessageSquare,  
+  Bell,  
+  PartyPopper,  
+  BarChart2,  
+  Handshake,  
+  ThumbsUp,  
+  MessageCircle,  
+  Share2,  
+  Send,  
+  Edit3,  
+  Home,  
+  TrendingUp,  
+  PlusCircle,  
+  Newspaper,  
+  BookOpen,  
+} from "lucide-react-native"  
+  
+import { Sidebar } from "../components/Sidebar"  
+import { NotificationsModal } from "../components/NotificationsModal"  
+import { getUserFeed, likePost } from "../rest/api"  
+import { getCurrentUserId } from "../rest/client"  
+import { EmptyState } from "../components/EmptyState"  
+import { useAuthGuard } from "../hooks/useAuthGuard"  
+import { useOnboardingGuard } from "../hooks/useOnboardingGuard"  
+  
+export function HomeFeedScreen({ navigation }: any) {  
+  const { t, i18n } = useTranslation()  
+  const [posts, setPosts] = useState<any[]>([])  
+  const [loading, setLoading] = useState(true)  
+  const [error, setError] = useState<string | null>(null)  
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)  
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)  
+  const [searchQuery, setSearchQuery] = useState("")  
+  const [isSearchFocused, setIsSearchFocused] = useState(false)  
+  const [userId, setUserId] = useState<string | null>(null)  
+  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set())  
+  const [currentRoute, setCurrentRoute] = useState("HomeFeed")  
+  const searchInputRef = useRef<TextInput>(null)  
+  
+  useAuthGuard()  
+  const { loading: onboardingLoading } = useOnboardingGuard()  
+  
+  useEffect(() => {  
+    loadFeed()  
+  }, [])  
+  
+  const loadFeed = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const uid = await getCurrentUserId()
+      setUserId(uid)
+      if (uid) {
+        // Obtener feed personalizado basado en comunidades e intereses
+        const data = await getUserFeed(uid, 20)
+        
+        // Filtrar y priorizar posts basados en intereses del usuario
+        const user = await getCurrentUser()
+        if (user?.intereses && user.intereses.length > 0) {
+          const userInterests = user.intereses.map(i => i.toLowerCase())
+          
+          // Ordenar posts: primero los de comunidades del usuario, luego por relevancia
+          const sortedPosts = data.sort((a, b) => {
+            const aRelevant = userInterests.some(interest => 
+              (a.contenido || a.content || '').toLowerCase().includes(interest) ||
+              (a.community_name || '').toLowerCase().includes(interest)
+            )
+            const bRelevant = userInterests.some(interest => 
+              (b.contenido || b.content || '').toLowerCase().includes(interest) ||
+              (b.community_name || '').toLowerCase().includes(interest)
+            )
+            
+            if (aRelevant && !bRelevant) return -1
+            if (!aRelevant && bRelevant) return 1
+            
+            // Si ambos son relevantes o no relevantes, ordenar por fecha
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          })
+          
+          setPosts(sortedPosts.slice(0, 15)) // Limitar a 15 posts más relevantes
+        } else {
+          setPosts(data)
+        }
+      }
+    } catch (error: any) {
+      setError(error.message)
+    } finally {
+      setLoading(false)
+    }
+  }  
+  
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen)  
+  
+  const clearSearch = () => {  
+    setSearchQuery("")  
+    Keyboard.dismiss()  
+    setIsSearchFocused(false)  
+  }  
+  
+  const handleSearchSubmit = () => {  
+    if (searchQuery.trim()) {  
+      navigation.navigate("Promotions", {  
+        searchQuery: searchQuery.trim(),  
+        clearSearch: false,  
+      })  
+    }  
+  }  
+  
+  const handleLike = async (postId: string) => {  
+    if (!userId) return  
+      
+    try {  
+      await likePost(postId, userId, true)  
+      setLikedPosts(prev => new Set([...prev, postId]))  
+        
+      setPosts(prev => prev.map(post =>   
+        post.id === postId   
+          ? { ...post, likes: (post.likes || 0) + 1 }  
+          : post  
+      ))  
+    } catch (error) {  
+      Alert.alert("Error", "No se pudo dar like al post")  
+    }  
+  }  
+  
+  const handleShare = async (content: string) => {  
+    try {  
+      await Share.share({  
+        message: content,  
+        title: "Compartir desde Investí"  
+      })  
+    } catch (error) {  
+      console.log("Error sharing:", error)  
+    }  
+  }  
+  
+  const handleQuickAction = (actionKey: string) => {  
+    switch (actionKey) {  
+      case "celebrate":  
+        navigation.navigate("CreatePost", { type: "celebration" })  
+        break  
+      case "poll":  
+        navigation.navigate("CreatePost", { type: "poll" })  
+        break  
+      case "partner":  
+        navigation.navigate("CreatePost", { type: "partnership" })  
+        break  
+    }  
+  }  
+  
+  const handleSendMessage = (postId: string) => {  
+    navigation.navigate("ChatScreen", { postId })  
+  }  
+  
+  const handleLanguageToggle = () => {  
+    const newLanguage = i18n.language === "es" ? "en" : "es"  
+    i18n.changeLanguage(newLanguage)  
+  }  
+  
+  const handleNavigation = (routeName: string) => {  
+    setCurrentRoute(routeName)  
+    navigation.navigate(routeName)  
+  }  
+  
+  const quickActions = [  
+    {   
+      key: "celebrate",   
+      label: "Celebrar un momento",   
+      icon: PartyPopper,  
+      color: "#FF6B6B"  
+    },  
+    {   
+      key: "poll",   
+      label: "Crear una encuesta",   
+      icon: BarChart2,  
+      color: "#4ECDC4"  
+    },  
+    {   
+      key: "partner",   
+      label: "Buscar un socio",   
+      icon: Handshake,  
+      color: "#45B7D1"  
+    },  
+  ]  
+  
+  const renderPost = ({ item }: any) => (  
+    <View style={styles.postCard}>  
+      {/* HEADER */}  
+      <View style={styles.postHeader}>  
+        <TouchableOpacity  
+          onPress={() => navigation.navigate("Profile", { userId: item.user_id })}  
+        >  
+          <Image  
+            source={{ uri: item.user_data?.avatar || item.user_avatar || 'https://i.pravatar.cc/100?img=1' }}  
+            style={styles.avatar}  
+          />  
+        </TouchableOpacity>  
+        <View style={{ flex: 1 }}>  
+          <TouchableOpacity  
+            onPress={() => navigation.navigate("Profile", { userId: item.user_id })}  
+          >  
+            <Text style={styles.postUser}>  
+              {item.user_data?.name || item.user_name || 'Usuario'}  
+            </Text>  
+          </TouchableOpacity>  
+          <Text style={styles.postRole}>  
+            {item.user_data?.role || item.role || 'Usuario'} ·{" "}  
+            {item.post_time || new Date(item.created_at).toLocaleTimeString()}  
+          </Text>  
+        </View>  
+        {/* BOTÓN SEGUIR - Texto azul plano */}  
+        <TouchableOpacity>  
+          <Text style={styles.followText}>Seguir</Text>  
+        </TouchableOpacity>  
+      </View>  
+  
+      {/* CONTENT */}  
+      <TouchableOpacity  
+        onPress={() => navigation.navigate("PostDetail", { postId: item.id })}  
+      >  
+        <Text style={styles.postContent}>  
+          {item.content || item.contenido}  
+        </Text>  
+      </TouchableOpacity>  
+  
+      {item.image && (  
+        <TouchableOpacity  
+          onPress={() => navigation.navigate("PostDetail", { postId: item.id })}  
+        >  
+          <Image source={{ uri: item.image }} style={styles.postImage} />  
+        </TouchableOpacity>  
+      )}  
+  
+      {/* STATS */}  
+      <View style={styles.postStats}>  
+        <Text style={styles.statText}>{item.likes || 0} me gusta</Text>  
+        <Text style={styles.statText}>{item.comments || 0} comentarios</Text>  
+        <Text style={styles.statText}>{item.shares || 0} compartidos</Text>  
+      </View>  
+  
+      {/* ACTIONS - 4 iconos alineados con mismo ancho */}  
+      <View style={styles.postActions}>  
+        <TouchableOpacity  
+          style={[styles.actionBtn, likedPosts.has(item.id) && styles.actionBtnLiked]}  
+          onPress={() => handleLike(item.id)}  
+        >  
+          <ThumbsUp   
+            size={18}   
+            color={likedPosts.has(item.id) ? "#2673f3" : "#666"}   
+          />  
+          <Text style={[styles.actionText, likedPosts.has(item.id) && styles.actionTextLiked]}>  
+            Me gusta  
+          </Text>  
+        </TouchableOpacity>  
+          
+        <TouchableOpacity  
+          style={styles.actionBtn}  
+          onPress={() => navigation.navigate("PostDetail", { postId: item.id })}  
+        >  
+          <MessageCircle size={18} color="#666" />  
+          <Text style={styles.actionText}>Comentar</Text>  
+        </TouchableOpacity>  
+          
+        <TouchableOpacity  
+          style={styles.actionBtn}  
+          onPress={() => handleShare(item.content || item.contenido)}  
+        >  
+          <Share2 size={18} color="#666" />  
+          <Text style={styles.actionText}>Compartir</Text>  
+        </TouchableOpacity>  
+          
+        <TouchableOpacity   
+          style={styles.actionBtn}   
+          onPress={() => handleSendMessage(item.id)}  
+        >  
+          <Send size={18} color="#666" />  
+          <Text style={styles.actionText}>Enviar</Text>  
+        </TouchableOpacity>  
+      </View>  
+    </View>  
+  )  
+  
+  if (onboardingLoading) {  
+    return (  
+      <SafeAreaView style={styles.container}>  
+        <View style={styles.loadingContainer}>  
+          <ActivityIndicator size="large" color="#2673f3" />  
+        </View>  
+      </SafeAreaView>  
+    )  
+  }  
+  
+  return (  
+    <SafeAreaView style={styles.container}>  
+      <Sidebar isOpen={isSidebarOpen} onClose={toggleSidebar} />  
+        
+      <NotificationsModal  
+        visible={isNotificationsOpen}  
+        onClose={() => setIsNotificationsOpen(false)}  
+        userId={userId}  
+        navigation={navigation}  
+      />  
+  
+      {/* HEADER */}  
+      <View style={styles.header}>  
+        <TouchableOpacity onPress={toggleSidebar}>  
+          <Image  
+            source={{  
+              uri: "https://www.investiiapp.com/investi-logo-new-main.png",  
+            }}  
+            style={styles.headerAvatar}  
+          />  
+        </TouchableOpacity>  
+  
+        <View  
+          style={[  
+            styles.searchContainer,  
+            isSearchFocused && styles.searchContainerFocused,  
+          ]}  
+        >  
+          <Search size={20} color="#667" />  
+          <TextInput  
+            ref={searchInputRef}  
+            style={styles.searchInput}  
+            placeholder="Buscar"  
+            placeholderTextColor="#999"  
+            value={searchQuery}  
+            onChangeText={setSearchQuery}  
+            onFocus={() => setIsSearchFocused(true)}  
+            onBlur={() => !searchQuery && setIsSearchFocused(false)}  
+            returnKeyType="search"  
+            onSubmitEditing={handleSearchSubmit}  
+          />  
+          {searchQuery ? (  
+            <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>  
+              <Text style={{ fontSize: 16, color: "#666" }}>✕</Text>  
+            </TouchableOpacity>  
+          ) : null}  
+        </View>  
+  
+        <TouchableOpacity   
+          style={styles.headerIcon}  
+          onPress={() => setIsNotificationsOpen(true)}  
+        >  
+          <Bell size={24} color="#111" />  
+        </TouchableOpacity>  
+  
+        <TouchableOpacity   
+          style={styles.headerIcon}  
+          onPress={() => navigation.navigate("ChatList")}  
+        >  
+          <MessageSquare size={24} color="#111" />  
+        </TouchableOpacity>  
+  
+        <TouchableOpacity  
+          style={styles.langToggle}  
+          onPress={handleLanguageToggle}  
+        >  
+          <Text style={styles.langToggleText}>  
+            {i18n.language.toUpperCase()}  
+          </Text>  
+        </TouchableOpacity>  
+      </View>  
+  
+      {/* QUICK ACTIONS */}  
+      <View style={styles.quickActionsContainer}>  
+        <ScrollView  
+          horizontal  
+          showsHorizontalScrollIndicator={false}  
+          contentContainerStyle={styles.quickActionsContent}  
+          decelerationRate="fast"  
+          snapToInterval={140}  
+          snapToAlignment="start"  
+        >  
+          {quickActions.map((action) => (  
+            <TouchableOpacity  
+              key={action.key}  
+              style={styles.quickChip}  
+              onPress={() => handleQuickAction(action.key)}  
+            >  
+              <View style={[styles.quickChipIconContainer, { backgroundColor: `${action.color}15` }]}>  
+                <action.icon size={14} color={action.color} />  
+              </View>  
+              <Text style={styles.quickChipLabel}>{action.label}</Text>  
+            </TouchableOpacity>  
+          ))}  
+        </ScrollView>  
+      </View>  
+  
+      {/* WRITE POST */}  
+      <View style={styles.writePostContainer}>  
+        <Image  
+          source={{  
+            uri: "https://www.investiiapp.com/investi-logo-new-main.png",  
+          }}  
+          style={styles.writeAvatar}  
+        />  
+        <TouchableOpacity  
+          style={styles.writeBox}  
+          onPress={() => navigation.navigate("CreatePost")}  
+        >  
+          <Edit3 size={16} color="#999" style={styles.writeIcon} />  
+          <Text style={styles.writePlaceholder}>Escribe algo…</Text>  
+        </TouchableOpacity>  
+      </View>  
+  
+      {/* FEED */}  
+      <View style={styles.feedContainer}>  
+        {loading ? (  
+          <View style={styles.loadingContainer}>  
+            <ActivityIndicator size="large" color="#2673f3" />  
+          </View>  
+        ) : error || posts.length === 0 ? (  
+          <EmptyState  
+            title="No hay publicaciones disponibles"  
+            message="Reintentar"  
+            onRetry={loadFeed}  
+          />  
+        ) : (  
+          <FlatList  
+            data={posts}  
+            keyExtractor={(item) => item.id.toString()}  
+            renderItem={renderPost}  
+            showsVerticalScrollIndicator={false}  
+            contentContainerStyle={styles.feedContent}  
+            refreshing={loading}  
+            onRefresh={loadFeed}  
+          />  
+        )}  
+      </View>  
+  
+      {/* NAVBAR INFERIOR - Orden correcto con iconos profesionales */}  
+      <View style={styles.bottomNavigation}>  
+        <TouchableOpacity  
+          style={styles.navItem}  
+          onPress={() => handleNavigation("HomeFeed")}  
+        >  
+          <Home size={24} color={currentRoute === "HomeFeed" ? "#2673f3" : "#999"} />  
+        </TouchableOpacity>  
+  
+        <TouchableOpacity  
+          style={styles.navItem}  
+          onPress={() => handleNavigation("MarketInfo")}  
+        >  
+          <TrendingUp size={24} color={currentRoute === "MarketInfo" ? "#2673f3" : "#999"} />  
+        </TouchableOpacity>  
+  
+        <TouchableOpacity  
+          style={styles.fabContainer}  
+          onPress={() => handleNavigation("CreatePost")}  
+        >  
+          <PlusCircle size={34} color="#2673f3" />  
+        </TouchableOpacity>  
+  
+        <TouchableOpacity  
+          style={styles.navItem}  
+          onPress={() => handleNavigation("News")}  
+        >  
+          <Newspaper size={24} color={currentRoute === "News" ? "#2673f3" : "#999"} />  
+        </TouchableOpacity>  
+  
+        <TouchableOpacity  
+          style={styles.navItem}  
+          onPress={() => handleNavigation("Educacion")}  
+        >  
+          <BookOpen size={24} color={currentRoute === "Educacion" ? "#2673f3" : "#999"} />  
+        </TouchableOpacity>  
+      </View>  
+    </SafeAreaView>  
+  )  
+}  
+  
+const styles = StyleSheet.create({  
+  container: {   
+    flex: 1,   
+    backgroundColor: "#f7f8fa"   
+  },  
+  
+  // HEADER  
+  header: {  
+    flexDirection: "row",  
+    alignItems: "center",  
+    paddingHorizontal: 16,  
+    paddingVertical: 12,  
+    backgroundColor: "white",  
+    borderBottomWidth: 1,  
+    borderBottomColor: "#e5e5e5",  
+    shadowColor: "#000",  
+    shadowOffset: { width: 0, height: 1 },  
+    shadowOpacity: 0.05,  
+    shadowRadius: 2,  
+    elevation: 2,  
+  },  
+  headerAvatar: {   
+    width: 36,   
+    height: 36,   
+    borderRadius: 18,   
+    marginRight: 12   
+  },  
+  headerIcon: {  
+    marginHorizontal: 8,  
+    padding: 4,  
+  },  
+  langToggle: {  
+    marginLeft: 8,  
+    paddingHorizontal: 10,  
+    paddingVertical: 6,  
+    borderRadius: 16,  
+    backgroundColor: "#f0f7ff",  
+    borderWidth: 1,  
+    borderColor: "#e0f0ff",  
+  },  
+  langToggleText: {  
+    fontSize: 12,  
+    fontWeight: "600",  
+    color: "#2673f3",  
+  },  
+  
+  searchContainer: {  
+    flex: 1,  
+    flexDirection: "row",  
+    alignItems: "center",  
+    backgroundColor: "#f5f5f5",  
+    borderRadius: 24,  
+    paddingHorizontal: 16,  
+    paddingVertical: 10,  
+    marginHorizontal: 8,  
+  },  
+  searchContainerFocused: {  
+    backgroundColor: "white",  
+    borderWidth: 2,  
+    borderColor: "#2673f3",  
+  },  
+  searchInput: {   
+    flex: 1,   
+    marginLeft: 8,   
+    fontSize: 15,   
+    color: "#111"   
+  },  
+  clearButton: {   
+    paddingHorizontal: 8   
+  },  
+  
+  // QUICK ACTIONS  
+  quickActionsContainer: {  
+    backgroundColor: "white",  
+    paddingVertical: 8,  
+    borderBottomWidth: 1,  
+    borderBottomColor: "#e5e5e5",  
+  },  
+  quickActionsContent: {  
+    paddingHorizontal: 16,  
+  },  
+  quickChip: {  
+    flexDirection: "row",  
+    alignItems: "center",  
+    backgroundColor: "#ffffff",  
+    borderRadius: 32,  
+    paddingHorizontal: 20,  
+    paddingVertical: 8,  
+    marginRight: 12,  
+    borderWidth: 1,  
+    borderColor: "#e8e8e8",  
+    shadowColor: "#000",  
+    shadowOffset: { width: 0, height: 2 },  
+    shadowOpacity: 0.08,  
+    shadowRadius: 4,  
+    elevation: 3,  
+  },  
+  quickChipIconContainer: {  
+    width: 28,  
+    height: 24,  
+    borderRadius: 14,  
+    justifyContent: "center",  
+    alignItems: "center",  
+    marginRight: 10,  
+  },  
+  quickChipLabel: {   
+    fontSize: 13,   
+    color: "#333",  
+    fontWeight: "500",  
+  },  
+  
+  // WRITE POST  
+  writePostContainer: {  
+    flexDirection: "row",  
+    alignItems: "center",  
+    backgroundColor: "white",  
+    paddingHorizontal: 16,  
+    paddingVertical: 12,  
+    borderBottomWidth: 8,  
+    borderBottomColor: "#f0f0f0",  
+  },  
+  writeAvatar: {   
+    width: 36,   
+    height: 36,   
+    borderRadius: 18,   
+    marginRight: 12   
+  },  
+  writeBox: {  
+    flex: 1,  
+    flexDirection: "row",  
+    alignItems: "center",  
+    backgroundColor: "#ffffff",  
+    borderRadius: 24,  
+    paddingHorizontal: 16,  
+    paddingVertical: 12,  
+    borderWidth: 1,  
+    borderColor: "#e0e0e0",  
+  },  
+  writeIcon: {  
+    marginRight: 8,  
+  },  
+  writePlaceholder: {   
+    color: "#777",   
+    fontSize: 15,  
+    flex: 1,  
+  },  
+  
+  // FEED  
+  feedContainer: {  
+    flex: 1,  
+  },  
+  feedContent: {  
+    paddingVertical: 8,  
+  },  
+  
+  // POSTS  
+  postCard: {  
+    backgroundColor: "white",  
+    marginHorizontal: 16,  
+    marginVertical: 6,  
+    borderRadius: 12,  
+    padding: 16,  
+    shadowColor: "#000",  
+    shadowOffset: { width: 0, height: 2 },  
+    shadowOpacity: 0.08,  
+    shadowRadius: 4,  
+    elevation: 3,  
+  },  
+  postHeader: {   
+    flexDirection: "row",   
+    alignItems: "center",   
+    marginBottom: 12   
+  },  
+  avatar: {   
+    width: 44,   
+    height: 44,   
+    borderRadius: 22,   
+    marginRight: 12   
+  },  
+  postUser: {   
+    fontWeight: "bold",   
+    fontSize: 16,   
+    color: "#111",  
+    marginBottom: 2,  
+  },  
+  postRole: {   
+    fontSize: 13,   
+    color: "#666"   
+  },  
+  // BOTÓN SEGUIR - Texto azul plano sin fondo  
+  followText: {  
+    color: "#2673f3",  
+    fontSize: 14,  
+    fontWeight: "500",  
+  },  
+  postContent: {   
+    fontSize: 15,   
+    color: "#111",   
+    marginBottom: 12,  
+    lineHeight: 22,  
+  },  
+  postImage: {   
+    width: "100%",   
+    height: 200,   
+    borderRadius: 12,   
+    marginBottom: 12   
+  },  
+  postStats: {   
+    flexDirection: "row",   
+    justifyContent: "space-between",   
+    marginBottom: 12,  
+    paddingHorizontal: 4,  
+  },  
+  statText: {   
+    fontSize: 13,   
+    color: "#666",  
+    fontWeight: "500",  
+  },  
+  // ACTIONS - 4 iconos alineados con mismo ancho  
+  postActions: {  
+    flexDirection: "row",  
+    justifyContent: "space-between",  
+    borderTopWidth: 1,  
+    borderTopColor: "#f0f0f0",  
+    paddingTop: 12,  
+    marginTop: 8,  
+  },  
+  actionBtn: {   
+    flexDirection: "row",  
+    alignItems: "center",  
+    paddingVertical: 8,  
+    paddingHorizontal: 4,  
+    borderRadius: 8,  
+    flex: 1,  
+    justifyContent: "center",  
+  },  
+  actionBtnLiked: {  
+    backgroundColor: "#f0f7ff",  
+  },  
+  actionText: {   
+    fontSize: 11,   
+    color: "#666",  
+    fontWeight: "500",  
+    marginLeft: 4,  
+  },  
+  actionTextLiked: {  
+    color: "#2673f3",  
+    fontWeight: "600",  
+  },  
+  
+  // BOTTOM NAV - Iconos outline con colores correctos  
+  bottomNavigation: {  
+    flexDirection: "row",  
+    justifyContent: "space-around",  
+    alignItems: "center",  
+    height: 70,  
+    backgroundColor: "white",  
+    borderTopWidth: 1,  
+    borderTopColor: "#e5e5e5",  
+    paddingBottom: 20,  
+    paddingTop: 8,  
+    shadowColor: "#000",  
+    shadowOffset: { width: 0, height: -2 },  
+    shadowOpacity: 0.1,  
+    shadowRadius: 4,  
+    elevation: 5,  
+  },  
+  navItem: {  
+    alignItems: "center",  
+    justifyContent: "center",  
+    flex: 1,  
+  },  
+  fabContainer: {  
+    alignItems: "center",  
+    justifyContent: "center",  
+    flex: 1,  
+  },  
+  
+  loadingContainer: {   
+    flex: 1,   
+    justifyContent: "center",   
+    alignItems: "center",  
+    paddingVertical: 40,  
+  },  
+})
