@@ -1,11 +1,12 @@
-# 📱 Flujo Completo de la Aplicación Investi
+# 📱 FLUJO REAL DE LA APLICACIÓN INVESTI - STATUS CRÍTICO
 
-## 📊 Resumen General
-- **Total de Pantallas**: 44 pantallas
-- **Logo Actualizado**: https://www.investiiapp.com/investi-logo-new-main.png
-- **Plataforma**: React Native con Expo
-- **Base de Datos**: Supabase
-- **Autenticación**: Supabase Auth
+## 🚨 RESUMEN REAL DEL PROYECTO
+- **Total de Pantallas**: 48 pantallas
+- **✅ Funcionando con Backend**: 15 pantallas (31%)
+- **❌ Con Datos Falsos**: 20 pantallas (42%)
+- **⚠️ Placeholder/Rotas**: 8 pantallas (17%)
+- **🔄 Duplicadas**: 5 pantallas (10%)
+- **Estado General**: 🚨 CRÍTICO - Mayoría de funcionalidades usan datos falsos
 
 ## 🔄 Flujo Principal de la Aplicación
 

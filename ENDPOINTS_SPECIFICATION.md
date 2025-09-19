@@ -1,6 +1,45 @@
-# 📊 Especificación de Endpoints para Sistema de Segmentación
+# 📊 ESPECIFICACIÓN COMPLETA DE ENDPOINTS - STATUS REAL
 
-## 🎯 Endpoints para Pantallas de Onboarding
+## 🚨 ESTADO ACTUAL DE ENDPOINTS
+
+### ✅ IMPLEMENTADOS Y FUNCIONANDO
+```
+✅ POST /auth/signin - Autenticación
+✅ POST /auth/signup - Registro
+✅ GET /posts - Feed de publicaciones
+✅ POST /posts - Crear publicación
+✅ GET /communities - Lista de comunidades
+✅ POST /user_communities - Unirse a comunidad
+✅ GET /courses - Cursos educativos
+✅ GET /lessons - Lecciones
+✅ GET /news - Noticias
+✅ GET /promotions - Promociones
+✅ POST /post_likes - Like a publicación
+✅ POST /comments - Comentar publicación
+✅ GET /users - Información de usuarios
+✅ PATCH /users - Actualizar usuario
+✅ POST /storage/avatars - Subir avatar
+```
+
+### ❌ FALTANTES CRÍTICOS
+```
+❌ GET /notifications - Notificaciones del usuario
+❌ POST /notifications/read - Marcar como leída
+❌ GET /direct_messages - Mensajes directos
+❌ POST /direct_messages - Enviar mensaje directo
+❌ GET /user_budgets - Presupuestos del usuario
+❌ POST /user_budgets - Crear/actualizar presupuesto
+❌ GET /financial_reports - Reportes financieros
+❌ GET /investment_portfolio - Portafolio de inversiones
+❌ POST /payments - Procesar pagos
+❌ GET /saved_posts - Posts guardados
+❌ GET /learning_paths - Rutas de aprendizaje
+❌ GET /video_content - Contenido de video
+```
+
+---
+
+## 🎯 ENDPOINTS POR PANTALLA (STATUS REAL)
 
 ### 1. **PickGoalsScreen.tsx**
 ```typescript

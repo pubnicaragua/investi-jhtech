@@ -180,8 +180,10 @@ export const TESTING_CONFIG = {
     'GroupChatScreen': { route: { params: { groupId: '1', groupName: 'Grupo Test' } } },
     
     // Comunidades
+    'CommunitiesListScreen': { route: { params: { category: 'all' } } },
     'CommunityDetailScreen': { route: { params: { communityId: '1' } } },
     'CommunityMembersScreen': { route: { params: { communityId: '1', communityName: 'Comunidad Test' } } },
+    'CommunityRecommendationsScreen': { route: { params: { userId: '1' } } },
     'EditCommunityScreen': { route: { params: { communityId: '1' } } },
     'CreateCommunityScreen': { route: { params: {} } },
     
@@ -198,15 +200,8 @@ export const TESTING_CONFIG = {
             imageUrl: 'https://picsum.photos/400x200/2673f3/ffffff?text=Software+Nicaragua',
             validUntil: '31 de Diciembre 2024',
             location: 'Nicaragua',
-            terms: 'Válido solo para nuevos clientes. No acumulable con otras promociones. Aplican términos y condiciones.',
-            contactInfo: {
-              name: 'Software Nicaragua',
-              phone: '+505 8888-9999',
-              email: 'info@softwarenicaragua.com',
-              website: 'https://softwarenicaragua.com'
-            },
             requirements: [
-              'Ser nuevo cliente',
+              'Ser miembro de la comunidad',
               'Presentar documento de identidad',
               'Válido hasta el 31 de diciembre 2024'
             ]
@@ -217,9 +212,9 @@ export const TESTING_CONFIG = {
     'NewsDetailScreen': { route: { params: { newsId: '1', title: 'Noticia Test', content: 'Contenido de prueba', imageUrl: 'https://via.placeholder.com/300x200' } } },
     
     // Pagos y Cursos
-    'PaymentScreen': { route: { params: { paymentId: '1' } } }, 
+    'PaymentScreen': { route: { params: { amount: '100', currency: 'USD', description: 'Pago de prueba' } } },
     'CourseDetailScreen': { route: { params: { courseId: '1' } } },
-    'VideoPlayerScreen': { route: { params: { videoId: '1' } } },
+    'VideoPlayerScreen': { route: { params: { videoId: '1', title: 'Video de prueba' } } },
     
     // Pantalla de Comunidades
     'CommunitiesScreen': { route: { params: { category: 'all' } } },
