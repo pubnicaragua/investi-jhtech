@@ -40,7 +40,7 @@ export const Sidebar = ({
     Animated.timing(slideAnim, {  
       toValue: isOpen ? 0 : -width,  
       duration: 250,  
-      useNativeDriver: true,  
+      useNativeDriver: false,  
     }).start();  
   }, [isOpen]);  
   
@@ -76,7 +76,7 @@ export const Sidebar = ({
           Animated.timing(slideAnim, {  
             toValue: 0,  
             duration: 200,  
-            useNativeDriver: true,  
+            useNativeDriver: false,  
           }).start();  
         }  
       },  
@@ -85,10 +85,10 @@ export const Sidebar = ({
   
   const handleProfilePress = () => {  
     try {  
-      navigation.navigate("ProfileScreen" as never);  
+      navigation.navigate("Profile" as never);  
       onClose();  
     } catch (error) {  
-      console.log("ProfileScreen navigation not available yet");  
+      console.log("Profile navigation not available yet");  
     }  
   };  
   

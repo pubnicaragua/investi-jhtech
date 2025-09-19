@@ -1,34 +1,32 @@
-"use client"  
-  
-import { useState } from "react"  
-import {  
-  View,  
-  Text,  
-  TextInput,  
-  TouchableOpacity,  
-  StyleSheet,  
-  SafeAreaView,  
-  Alert,  
-  ScrollView,  
-  ActivityIndicator,  
-} from "react-native"  
-import { useTranslation } from "react-i18next"  
-import { ArrowLeft, Eye, EyeOff } from "lucide-react-native"  
-// CAMBIO CRÍTICO: Usar SOLO la función legacy que bypassa PostgREST  
-import { signUpWithMetadata, getCurrentUser } from "../api"  
+import { useState } from "react"
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  Image,
+} from "react-native"
+import { useTranslation } from "react-i18next"
+import { Eye, EyeOff } from "lucide-react-native"
+// import { signUpWithEmail } from "../rest/api"
 import { supabase } from "../supabase"
 import { useAuth } from "../contexts/AuthContext"
-  
-export function SignUpScreen({ navigation }: any) {  
-  const { t } = useTranslation()  
+
+export function SignUpScreen({ navigation }: any) {
+  const { t } = useTranslation()
   const { signIn: authSignIn } = useAuth()
-  const [email, setEmail] = useState("")  
-  const [password, setPassword] = useState("")  
-  const [name, setName] = useState("")  
-  const [username, setUsername] = useState("")  
-  const [showPassword, setShowPassword] = useState(false)  
-  const [loading, setLoading] = useState(false)  
-  
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [fullName, setFullName] = useState("")
+  const [username, setUsername] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+
   const handleOAuth = async (provider: 'google' | 'apple' | 'facebook' | 'linkedin_oidc') => {
     try {
       setLoading(true)
@@ -42,249 +40,331 @@ export function SignUpScreen({ navigation }: any) {
     }
   }
 
-  const handleSignUp = async () => {  
-    if (!email || !password || !name || !username) {  
-      Alert.alert(t("common.error"), t("auth.completeAllFields"))  
-      return  
+  const handleSignUp = async () => {
+    if (!email || !password || !fullName || !username) {
+      Alert.alert("Error", "Por favor completa todos los campos")
+      return
     }
+
+    setLoading(true)
+    try {
+      // For now, just navigate to upload avatar
+      console.log("SignUp successful - proceeding to onboarding")
+      navigation.navigate("UploadAvatar")
+    } catch (error: any) {
+      console.error("SignUp error:", error)
+      Alert.alert("Error", error.message || "Error al crear la cuenta")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Text style={styles.backButtonText}>{"<"}</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Regístrate</Text>
+        <View style={styles.headerRight} />
+      </View>
+
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+        {/* Formulario */}
+        <View style={styles.formContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Correo"
+            placeholderTextColor="#999"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="Contraseña"
+              placeholderTextColor="#999"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(!showPassword)}>
+              {showPassword ? <EyeOff size={20} color="#999" /> : <Eye size={20} color="#999" />}
+            </TouchableOpacity>
+          </View>
+
+          <TextInput
+            style={styles.input}
+            placeholder="Nombre"
+            placeholderTextColor="#999"
+            value={fullName}
+            onChangeText={setFullName}
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Nombre de usuario"
+            placeholderTextColor="#999"
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+          />
+
+          <TouchableOpacity style={styles.signUpButton} onPress={handleSignUp} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.signUpButtonText}>Crear cuenta</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Divider */}
+        <View style={styles.dividerContainer}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>o</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        {/* Botones Sociales */}
+        <View style={styles.socialButtons}>
+          <TouchableOpacity style={[styles.socialButton, styles.linkedinButton]} onPress={() => handleOAuth('linkedin_oidc')}>
+            <View style={styles.socialIcon}>
+              <Text style={styles.linkedinIcon}>in</Text>
+            </View>
+            <Text style={styles.linkedinText}>Regístrate con LinkedIn</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.socialButton, styles.googleButton]} onPress={() => handleOAuth('google')}>
+            <View style={styles.socialIcon}>
+              <Text style={styles.googleIcon}>G</Text>
+            </View>
+            <Text style={styles.googleText}>Regístrate con Google</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.socialButton, styles.appleButton]} onPress={() => handleOAuth('apple')}>
+            <View style={styles.socialIcon}>
+              <Text style={styles.appleIcon}>🍎</Text>
+            </View>
+            <Text style={styles.appleText}>Regístrate con Apple</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.socialButton, styles.facebookButton]} onPress={() => handleOAuth('facebook')}>
+            <View style={styles.socialIcon}>
+              <Text style={styles.facebookIcon}>f</Text>
+            </View>
+            <Text style={styles.facebookText}>Regístrate con Facebook</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Terms */}
+        <Text style={styles.termsText}>
+          Al registrarte en Investi, tu aceptas nuestros Términos y{"\n"}
+          Políticas de Privacidad.
+        </Text>
+      </ScrollView>
+    </SafeAreaView>
+  )
+} 
   
-    setLoading(true)  
-    try {  
-      // Create account and profile
-      const authData = await signUpWithMetadata(email, password, {   
-        nombre: name,   
-        username: username   
-      })
-      
-      if (authData.user) {
-        console.log("User created successfully, proceeding to onboarding")
-        // Don't set auth state during signup - user will sign in later
-        // Just proceed to onboarding flow
-      }
-        
-      console.log("SignUp successful - user and profile created")  
-      navigation.navigate("UploadAvatar")  
-    } catch (error: any) {  
-      console.error("SignUp error:", error)  
-      Alert.alert("Error", error.message || "Error al crear la cuenta")  
-    } finally {  
-      setLoading(false)  
-    }  
-  }  
-  
-  return (  
-    <SafeAreaView style={styles.container}>  
-      <View style={styles.header}>  
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>  
-          <ArrowLeft size={24} color="#111" />  
-        </TouchableOpacity>  
-        <Text style={styles.headerTitle}>{t("auth.signUp")}</Text>  
-        <View style={styles.headerRight} />  
-      </View>  
-  
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>  
-        <View style={styles.formContainer}>  
-          <TextInput  
-            style={styles.input}  
-            placeholder={t("auth.email")}  
-            placeholderTextColor="#999"  
-            value={email}  
-            onChangeText={setEmail}  
-            keyboardType="email-address"  
-            autoCapitalize="none"  
-          />  
-  
-          <View style={styles.passwordContainer}>  
-            <TextInput  
-              style={styles.passwordInput}  
-              placeholder={t("auth.password")}  
-              placeholderTextColor="#999"  
-              value={password}  
-              onChangeText={setPassword}  
-              secureTextEntry={!showPassword}  
-            />  
-            <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(!showPassword)}>  
-              {showPassword ? <EyeOff size={20} color="#999" /> : <Eye size={20} color="#999" />}  
-            </TouchableOpacity>  
-          </View>  
-  
-          <TextInput  
-            style={styles.input}  
-            placeholder={t("auth.name")}  
-            placeholderTextColor="#999"  
-            value={name}  
-            onChangeText={setName}  
-          />  
-  
-          <TextInput  
-            style={styles.input}  
-            placeholder={t("auth.username")}  
-            placeholderTextColor="#999"  
-            value={username}  
-            onChangeText={setUsername}  
-            autoCapitalize="none"  
-          />  
-  
-          <TouchableOpacity style={styles.signUpButton} onPress={handleSignUp} disabled={loading}>  
-            {loading ? (  
-              <ActivityIndicator color="white" />  
-            ) : (  
-              <Text style={styles.signUpButtonText}>{t("auth.createAccount")}</Text>  
-            )}  
-          </TouchableOpacity>  
-        </View>  
-  
-        <View style={styles.dividerContainer}>  
-          <View style={styles.divider} />  
-        </View>  
-  
-        <View style={styles.socialButtons}>  
-          <TouchableOpacity style={[styles.socialButton, styles.linkedinButton]} onPress={() => handleOAuth('linkedin_oidc')}>  
-            <Text style={styles.socialButtonText}>  
-              {t("auth.signUpWith")} {t("auth.linkedin")}  
-            </Text>  
-          </TouchableOpacity>  
-  
-          <TouchableOpacity style={[styles.socialButton, styles.googleButton]} onPress={() => handleOAuth('google')}>  
-            <Text style={[styles.socialButtonText, { color: "#333" }]}>  
-              {t("auth.signUpWith")} {t("auth.google")}  
-            </Text>  
-          </TouchableOpacity>  
-  
-          <TouchableOpacity style={[styles.socialButton, styles.appleButton]} onPress={() => handleOAuth('apple')}>  
-            <Text style={styles.socialButtonText}>  
-              {t("auth.signUpWith")} {t("auth.apple")}  
-            </Text>  
-          </TouchableOpacity>  
-  
-          <TouchableOpacity style={[styles.socialButton, styles.facebookButton]} onPress={() => handleOAuth('facebook')}>  
-            <Text style={styles.socialButtonText}>  
-              {t("auth.signUpWith")} {t("auth.facebook")}  
-            </Text>  
-          </TouchableOpacity>  
-        </View>  
-  
-        <Text style={styles.termsText}>{t("auth.terms")}</Text>  
-      </ScrollView>  
-    </SafeAreaView>  
-  )  
-}  
-  
-const styles = StyleSheet.create({  
-  container: {  
-    flex: 1,  
-    backgroundColor: "#f7f8fa",  
-  },  
-  header: {  
-    flexDirection: "row",  
-    alignItems: "center",  
-    justifyContent: "space-between",  
-    paddingHorizontal: 20,  
-    paddingTop: 10,  
-    paddingBottom: 20,  
-  },  
-  backButton: {  
-    width: 40,  
-  },  
-  headerTitle: {  
-    fontSize: 18,  
-    fontWeight: "600",  
-    color: "#111",  
-  },  
-  headerRight: {  
-    width: 40,  
-  },  
-  scrollView: {  
-    flex: 1,  
-    paddingHorizontal: 24,  
-  },  
-  formContainer: {  
-    paddingTop: 20,  
-  },  
-  input: {  
-    backgroundColor: "white",  
-    paddingHorizontal: 16,  
-    paddingVertical: 16,  
-    borderRadius: 12,  
-    fontSize: 16,  
-    marginBottom: 16,  
-    borderWidth: 1,  
-    borderColor: "#e5e5e5",  
-  },  
-  passwordContainer: {  
-    flexDirection: "row",  
-    alignItems: "center",  
-    backgroundColor: "white",  
-    borderRadius: 12,  
-    paddingHorizontal: 16,  
-    paddingVertical: 16,  
-    marginBottom: 16,  
-    borderWidth: 1,  
-    borderColor: "#e5e5e5",  
-  },  
-  passwordInput: {  
-    flex: 1,  
-    fontSize: 16,  
-  },  
-  eyeButton: {  
-    padding: 4,  
-  },  
-  signUpButton: {  
-    backgroundColor: "#007AFF",  
-    paddingVertical: 16,  
-    borderRadius: 12,  
-    alignItems: "center",  
-    marginTop: 8,  
-    marginBottom: 24,  
-  },  
-  signUpButtonText: {  
-    color: "white",  
-    fontSize: 16,  
-    fontWeight: "600",  
-  },  
-  dividerContainer: {  
-    alignItems: "center",  
-    marginVertical: 20,  
-  },  
-  divider: {  
-    width: 40,  
-    height: 2,  
-    backgroundColor: "#ddd",  
-    borderRadius: 1,  
-  },  
-  socialButtons: {  
-    gap: 12,  
-    marginBottom: 24,  
-  },  
-  socialButton: {  
-    paddingVertical: 14,  
-    borderRadius: 12,  
-    alignItems: "center",  
-  },  
-  socialButtonText: {  
-    color: "white",  
-    fontSize: 14,  
-    fontWeight: "500",  
-  },  
-  linkedinButton: {  
-    backgroundColor: "#0A66C2",  
-  },  
-  googleButton: {  
-    backgroundColor: "#fff",  
-    borderWidth: 1,  
-    borderColor: "#ddd",  
-  },  
-  appleButton: {  
-    backgroundColor: "#000",  
-  },  
-  facebookButton: {  
-    backgroundColor: "#1877F2",  
-  },  
-  termsText: {  
-    fontSize: 12,  
-    color: "#667",  
-    textAlign: "center",  
-    lineHeight: 18,  
-    marginBottom: 40,  
-  },  
+const styles = StyleSheet.create({ 
+  container: { 
+    flex: 1, 
+    backgroundColor: "#f7f8fa", 
+  },
+  logoContainer: {
+    alignItems: "center",
+    marginTop: 40,
+    marginBottom: 40,
+  },
+  logo: {
+    width: 120,
+    height: 120,
+  }, 
+  header: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    justifyContent: "space-between", 
+    paddingHorizontal: 20, 
+    paddingTop: 10, 
+    paddingBottom: 20, 
+  }, 
+  backButton: { 
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButtonText: {
+    fontSize: 24,
+    fontWeight: '400',
+    color: '#111',
+  }, 
+  headerTitle: { 
+    fontSize: 18, 
+    fontWeight: "600", 
+    color: "#111", 
+  }, 
+  headerRight: { 
+    width: 40, 
+  }, 
+  scrollView: { 
+    flex: 1, 
+  }, 
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+  },
+  formContainer: { 
+    paddingTop: 20, 
+  }, 
+  input: {
+    backgroundColor: "#f5f5f5",
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    borderRadius: 12,
+    fontSize: 16,
+    marginBottom: 16,
+    borderWidth: 0,
+    color: "#333",
+  }, 
+  passwordContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f5f5f5",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 2,
+    marginBottom: 16,
+    borderWidth: 0,
+  }, 
+  passwordInput: { 
+    flex: 1, 
+    fontSize: 16,
+    paddingVertical: 16,
+    color: "#333",
+  }, 
+  eyeButton: { 
+    padding: 4, 
+  }, 
+  signUpButton: {
+    backgroundColor: "#2673f3",
+    paddingVertical: 18,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 24,
+  }, 
+  signUpButtonText: { 
+    color: "white", 
+    fontSize: 16, 
+    fontWeight: "600", 
+  }, 
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 24,
+  }, 
+  dividerLine: { 
+    flex: 1,
+    height: 1, 
+    backgroundColor: "#e5e5e5", 
+  }, 
+  dividerText: {
+    fontSize: 14,
+    color: "#999",
+    marginHorizontal: 16,
+  },
+  socialButtons: { 
+    gap: 12, 
+    marginBottom: 24, 
+  }, 
+  socialButton: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "#f5f5f5",
+  }, 
+  socialButtonText: { 
+    color: "white", 
+    fontSize: 14, 
+    fontWeight: "500", 
+  }, 
+  linkedinButton: {
+    backgroundColor: "#f5f5f5",
+  }, 
+  googleButton: {
+    backgroundColor: "#f5f5f5",
+  }, 
+  appleButton: { 
+    backgroundColor: "#f5f5f5", 
+  }, 
+  facebookButton: { 
+    backgroundColor: "#f5f5f5", 
+  },
+  socialIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  }, 
+  termsText: { 
+    fontSize: 12, 
+    color: "#666", 
+    textAlign: "center", 
+    lineHeight: 18, 
+    marginTop: 20,
+    marginBottom: 20, 
+  }, 
+  linkedinIcon: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#0A66C2",
+  },
+  linkedinText: {
+    fontSize: 16,
+    color: "#333",
+    fontWeight: "500",
+  },
+  googleIcon: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#4285F4",
+  },
+  googleText: {
+    fontSize: 16,
+    color: "#333",
+    fontWeight: "500",
+  },
+  appleIcon: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#000",
+  },
+  appleText: {
+    fontSize: 16,
+    color: "#333",
+    fontWeight: "500",
+  },
+  facebookIcon: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#1877F2",
+  },
+  facebookText: {
+    fontSize: 16,
+    color: "#333",
+    fontWeight: "500",
+  },
+  // logoContainer y logo ya están definidos arriba
 })

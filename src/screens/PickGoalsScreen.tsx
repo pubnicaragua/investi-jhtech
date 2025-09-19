@@ -3,28 +3,23 @@
 import { useState, useEffect } from "react"
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator } from "react-native"
 import { useTranslation } from "react-i18next"
-import { ArrowLeft } from "lucide-react-native"
-import { getCurrentUserId, updateUser } from "../api"
+import { getCurrentUserId, updateUser, getInvestmentGoals, saveUserGoals } from "../rest/api"
 
-// Metas disponibles
-const GOALS = [
-  { id: "house", icon: "🏠", text: "Comprar una casa o departamento" },
-  { id: "education", icon: "🎓", text: "Pagar estudios" },
-  { id: "freedom", icon: "💰", text: "Lograr libertad financiera" },
-  { id: "travel", icon: "✈️", text: "Viajar por el mundo" },
-  { id: "car", icon: "🚗", text: "Comprar un auto" },
-  { id: "investment", icon: "📈", text: "Hacer crecer mi dinero a largo plazo" },
-  { id: "health", icon: "⚕️", text: "Prepararme para mi salud" },
-  { id: "personal", icon: "💖", text: "Proyectos personales" },
-  { id: "learn", icon: "🧠", text: "Aprender financieramente" },
-  { id: "pet", icon: "🐶", text: "Bienestar de mi mascota" },
-]
+interface InvestmentGoal {
+  id: string
+  name: string
+  description: string
+  icon: string
+  category: string
+  priority: number
+}
 
 export function PickGoalsScreen({ navigation }: any) {
   const { t } = useTranslation()
   const [selectedGoals, setSelectedGoals] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
+  const [goals, setGoals] = useState<InvestmentGoal[]>([])
 
   useEffect(() => {
     loadUserData()
@@ -32,14 +27,16 @@ export function PickGoalsScreen({ navigation }: any) {
 
   const loadUserData = async () => {
     try {
-      const uid = await getCurrentUserId()
-      if (uid) {
-        // Skip loading existing goals for now - let user select fresh
-        // const user = await getUser(uid)
-        // if (user?.metas) {
-        //   setSelectedGoals(user.metas)
-        // }
+      const [uid, goalsData] = await Promise.all([
+        getCurrentUserId(),
+        getInvestmentGoals()
+      ])
+      
+      if (goalsData) {
+        setGoals(goalsData)
       }
+      
+      // Skip loading existing goals for now - let user select fresh
     } catch (error) {
       console.error("Error loading user data:", error)
     } finally {
@@ -50,13 +47,21 @@ export function PickGoalsScreen({ navigation }: any) {
   const toggleGoal = (goalId: string) => {
     setSelectedGoals((prev) => {
       if (prev.includes(goalId)) {
+        // Si ya está seleccionado, lo removemos
         return prev.filter((id) => id !== goalId)
       }
       if (prev.length >= 3) {
+        // Si ya hay 3 seleccionados, no permitir más
         return prev
       }
+      // Agregar nuevo goal al final (manteniendo orden de selección)
       return [...prev, goalId]
     })
+  }
+
+  // Función para obtener el número de prioridad (1, 2, 3)
+  const getPriorityNumber = (goalId: string): number => {
+    return selectedGoals.indexOf(goalId) + 1
   }
 
   const handleContinue = async () => {
@@ -65,6 +70,9 @@ export function PickGoalsScreen({ navigation }: any) {
     try {
       const uid = await getCurrentUserId()
       if (uid) {
+        // Save to new segmentation system
+        await saveUserGoals(uid, selectedGoals)
+        // Also update user table for backward compatibility
         await updateUser(uid, { metas: selectedGoals })
         navigation.navigate("PickKnowledge")
       }
@@ -90,7 +98,7 @@ export function PickGoalsScreen({ navigation }: any) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <ArrowLeft size={24} color="#111" />
+          <Text style={styles.backButtonText}>{"<"}</Text>
         </TouchableOpacity>
         <View style={styles.headerRight} />
       </View>
@@ -102,11 +110,11 @@ export function PickGoalsScreen({ navigation }: any) {
             ¿Cuáles son tus <Text style={styles.titleBlue}>metas</Text> al invertir?
           </Text>
           <Text style={styles.subtitle}>
-            Puedes elegir al menos una y máximo 3 por orden de prioridad
+            Puedes elegir a menos una y máximo 3 por orden de prioridad
           </Text>
 
           <View style={styles.goalsContainer}>
-            {GOALS.map((goal) => (
+            {goals.map((goal) => (
               <TouchableOpacity
                 key={goal.id}
                 style={[styles.goalItem, selectedGoals.includes(goal.id) && styles.goalItemSelected]}
@@ -119,8 +127,16 @@ export function PickGoalsScreen({ navigation }: any) {
                     selectedGoals.includes(goal.id) && styles.goalTextSelected,
                   ]}
                 >
-                  {goal.text}
+                  {goal.name}
                 </Text>
+                {/* Número de prioridad en la esquina superior derecha */}
+                {selectedGoals.includes(goal.id) && (
+                  <View style={styles.priorityBadge}>
+                    <Text style={styles.priorityNumber}>
+                      {getPriorityNumber(goal.id)}
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
             ))}
           </View>
@@ -161,6 +177,14 @@ const styles = StyleSheet.create({
   },
   backButton: {
     width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButtonText: {
+    fontSize: 24,
+    fontWeight: '400',
+    color: '#111',
   },
   headerRight: {
     width: 40,
@@ -173,54 +197,55 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   title: {
-    fontFamily: "Figtree-Bold",
-    fontSize: 22,
+    fontSize: 20,
+    fontWeight: '600',
     color: "#111",
     textAlign: "center",
     marginBottom: 8,
     lineHeight: 28,
   },
   titleBlue: {
-    color: "#007AFF",
+    color: "#2673f3",
   },
   subtitle: {
-    fontFamily: "Figtree-Regular",
-    fontSize: 15,
+    fontSize: 14,
     color: "#666",
     textAlign: "center",
     marginBottom: 32,
-    lineHeight: 22,
+    lineHeight: 20,
   },
   goalsContainer: {
-    gap: 12,
+    // gap: 12, // Removido porque ya está en goalItem
   },
   goalItem: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "white",
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "#E5E5E5",
+    borderWidth: 1,
+    borderColor: "#D1D5DB", // Color gris más visible como en la imagen
+    marginBottom: 12,
+    position: 'relative', // Para posicionar el badge
   },
   goalItemSelected: {
-    borderColor: "#007AFF",
-    backgroundColor: "#F0F7FF",
+    borderColor: "#2673f3",
+    backgroundColor: "#f0f7ff",
   },
   goalIcon: {
     fontSize: 22,
     marginRight: 14,
   },
   goalText: {
-    fontFamily: "Figtree-Regular",
     fontSize: 15,
     color: "#111",
     flex: 1,
+    fontWeight: '500',
   },
   goalTextSelected: {
-    color: "#007AFF",
-    fontFamily: "Figtree-Medium",
+    color: "#2673f3",
+    fontWeight: '600',
   },
   footer: {
     paddingHorizontal: 24,
@@ -229,8 +254,8 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
   },
   continueButton: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 14,
+    backgroundColor: "#2673f3",
+    paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
   },
@@ -239,12 +264,28 @@ const styles = StyleSheet.create({
   },
   continueButtonText: {
     color: "white",
-    fontSize: 15,
-    fontFamily: "Figtree-SemiBold",
+    fontSize: 16,
+    fontWeight: '600',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  priorityBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#2673f3',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  priorityNumber: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '700',
   },
 })

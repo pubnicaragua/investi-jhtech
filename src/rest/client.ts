@@ -1,4 +1,4 @@
-import * as SecureStore from "expo-secure-store"  
+import { storage } from "../utils/storage"  
   
 export const urls = {  
   REST_URL: "https://paoliakwfoczcallnecf.supabase.co/rest/v1",  
@@ -32,14 +32,14 @@ function isTokenExpired(token: string): boolean {
 // Helper function to store all token variants  
 async function storeTokens(accessToken: string, refreshToken?: string) {  
   const promises = [  
-    SecureStore.setItemAsync(TOKEN_KEYS.ACCESS_TOKEN, accessToken),  
-    SecureStore.setItemAsync(TOKEN_KEYS.SUPABASE_AUTH_TOKEN, accessToken)  
+    storage.setItem(TOKEN_KEYS.ACCESS_TOKEN, accessToken),  
+    storage.setItem(TOKEN_KEYS.SUPABASE_AUTH_TOKEN, accessToken)  
   ]  
   
   if (refreshToken) {  
     promises.push(  
-      SecureStore.setItemAsync(TOKEN_KEYS.REFRESH_TOKEN, refreshToken),  
-      SecureStore.setItemAsync(TOKEN_KEYS.SUPABASE_REFRESH_TOKEN, refreshToken)  
+      storage.setItem(TOKEN_KEYS.REFRESH_TOKEN, refreshToken),  
+      storage.setItem(TOKEN_KEYS.SUPABASE_REFRESH_TOKEN, refreshToken)  
     )  
   }  
   
@@ -47,7 +47,7 @@ async function storeTokens(accessToken: string, refreshToken?: string) {
     const payload = JSON.parse(atob(accessToken.split(".")[1]))  
     if (payload.exp) {  
       promises.push(  
-        SecureStore.setItemAsync(TOKEN_KEYS.TOKEN_EXPIRY, payload.exp.toString())  
+        storage.setItem(TOKEN_KEYS.TOKEN_EXPIRY, payload.exp.toString())  
       )  
     }  
   } catch (error) {  
@@ -60,7 +60,7 @@ async function storeTokens(accessToken: string, refreshToken?: string) {
 // Helper function to clear all tokens  
 async function clearTokens() {  
   const promises = Object.values(TOKEN_KEYS).map(key =>  
-    SecureStore.deleteItemAsync(key).catch(() => {})  
+    storage.removeItem(key).catch(() => {})  
   )  
   await Promise.all(promises)  
 }  
@@ -68,7 +68,7 @@ async function clearTokens() {
 // Refresh token function  
 async function refreshAccessToken(): Promise<string | null> {  
   try {  
-    const refreshToken = await SecureStore.getItemAsync(TOKEN_KEYS.REFRESH_TOKEN)  
+    const refreshToken = await storage.getItem(TOKEN_KEYS.REFRESH_TOKEN)  
     if (!refreshToken) return null  
   
     const response = await fetch(`${urls.AUTH_URL}/token?grant_type=refresh_token`, {  
@@ -101,7 +101,7 @@ async function refreshAccessToken(): Promise<string | null> {
 // Get valid access token (with automatic refresh)  
 async function getValidAccessToken(): Promise<string | null> {  
   try {  
-    let accessToken = await SecureStore.getItemAsync(TOKEN_KEYS.ACCESS_TOKEN)  
+    let accessToken = await storage.getItem(TOKEN_KEYS.ACCESS_TOKEN)  
     if (!accessToken) return null  
   
     if (isTokenExpired(accessToken)) {  
@@ -291,7 +291,7 @@ export async function authSignIn(email: string, password: string) {
   
   if (data.access_token) {  
     await storeTokens(data.access_token, data.refresh_token)  
-    await SecureStore.setItemAsync(TOKEN_KEYS.USER_SESSION, JSON.stringify({  
+    await storage.setItem(TOKEN_KEYS.USER_SESSION, JSON.stringify({  
       email,  
       loginTime: Date.now(),  
       lastActivity: Date.now()  
@@ -320,7 +320,7 @@ export async function authSignUp(email: string, password: string) {
   
   if (data.access_token) {  
     await storeTokens(data.access_token, data.refresh_token)  
-    await SecureStore.setItemAsync(TOKEN_KEYS.USER_SESSION, JSON.stringify({  
+    await storage.setItem(TOKEN_KEYS.USER_SESSION, JSON.stringify({  
       email,  
       signupTime: Date.now(),  
       lastActivity: Date.now()  
@@ -332,7 +332,7 @@ export async function authSignUp(email: string, password: string) {
   
 export async function authSignOut() {  
   try {  
-    const token = await SecureStore.getItemAsync(TOKEN_KEYS.ACCESS_TOKEN)  
+    const token = await storage.getItem(TOKEN_KEYS.ACCESS_TOKEN)  
     if (token) {  
       await fetch(`${urls.AUTH_URL}/logout`, {  
         method: "POST",  
@@ -374,11 +374,11 @@ export async function isAuthenticated(): Promise<boolean> {
   
 export async function updateLastActivity() {  
   try {  
-    const sessionData = await SecureStore.getItemAsync(TOKEN_KEYS.USER_SESSION)  
+    const sessionData = await storage.getItem(TOKEN_KEYS.USER_SESSION)  
     if (sessionData) {  
       const session = JSON.parse(sessionData)  
       session.lastActivity = Date.now()  
-      await SecureStore.setItemAsync(TOKEN_KEYS.USER_SESSION, JSON.stringify(session))  
+      await storage.setItem(TOKEN_KEYS.USER_SESSION, JSON.stringify(session))  
     }  
   } catch (error) {  
     console.warn("Error updating last activity:", error)  
@@ -387,7 +387,7 @@ export async function updateLastActivity() {
   
 export async function getSessionInfo() {  
   try {  
-    const sessionData = await SecureStore.getItemAsync(TOKEN_KEYS.USER_SESSION)  
+    const sessionData = await storage.getItem(TOKEN_KEYS.USER_SESSION)  
     return sessionData ? JSON.parse(sessionData) : null  
   } catch {  
     return null  

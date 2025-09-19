@@ -16,10 +16,11 @@ import {
 import { ArrowLeft, Send } from "lucide-react-native";  
 import {  
   getCurrentUserId,  
-  getChannelMessages,  
-  sendMessage,  
-  request,  
-} from "../rest/api";  
+  getConversationMessages,  
+  sendMessage as sendChatMessage,  
+  markMessagesAsRead,  
+  getCurrentUser  
+} from "../api";  
 import { useAuthGuard } from "../hooks/useAuthGuard";  
 import { supabase } from "../supabase";  
   
@@ -35,7 +36,7 @@ interface Message {
 }  
   
 export function ChatScreen({ navigation, route }: any) {  
-  const { chatId, type = "direct", name } = route.params || {};  
+  const { conversationId, type = "direct", name, participant } = route.params || {};  
   const [messages, setMessages] = useState<Message[]>([]);  
   const [chatInfo, setChatInfo] = useState<any>(null);  
   const [input, setInput] = useState("");  
@@ -51,17 +52,28 @@ export function ChatScreen({ navigation, route }: any) {
     
     // Configurar Supabase Realtime para mensajes en tiempo real
     const channel = supabase
-      .channel(`chat_${chatId}`)
+      .channel(`conversation_${conversationId}`)
       .on('postgres_changes', 
         { 
           event: 'INSERT', 
           schema: 'public', 
           table: 'messages',
-          filter: `chat_id=eq.${chatId}`
+          filter: `conversation_id=eq.${conversationId}`
         }, 
-        (payload) => {
-          const newMessage = payload.new as Message;
-          setMessages(prev => [...prev, newMessage]);
+        (payload: any) => {
+          const newMessage = payload.new as any;
+          // Transform the message to match our interface
+          const transformedMessage = {
+            id: newMessage.id,
+            content: newMessage.content,
+            created_at: newMessage.created_at,
+            user: {
+              id: newMessage.user_id,
+              nombre: 'Usuario', // Will be populated by loadMessages
+              avatar: 'https://i.pravatar.cc/100'
+            }
+          };
+          setMessages(prev => [...prev, transformedMessage]);
           setTimeout(() => {
             flatListRef.current?.scrollToEnd({ animated: true });
           }, 100);
@@ -72,7 +84,7 @@ export function ChatScreen({ navigation, route }: any) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [chatId]);  
+  }, [conversationId]);  
   
   const loadInitialData = async () => {  
     try {  
@@ -91,62 +103,84 @@ export function ChatScreen({ navigation, route }: any) {
     }  
   };  
   
-  const loadChat = async () => {  
-    try {  
-      if (type === "community") {  
-        const res = await request("GET", "/communities", {  
-          params: {  
-            id: `eq.${chatId}`,  
-            select: "id,nombre,icono_url,members:user_communities(count)",  
-          },  
-        });  
-        setChatInfo(res?.[0]);  
-      } else {  
-        const res = await request("GET", "/users", {  
-          params: {  
-            id: `eq.${chatId}`,  
-            select: "id,nombre,avatar_url,is_online",  
-          },  
-        });  
-        setChatInfo(res?.[0]);  
-      }  
-    } catch (err) {  
-      console.error("Error loading chat info:", err);  
-    }  
+  const loadChat = async () => {
+    try {
+      if (type === "direct" && participant) {
+        setChatInfo({
+          nombre: participant.nombre,
+          avatar_url: participant.avatar_url,
+          is_online: Math.random() > 0.5 // Mock online status
+        });
+      } else {
+        setChatInfo({
+          nombre: name || 'Chat',
+          avatar_url: 'https://i.pravatar.cc/100',
+          is_online: false
+        });
+      }
+    } catch (err) {
+      console.error("Error loading chat info:", err);
+    }
   };  
   
-  const loadMessages = async () => {  
-    try {  
-      const response = await getChannelMessages(chatId, 50);  
-      setMessages(response);  
-      setTimeout(() => {  
-        flatListRef.current?.scrollToEnd({ animated: false });  
-      }, 100);  
-    } catch (err) {  
-      console.error("Error loading messages:", err);  
-    }  
+  const loadMessages = async () => {
+    try {
+      const response = await getConversationMessages(conversationId, 50);
+      
+      // Transform messages to match our interface
+      const transformedMessages = response.map((msg: any) => ({
+        id: msg.id,
+        content: msg.content,
+        created_at: msg.created_at,
+        user: {
+          id: msg.user_id,
+          nombre: msg.user?.nombre || msg.user?.full_name || 'Usuario',
+          avatar: msg.user?.avatar_url || msg.user?.photo_url || 'https://i.pravatar.cc/100'
+        }
+      }));
+      
+      setMessages(transformedMessages);
+      
+      // Mark messages as read
+      const uid = await getCurrentUserId();
+      if (uid) {
+        await markMessagesAsRead(conversationId, uid);
+      }
+      
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: false });
+      }, 100);
+    } catch (err) {
+      console.error("Error loading messages:", err);
+    }
   };  
   
-  const handleSend = async () => {  
-    if (!input.trim() || sending) return;  
-  
-    const messageText = input.trim();  
-    setInput("");  
-    setSending(true);  
-  
-    try {  
-      const uid = await getCurrentUserId();  
-      if (!uid) return;  
-  
-      await sendMessage(chatId, uid, messageText);  
-      await loadMessages();  
-    } catch (err) {  
-      console.error("Error sending message:", err);  
-      Alert.alert("Error", "No se pudo enviar el mensaje");  
-      setInput(messageText);  
-    } finally {  
-      setSending(false);  
-    }  
+  const handleSend = async () => {
+    if (!input.trim() || sending) return;
+
+    const messageText = input.trim();
+    setInput("");
+    setSending(true);
+
+    try {
+      const uid = await getCurrentUserId();
+      if (!uid) return;
+
+      await sendChatMessage({
+        conversation_id: conversationId,
+        user_id: uid,
+        content: messageText,
+        message_type: 'text'
+      });
+      
+      // Don't reload messages, let realtime handle it
+    } catch (err) {
+      console.error("Error sending message:", err);
+      Alert.alert("Error", "No se pudo enviar el mensaje");
+      setInput(messageText);
+    } finally {
+      setSending(false);
+    }
   };  
   
   const renderMessage = ({ item }: { item: Message }) => {  

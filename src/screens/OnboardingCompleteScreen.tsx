@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { CheckCircle } from 'lucide-react-native';
+import { CheckCircle, TrendingUp, Target, Award } from 'lucide-react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 type OnboardingCompleteScreenProps = {
@@ -44,11 +44,26 @@ export function OnboardingCompleteScreen({ onComplete }: OnboardingCompleteScree
           Ahora podrás descubrir oportunidades que se ajusten a tus intereses.
         </Text>
         
-        <Image
-          source={require('../../assets/images/onboarding-complete.png')}
-          style={styles.image}
-          resizeMode="contain"
-        />
+        <View style={styles.illustrationContainer}>
+          <View style={styles.iconRow}>
+            <View style={[styles.iconCircle, { backgroundColor: '#E8F5E8' }]}>
+              <Target size={32} color="#22C55E" />
+            </View>
+            <View style={[styles.iconCircle, { backgroundColor: '#EFF6FF' }]}>
+              <TrendingUp size={32} color="#2673f3" />
+            </View>
+          </View>
+          <View style={styles.iconRow}>
+            <View style={[styles.iconCircle, { backgroundColor: '#FEF3C7' }]}>
+              <Award size={32} color="#F59E0B" />
+            </View>
+          </View>
+          <Image                  
+            source={{ uri: 'https://picsum.photos/300/200/4CAF50/ffffff?text=¡Completado!' }}
+            style={styles.image}  
+            resizeMode="contain"  
+          />
+        </View>
       </View>
       
       <View style={styles.footer}>
@@ -96,10 +111,28 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     paddingHorizontal: 20,
   },
-  image: {
-    width: width * 0.8,
-    height: width * 0.6,
+  illustrationContainer: {
+    alignItems: 'center',
     marginBottom: 40,
+    paddingVertical: 20,
+  },
+  iconRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 16,
+    gap: 20,
+  },
+  iconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  image: {
+    width: 200,
+    height: 120,
+    marginTop: 20,
   },
   footer: {
     padding: 24,

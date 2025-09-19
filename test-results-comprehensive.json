@@ -1,0 +1,726 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\invit\\Downloads\\investi-app\\playwright.config.comprehensive.js",
+    "rootDir": "C:/Users/invit/Downloads/investi-app/tests",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "html",
+        {
+          "outputFolder": "playwright-report-comprehensive"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-results-comprehensive.json"
+        }
+      ],
+      [
+        "list",
+        null
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "C:/Users/invit/Downloads/investi-app/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "C:/Users/invit/Downloads/investi-app/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.55.0",
+    "workers": 1,
+    "webServer": {
+      "command": "npm start",
+      "url": "http://localhost:19006",
+      "reuseExistingServer": true,
+      "timeout": 120000
+    }
+  },
+  "suites": [
+    {
+      "title": "comprehensive-error-test.spec.js",
+      "file": "comprehensive-error-test.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Detección Automática de Errores - Investi App",
+          "file": "comprehensive-error-test.spec.js",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "1. Verificar carga inicial sin errores",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6002,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "🚀 Iniciando carga de la aplicación...\n"
+                        },
+                        {
+                          "text": "✅ Carga inicial completada sin errores críticos\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T14:36:33.403Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3e60c8d4a6f8e52e6e79-569f01255329739202cc",
+              "file": "comprehensive-error-test.spec.js",
+              "line": 51,
+              "column": 3
+            },
+            {
+              "title": "2. Probar selección de idioma",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3064,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "🌐 Probando selección de idioma...\n"
+                        },
+                        {
+                          "text": "✅ Sistema de idiomas detectado\n"
+                        },
+                        {
+                          "text": "✅ No hay errores de sistema de idiomas\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T14:36:45.166Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3e60c8d4a6f8e52e6e79-3151e328f3ec7c8b24b9",
+              "file": "comprehensive-error-test.spec.js",
+              "line": 72,
+              "column": 3
+            },
+            {
+              "title": "3. Verificar navegación entre pantallas principales",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 16408,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "🧭 Probando navegación entre pantallas...\n"
+                        },
+                        {
+                          "text": "  📱 Navegando a Welcome...\n"
+                        },
+                        {
+                          "text": "  📱 Navegando a SignIn...\n"
+                        },
+                        {
+                          "text": "  📱 Navegando a SignUp...\n"
+                        },
+                        {
+                          "text": "  📱 Navegando a HomeFeed...\n"
+                        },
+                        {
+                          "text": "  📱 Navegando a Communities...\n"
+                        },
+                        {
+                          "text": "  📱 Navegando a Settings...\n"
+                        },
+                        {
+                          "text": "  📱 Navegando a Profile...\n"
+                        },
+                        {
+                          "text": "❌ Console Error: No user ID available\n"
+                        },
+                        {
+                          "text": "    ⚠️ Se detectaron 1 errores nuevos en Profile\n"
+                        },
+                        {
+                          "text": "  📱 Navegando a MarketInfo...\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Unexpected text node: . A text node cannot be a child of a <View>.\n"
+                        },
+                        {
+                          "text": "    ⚠️ Se detectaron 1 errores nuevos en MarketInfo\n"
+                        },
+                        {
+                          "text": "  📱 Navegando a Educacion...\n"
+                        },
+                        {
+                          "text": "🌐 Network Error: 400 - https://paoliakwfoczcallnecf.supabase.co/rest/v1/lessons?select=id%2Ctitulo%2Cdescripcion%2Cduracion%2Ctipo%2Corden\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Failed to load resource: the server responded with a status of 400 ()\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Error fetching lessons: {code: 42703, message: column lessons.duracion does not exist, details: null, status: 400}\n"
+                        },
+                        {
+                          "text": "🌐 Network Error: 400 - https://paoliakwfoczcallnecf.supabase.co/rest/v1/courses?select=id%2Ctitulo%2Cdescripcion%2Cimagen_url%2Ccategoria%2Cprecio%2Ctotal_lecciones%2Cduracion_total\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Failed to load resource: the server responded with a status of 400 ()\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Error fetching courses: {code: 42703, message: column courses.categoria does not exist, details: null, status: 400}\n"
+                        },
+                        {
+                          "text": "    ⚠️ Se detectaron 4 errores nuevos en Educacion\n"
+                        },
+                        {
+                          "text": "  📱 Navegando a Promotions...\n"
+                        },
+                        {
+                          "text": "🌐 Network Error: 400 - https://paoliakwfoczcallnecf.supabase.co/rest/v1/rpc/get_personalized_feed\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Failed to load resource: the server responded with a status of 400 ()\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Direct query also failed: {code: PGRST201, message: Could not embed because more than one relationship was found for 'posts' and 'users', details: Array(2), status: 300}\n"
+                        },
+                        {
+                          "text": "    ⚠️ Se detectaron 2 errores nuevos en Promotions\n"
+                        },
+                        {
+                          "text": "📊 Navegación: 6 exitosas, 4 fallidas\n"
+                        },
+                        {
+                          "text": "✅ Navegación entre pantallas completada\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T14:36:48.291Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3e60c8d4a6f8e52e6e79-f3511e6e50fc95fabe73",
+              "file": "comprehensive-error-test.spec.js",
+              "line": 100,
+              "column": 3
+            },
+            {
+              "title": "4. Verificar botones de back",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8188,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "⬅️ Probando botones de back...\n"
+                        },
+                        {
+                          "text": "  🔙 Probando back button en /signin...\n"
+                        },
+                        {
+                          "text": "    ⚠️ Back button no encontrado en /signin\n"
+                        },
+                        {
+                          "text": "  🔙 Probando back button en /signup...\n"
+                        },
+                        {
+                          "text": "    ⚠️ Back button no encontrado en /signup\n"
+                        },
+                        {
+                          "text": "  🔙 Probando back button en /pick-goals...\n"
+                        },
+                        {
+                          "text": "🌐 Network Error: 404 - https://paoliakwfoczcallnecf.supabase.co/rest/v1/investment_goals?select=id%2Cname%2Cdescription%2Cicon%2Ccategory%2Cpriority&order=priority.asc\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Failed to load resource: the server responded with a status of 404 ()\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Error fetching investment goals: {code: PGRST205, message: Could not find the table 'public.investment_goals' in the schema cache, details: null, status: 404}\n"
+                        },
+                        {
+                          "text": "    ⚠️ Back button no encontrado en /pick-goals\n"
+                        },
+                        {
+                          "text": "  🔙 Probando back button en /pick-interests...\n"
+                        },
+                        {
+                          "text": "🌐 Network Error: 404 - https://paoliakwfoczcallnecf.supabase.co/rest/v1/investment_interests?select=id%2Cname%2Cdescription%2Cicon%2Ccategory%2Crisk_level%2Cpopularity_score&order=popularity_score.desc\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Failed to load resource: the server responded with a status of 404 ()\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Error fetching investment interests: {code: PGRST205, message: Could not find the table 'public.investment_interests' in the schema cache, details: null, status: 404}\n"
+                        },
+                        {
+                          "text": "    ⚠️ Back button no encontrado en /pick-interests\n"
+                        },
+                        {
+                          "text": "  🔙 Probando back button en /pick-knowledge...\n"
+                        },
+                        {
+                          "text": "🌐 Network Error: 400 - https://paoliakwfoczcallnecf.supabase.co/rest/v1/knowledge_levels?select=id%2Cname%2Cdescription%2Clevel%2Crequirements%2Cnext_steps&order=level.asc\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Failed to load resource: the server responded with a status of 400 ()\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Error fetching knowledge levels: {code: 42703, message: column knowledge_levels.level does not exist, details: null, status: 400}\n"
+                        },
+                        {
+                          "text": "    ⚠️ Back button no encontrado en /pick-knowledge\n"
+                        },
+                        {
+                          "text": "  🔙 Probando back button en /settings...\n"
+                        },
+                        {
+                          "text": "    ⚠️ Back button no encontrado en /settings\n"
+                        },
+                        {
+                          "text": "📊 Back buttons encontrados: 0/6\n"
+                        },
+                        {
+                          "text": "✅ Prueba de botones back completada\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T14:37:04.760Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3e60c8d4a6f8e52e6e79-75900db74dcec6e11b30",
+              "file": "comprehensive-error-test.spec.js",
+              "line": 156,
+              "column": 3
+            },
+            {
+              "title": "5. Verificar carga de imágenes",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2890,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "🖼️ Verificando carga de imágenes...\n"
+                        },
+                        {
+                          "text": "📊 Total de imágenes encontradas: 3\n"
+                        },
+                        {
+                          "text": "📊 Imágenes con URLs prohibidas: 0\n"
+                        },
+                        {
+                          "text": "📊 Errores de red en imágenes: 0\n"
+                        },
+                        {
+                          "text": "✅ Verificación de imágenes completada\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T14:37:13.004Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3e60c8d4a6f8e52e6e79-1bd2156f2edce04f1a6c",
+              "file": "comprehensive-error-test.spec.js",
+              "line": 200,
+              "column": 3
+            },
+            {
+              "title": "6. Probar APIs críticas",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 18850,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "🔌 Probando APIs críticas...\n"
+                        },
+                        {
+                          "text": "  📡 Probando APIs en /home...\n"
+                        },
+                        {
+                          "text": "  📡 Probando APIs en /communities...\n"
+                        },
+                        {
+                          "text": "  📡 Probando APIs en /profile...\n"
+                        },
+                        {
+                          "text": "❌ Console Error: No user ID available\n"
+                        },
+                        {
+                          "text": "  📡 Probando APIs en /settings...\n"
+                        },
+                        {
+                          "text": "📊 Total API calls: 1\n"
+                        },
+                        {
+                          "text": "📊 Failed APIs: 0\n"
+                        },
+                        {
+                          "text": "📊 user_communities errors: 0\n"
+                        },
+                        {
+                          "text": "✅ Prueba de APIs completada\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T14:37:15.940Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3e60c8d4a6f8e52e6e79-93b20a91e9d159261523",
+              "file": "comprehensive-error-test.spec.js",
+              "line": 240,
+              "column": 3
+            },
+            {
+              "title": "7. Verificar errores específicos prohibidos",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 18270,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "🔍 Verificando errores específicos prohibidos...\n"
+                        },
+                        {
+                          "text": "✅ No se encontraron errores prohibidos\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T14:37:34.827Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3e60c8d4a6f8e52e6e79-42ddde987f47130c112b",
+              "file": "comprehensive-error-test.spec.js",
+              "line": 293,
+              "column": 3
+            },
+            {
+              "title": "8. Reporte final y métricas",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 28183,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "\n📈 GENERANDO REPORTE FINAL...\n"
+                        },
+                        {
+                          "text": "❌ Console Error: No user ID available\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Unexpected text node: . A text node cannot be a child of a <View>.\n"
+                        },
+                        {
+                          "text": "🌐 Network Error: 400 - https://paoliakwfoczcallnecf.supabase.co/rest/v1/courses?select=id%2Ctitulo%2Cdescripcion%2Cimagen_url%2Ccategoria%2Cprecio%2Ctotal_lecciones%2Cduracion_total\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Failed to load resource: the server responded with a status of 400 ()\n"
+                        },
+                        {
+                          "text": "🌐 Network Error: 400 - https://paoliakwfoczcallnecf.supabase.co/rest/v1/lessons?select=id%2Ctitulo%2Cdescripcion%2Cduracion%2Ctipo%2Corden\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Failed to load resource: the server responded with a status of 400 ()\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Error fetching courses: {code: 42703, message: column courses.categoria does not exist, details: null, status: 400}\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Error fetching lessons: {code: 42703, message: column lessons.duracion does not exist, details: null, status: 400}\n"
+                        },
+                        {
+                          "text": "🌐 Network Error: 400 - https://paoliakwfoczcallnecf.supabase.co/rest/v1/rpc/get_personalized_feed\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Failed to load resource: the server responded with a status of 400 ()\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Direct query also failed: {code: PGRST201, message: Could not embed because more than one relationship was found for 'posts' and 'users', details: Array(2), status: 300}\n"
+                        },
+                        {
+                          "text": "🌐 Network Error: 404 - https://paoliakwfoczcallnecf.supabase.co/rest/v1/investment_goals?select=id%2Cname%2Cdescription%2Cicon%2Ccategory%2Cpriority&order=priority.asc\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Failed to load resource: the server responded with a status of 404 ()\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Error fetching investment goals: {code: PGRST205, message: Could not find the table 'public.investment_goals' in the schema cache, details: null, status: 404}\n"
+                        },
+                        {
+                          "text": "🌐 Network Error: 404 - https://paoliakwfoczcallnecf.supabase.co/rest/v1/investment_interests?select=id%2Cname%2Cdescription%2Cicon%2Ccategory%2Crisk_level%2Cpopularity_score&order=popularity_score.desc\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Failed to load resource: the server responded with a status of 404 ()\n"
+                        },
+                        {
+                          "text": "❌ Console Error: Error fetching investment interests: {code: PGRST205, message: Could not find the table 'public.investment_interests' in the schema cache, details: null, status: 404}\n"
+                        },
+                        {
+                          "text": "📊 MÉTRICAS FINALES:\n"
+                        },
+                        {
+                          "text": "   Total Console Errors: 12\n"
+                        },
+                        {
+                          "text": "   Critical Errors: 0\n"
+                        },
+                        {
+                          "text": "   Warning Errors: 0\n"
+                        },
+                        {
+                          "text": "   Network Errors: 5\n"
+                        },
+                        {
+                          "text": "   API Errors: 5\n"
+                        },
+                        {
+                          "text": "   Image Errors: 0\n"
+                        },
+                        {
+                          "text": "   Navigation Errors: 0\n"
+                        },
+                        {
+                          "text": "💾 Reporte guardado en: ./test-report-1757774300944.json\n"
+                        },
+                        {
+                          "text": "⚠️ Se encontraron errores que requieren atención.\n"
+                        },
+                        {
+                          "text": "\n📋 TODOS LOS ERRORES DE CONSOLA:\n"
+                        },
+                        {
+                          "text": "1. No user ID available\n"
+                        },
+                        {
+                          "text": "2. Unexpected text node: . A text node cannot be a child of a <View>.\n"
+                        },
+                        {
+                          "text": "3. Failed to load resource: the server responded with a status of 400 ()\n"
+                        },
+                        {
+                          "text": "4. Failed to load resource: the server responded with a status of 400 ()\n"
+                        },
+                        {
+                          "text": "5. Error fetching courses: {code: 42703, message: column courses.categoria does not exist, details: null, status: 400}\n"
+                        },
+                        {
+                          "text": "6. Error fetching lessons: {code: 42703, message: column lessons.duracion does not exist, details: null, status: 400}\n"
+                        },
+                        {
+                          "text": "7. Failed to load resource: the server responded with a status of 400 ()\n"
+                        },
+                        {
+                          "text": "8. Direct query also failed: {code: PGRST201, message: Could not embed because more than one relationship was found for 'posts' and 'users', details: Array(2), status: 300}\n"
+                        },
+                        {
+                          "text": "9. Failed to load resource: the server responded with a status of 404 ()\n"
+                        },
+                        {
+                          "text": "10. Error fetching investment goals: {code: PGRST205, message: Could not find the table 'public.investment_goals' in the schema cache, details: null, status: 404}\n"
+                        },
+                        {
+                          "text": "11. Failed to load resource: the server responded with a status of 404 ()\n"
+                        },
+                        {
+                          "text": "12. Error fetching investment interests: {code: PGRST205, message: Could not find the table 'public.investment_interests' in the schema cache, details: null, status: 404}\n"
+                        },
+                        {
+                          "text": "✅ Reporte final generado\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-09-13T14:37:53.133Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "3e60c8d4a6f8e52e6e79-916a3063b0d0a506abcf",
+              "file": "comprehensive-error-test.spec.js",
+              "line": 346,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2025-09-13T14:36:29.724Z",
+    "duration": 111934.38100000001,
+    "expected": 8,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

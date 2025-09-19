@@ -36,11 +36,45 @@ interface PromotionDetailRouteParams {
   };
 }
 
-export function PromotionDetailScreen() {
+interface PromotionDetailScreenProps {
+  route?: {
+    params?: {
+      promotionId?: string;
+    };
+  };
+}
+
+export function PromotionDetailScreen({ route }: PromotionDetailScreenProps) {
   const { t } = useTranslation();
   const navigation = useNavigation();
-  const route = useRoute();
-  const { promotion } = route.params as PromotionDetailRouteParams;
+  
+  // Datos por defecto para testing
+  const defaultPromotion = {
+    id: '1',
+    title: 'Descuento Especial en Software Nicaragua',
+    description: 'Obtén un 25% de descuento en todos nuestros servicios de desarrollo de software. Válido hasta fin de mes. Incluye desarrollo web, móvil y consultoría tecnológica.',
+    category: 'Tecnología',
+    discount: '25% OFF',
+    imageUrl: 'https://picsum.photos/400x200/2673f3/ffffff?text=Software+Nicaragua',
+    validUntil: '31 de Diciembre 2024',
+    location: 'Nicaragua',
+    terms: 'Válido solo para nuevos clientes. No acumulable con otras promociones. Aplican términos y condiciones. El descuento se aplica sobre el precio base sin impuestos.',
+    contactInfo: {
+      name: 'Software Nicaragua',
+      phone: '+505 8888-9999',
+      email: 'info@softwarenicaragua.com',
+      website: 'https://softwarenicaragua.com'
+    },
+    requirements: [
+      'Ser nuevo cliente',
+      'Presentar documento de identidad',
+      'Válido hasta el 31 de diciembre 2024',
+      'Mínimo de compra $500'
+    ]
+  };
+  
+  const routeParams = route?.params as { promotionId?: string } | undefined;
+  const promotion = routeParams?.promotion || defaultPromotion;
 
   const handleShare = async () => {
     try {

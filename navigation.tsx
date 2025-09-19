@@ -1,14 +1,17 @@
 "use client"  
   
-import { useEffect, useState } from "react"  
+import { useEffect, useState, useContext } from "react"  
 import { NavigationContainer, type LinkingOptions } from "@react-navigation/native"  
 import { createStackNavigator } from "@react-navigation/stack"  
 import * as Linking from "expo-linking"  
 import * as SecureStore from "expo-secure-store"  
-import { ActivityIndicator, View, Text } from "react-native"  
+import { ActivityIndicator, View, Text, Image } from "react-native"  
+import { useAuth } from "./src/contexts/AuthContext"
+import { useNavigation, NavigationProp } from "@react-navigation/native"
   
 // Import screens  
 import { WelcomeScreen } from "./src/screens/WelcomeScreen"  
+import { LanguageSelectionScreen } from "./src/screens/LanguageSelectionScreen"
 import { SignInScreen } from "./src/screens/SignInScreen"  
 import { SignUpScreen } from "./src/screens/SignUpScreen"  
 import { UploadAvatarScreen } from "./src/screens/UploadAvatarScreen"  
@@ -40,9 +43,12 @@ import LearningPathsScreen from "./src/screens/LearningPathsScreen"
 import GroupChatScreen from "./src/screens/GroupChatScreen"  
 import SharePostScreen from "./src/screens/SharePostScreen"  
 import SavedPostsScreen from "./src/screens/SavedPostsScreen"
-import { InvestmentGoalsScreen } from "./src/screens/InvestmentGoalsScreen"
-import { InvestmentInterestsScreen } from "./src/screens/InvestmentInterestsScreen"
-import { InvestmentKnowledgeScreen } from "./src/screens/InvestmentKnowledgeScreen"  
+import { InvestmentKnowledgeScreen } from "./src/screens/InvestmentKnowledgeScreen"
+import { OnboardingCompleteScreen } from "./src/screens/OnboardingCompleteScreen"
+import { PlanificadorFinancieroScreen } from './src/screens/PlanificadorFinancieroScreen';
+import { CazaHormigasScreen } from './src/screens/CazaHormigasScreen';
+import { ReportesAvanzadosScreen } from './src/screens/ReportesAvanzadosScreen';
+import { VideoPlayerScreen } from './src/screens/VideoPlayerScreen';
   
 // Check if we're in development mode  
 const isDevelopment = process.env.NODE_ENV === 'development' || __DEV__  
@@ -78,6 +84,7 @@ const linking: LinkingOptions<any> = {
   config: {  
     screens: {  
       Welcome: "/welcome",  
+      LanguageSelection: "/language-selection",
       SignIn: "/signin",  
       SignUp: "/signup",  
       UploadAvatar: "/upload-avatar",  
@@ -110,35 +117,57 @@ const linking: LinkingOptions<any> = {
       GroupChat: "/group-chat/:groupId",  
       SharePost: "/share-post",  
       SavedPosts: "/saved-posts",  
-      CommunityDetail: "/community/:communityId",  
+      CommunityDetail: "/community/:communityId",
+      PlanificadorFinanciero: "/planificador-financiero",
+      CazaHormigas: "/caza-hormigas",
     },  
   },  
 }  
   
 export function RootStack() {  
   const [initialRoute, setInitialRoute] = useState<string | null>(null)  
-  const [loading, setLoading] = useState(true)  
+  const [loading, setLoading] = useState(true)
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
+  const navigation = useNavigation<NavigationProp<any>>()
   
   useEffect(() => {  
     determineInitialRoute()  
-  }, [])  
+  }, [isAuthenticated])  
   
   const determineInitialRoute = async () => {
     try {
-      // Siempre empezar con WelcomeScreen para evitar errores de SecureStore en web
-      setInitialRoute("Welcome")
+      // Si ya está autenticado, ir al HomeFeed
+      if (isAuthenticated) {
+        setInitialRoute("HomeFeed")
+      } else {
+        // Verificar si ya se seleccionó un idioma
+        const languageSelected = await SecureStore.getItemAsync('@user_language')
+        
+        if (languageSelected) {
+          // Si ya seleccionó idioma, ir a Welcome
+          setInitialRoute("Welcome")
+        } else {
+          // Si no ha seleccionado idioma, ir a LanguageSelection
+          setInitialRoute("LanguageSelection")
+        }
+      }
     } catch (error) {
       console.error("Error determining initial route:", error)
-      setInitialRoute("Welcome")
+      setInitialRoute("LanguageSelection")
     } finally {
       setLoading(false)
     }
-  }  
+  }
   
   // Mostrar estado de carga mientras se determina la ruta  
-  if (loading || !initialRoute) {  
+  if (loading || authLoading || !initialRoute) {  
     return (  
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f8fa' }}>  
+        <Image  
+          source={require('./assets/logo-investi.jpeg')}  
+          style={{ width: 120, height: 120, marginBottom: 20 }}  
+          resizeMode="contain"  
+        />  
         <ActivityIndicator size="large" color="#007AFF" />  
         <Text style={{ marginTop: 10, color: '#666' }}>Cargando aplicación...</Text>  
       </View>  
@@ -151,6 +180,11 @@ export function RootStack() {
       linking={linking}   
       fallback={  
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>  
+          <Image  
+            source={require('./assets/logo-investi.jpeg')}  
+            style={{ width: 100, height: 100, marginBottom: 16 }}  
+            resizeMode="contain"  
+          />  
           <ActivityIndicator size="large" color="#007AFF" />  
         </View>  
       }  
@@ -160,7 +194,7 @@ export function RootStack() {
         screenOptions={{  
           headerShown: false,  
           gestureEnabled: true,  
-          cardStyleInterpolator: ({ current, layouts }) => {  
+          cardStyleInterpolator: ({ current, layouts }: any) => {  
             return {  
               cardStyle: {  
                 transform: [  
@@ -178,26 +212,48 @@ export function RootStack() {
       >  
         {/* Authentication Flow */}  
         <Stack.Screen  
+          name="LanguageSelection"  
+          component={LanguageSelectionScreen}
+          options={{ 
+            gestureEnabled: false,
+            headerShown: false
+          }}  
+        />
+        <Stack.Screen  
           name="Welcome"  
-          component={WelcomeScreen}  
-          options={{ gestureEnabled: false }}  
+          component={WelcomeScreen}
+          options={{ 
+            gestureEnabled: false,
+            headerShown: false,
+            animationTypeForReplace: isAuthenticated ? 'push' : 'pop'
+          }}
         />  
         <Stack.Screen  
           name="SignIn"  
           component={SignInScreen}  
-          options={{ gestureEnabled: false }}  
+          options={{ 
+            gestureEnabled: false,
+            headerShown: false,
+            animationTypeForReplace: isAuthenticated ? 'push' : 'pop' 
+          }}  
         />  
         <Stack.Screen  
           name="SignUp"  
           component={SignUpScreen}  
-          options={{ gestureEnabled: false }}  
+          options={{ 
+            gestureEnabled: false,
+            animationTypeForReplace: isAuthenticated ? 'push' : 'pop' 
+          }}  
         />  
   
         {/* Onboarding Flow */}  
         <Stack.Screen  
           name="UploadAvatar"  
           component={UploadAvatarScreen}  
-          options={{ gestureEnabled: false }}  
+          options={{ 
+            gestureEnabled: false,
+            animationTypeForReplace: isAuthenticated ? 'push' : 'pop' 
+          }}  
         />  
         <Stack.Screen  
           name="PickGoals"  
@@ -212,16 +268,6 @@ export function RootStack() {
         <Stack.Screen  
           name="PickKnowledge"  
           component={PickKnowledgeScreen}  
-          options={{ gestureEnabled: false }}  
-        />  
-        <Stack.Screen  
-          name="InvestmentGoals"  
-          component={InvestmentGoalsScreen}  
-          options={{ gestureEnabled: false }}  
-        />  
-        <Stack.Screen  
-          name="InvestmentInterests"  
-          component={InvestmentInterestsScreen}  
           options={{ gestureEnabled: false }}  
         />  
         <Stack.Screen  
@@ -252,6 +298,15 @@ export function RootStack() {
         <Stack.Screen  
           name="PostDetail"  
           component={PostDetailScreen}  
+        />  
+        <Stack.Screen  
+          name="VideoPlayer"  
+          component={VideoPlayerScreen}
+          options={{
+            headerShown: false,
+            gestureEnabled: true,
+            presentation: 'card',
+          }}  
         />  
         <Stack.Screen  
           name="Communities"  
@@ -368,6 +423,11 @@ export function RootStack() {
           name="SavedPosts"  
           component={SavedPostsScreen}  
         />  
+
+        {/* Financial Tools */}
+        <Stack.Screen name="PlanificadorFinanciero" component={PlanificadorFinancieroScreen} />
+        <Stack.Screen name="CazaHormigas" component={CazaHormigasScreen} />
+        <Stack.Screen name="ReportesAvanzados" component={ReportesAvanzadosScreen} />
   
         {/* Development Menu */}  
         {isDevelopment && (  

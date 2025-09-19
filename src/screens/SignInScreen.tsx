@@ -10,17 +10,19 @@ import {
   SafeAreaView,
   Alert,
   Image,
+  ScrollView,
   ActivityIndicator,
 } from "react-native"
 import { useTranslation } from "react-i18next"
-import { ArrowLeft, Eye, EyeOff } from "lucide-react-native"
-import { signIn, getCurrentUser } from "../api"
-import { supabase } from "../supabase"
+import { Eye, EyeOff } from "lucide-react-native"
+// import { signInWithEmail, getCurrentUser } from "../rest/api"
+import { useNavigation } from "@react-navigation/native"
 import { useAuth } from "../contexts/AuthContext"
+import { supabase } from "../supabase"
 
 export function SignInScreen({ navigation }: any) {
   const { t } = useTranslation()
-  const { signIn: authSignIn } = useAuth()
+  const { signIn, isLoading } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -65,75 +67,37 @@ export function SignInScreen({ navigation }: any) {
     }
     setLoading(true)
     try {
-      const authData = await signIn(email, password)
-      
-      if (authData.session) {
-        // Get or create user profile data
-        const userData = await getCurrentUser()
-        
-        if (userData) {
-          // Use AuthContext to properly set authentication state
-          await authSignIn(
-            authData.session.access_token,
-            authData.session.refresh_token,
-            {
-              id: userData.id,
-              email: userData.email,
-              name: userData.full_name || userData.nombre,
-              username: userData.username,
-              photo_url: userData.avatar_url || userData.photo_url,
-              created_at: userData.fecha_registro
-            }
-          )
-          // Navigate after successful authentication
-          navigation.navigate("HomeFeed")
-        } else {
-          throw new Error("No se pudo obtener o crear el perfil del usuario")
-        }
-      } else {
-        throw new Error("No se pudo obtener la sesión de autenticación")
-      }
+      await signIn(email, password);
+      // La navegación se manejará automáticamente por el AuthProvider
+      console.log("SignIn successful - user authenticated");
     } catch (error: any) {
-      console.error("SignIn error:", error)
-      Alert.alert("Error", error.message || "Error al iniciar sesión")
+      console.error("SignIn error:", error);
+      Alert.alert(
+        "Error",
+        error.message || "Error al iniciar sesión. Verifica tus credenciales."
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <ArrowLeft size={24} color="#111" />
+          <Text style={styles.backButtonText}>{"<"}</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t("auth.signIn")}</Text>
+        <Text style={styles.headerTitle}>Iniciar sesión</Text>
         <View style={styles.headerRight} />
       </View>
 
-      <View style={styles.content}>
-        <View style={styles.logoContainer}>
-          <Image
-            source={{
-              uri: "https://www.investiiapp.com/investi-logo-new-main.png",
-            }}
-            style={styles.illustration}
-            resizeMode="contain"
-          />
-
-          <View style={styles.brandContainer}>
-            <View style={styles.iconContainer}>
-              <Text style={styles.iconText}>i</Text>
-            </View>
-            <Text style={styles.brandText}>Investí</Text>
-            <Text style={styles.brandSubtext}>community</Text>
-          </View>
-        </View>
-
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+        {/* Formulario */}
         <View style={styles.formContainer}>
           <TextInput
             style={styles.input}
-            placeholder={t("auth.email")}
+            placeholder="Correo"
             placeholderTextColor="#999"
             value={email}
             onChangeText={setEmail}
@@ -144,7 +108,7 @@ export function SignInScreen({ navigation }: any) {
           <View style={styles.passwordContainer}>
             <TextInput
               style={styles.passwordInput}
-              placeholder={t("auth.password")}
+              placeholder="Contraseña"
               placeholderTextColor="#999"
               value={password}
               onChangeText={setPassword}
@@ -155,49 +119,63 @@ export function SignInScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.signInButton} onPress={handleSignIn} disabled={loading}>
+          <TouchableOpacity style={styles.signInButton} onPress={handleSignIn} disabled={loading || isLoading}>
             {loading ? (
               <ActivityIndicator color="white" />
             ) : (
-              <Text style={styles.signInButtonText}>{t("auth.signIn")}</Text>
+              <Text style={styles.signInButtonText}>Iniciar sesión</Text>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.forgotPassword} onPress={handleForgotPassword}>
-            <Text style={styles.forgotPasswordText}>{t("auth.forgotPassword")}</Text>
+            <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
           </TouchableOpacity>
         </View>
 
+        {/* Divider */}
         <View style={styles.dividerContainer}>
-          <View style={styles.divider} />
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>o</Text>
+          <View style={styles.dividerLine} />
         </View>
 
+        {/* Botones Sociales */}
         <View style={styles.socialButtons}>
           <TouchableOpacity style={[styles.socialButton, styles.linkedinButton]} onPress={() => handleOAuth('linkedin_oidc')}>
-            <Text style={styles.socialButtonText}>
-              {t("auth.signInWith")} {t("auth.linkedin")}
-            </Text>
+            <View style={styles.socialIcon}>
+              <Text style={styles.linkedinIcon}>in</Text>
+            </View>
+            <Text style={styles.linkedinText}>Inicia sesión con LinkedIn</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.socialButton, styles.googleButton]} onPress={() => handleOAuth('google')}>
-            <Text style={[styles.socialButtonText, { color: "#333" }]}>
-              {t("auth.signInWith")} {t("auth.google")}
-            </Text>
+            <View style={styles.socialIcon}>
+              <Text style={styles.googleIcon}>G</Text>
+            </View>
+            <Text style={styles.googleText}>Inicia sesión con Google</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.socialButton, styles.appleButton]} onPress={() => handleOAuth('apple')}>
-            <Text style={styles.socialButtonText}>
-              {t("auth.signInWith")} {t("auth.apple")}
-            </Text>
+            <View style={styles.socialIcon}>
+              <Text style={styles.appleIcon}>🍎</Text>
+            </View>
+            <Text style={styles.appleText}>Inicia sesión con Apple</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.socialButton, styles.facebookButton]} onPress={() => handleOAuth('facebook')}>
-            <Text style={styles.socialButtonText}>
-              {t("auth.signInWith")} {t("auth.facebook")}
-            </Text>
+            <View style={styles.socialIcon}>
+              <Text style={styles.facebookIcon}>f</Text>
+            </View>
+            <Text style={styles.facebookText}>Inicia sesión con Facebook</Text>
           </TouchableOpacity>
         </View>
-      </View>
+
+        {/* Terms */}
+        <Text style={styles.termsText}>
+          Al registrarte en Investi, tu aceptas nuestros Términos y{"\n"}
+          Políticas de Privacidad.
+        </Text>
+      </ScrollView>
     </SafeAreaView>
   )
 }
@@ -217,6 +195,14 @@ const styles = StyleSheet.create({
   },
   backButton: {
     width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButtonText: {
+    fontSize: 24,
+    fontWeight: '400',
+    color: '#111',
   },
   headerTitle: {
     fontSize: 18,
@@ -227,14 +213,11 @@ const styles = StyleSheet.create({
     width: 40,
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: 24,
-    justifyContent: "center",
+    paddingTop: 20,
   },
-  logoContainer: {
-    alignItems: "center",
-    marginBottom: 40,
-  },
+  // logoContainer movido más abajo para evitar duplicados
   illustration: {
     width: 200,
     height: 150,
@@ -273,36 +256,37 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   input: {
-    backgroundColor: "white",
+    backgroundColor: "#f5f5f5",
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 18,
     borderRadius: 12,
     fontSize: 16,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#e5e5e5",
+    borderWidth: 0,
+    color: "#333",
   },
   passwordContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "white",
+    backgroundColor: "#f5f5f5",
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    borderWidth: 0,
     marginBottom: 24,
-    borderWidth: 1,
-    borderColor: "#e5e5e5",
+    paddingHorizontal: 16,
+    paddingVertical: 2,
   },
   passwordInput: {
     flex: 1,
     fontSize: 16,
+    paddingVertical: 16,
+    color: "#333",
   },
   eyeButton: {
     padding: 4,
   },
   signInButton: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 16,
+    backgroundColor: "#2673f3",
+    paddingVertical: 18,
     borderRadius: 12,
     alignItems: "center",
     marginBottom: 16,
@@ -316,7 +300,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   forgotPasswordText: {
-    color: "#007AFF",
+    color: "#2673f3",
     fontSize: 14,
   },
   dividerContainer: {
@@ -333,9 +317,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   socialButton: {
-    paddingVertical: 14,
+    paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
+    marginBottom: 12,
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    paddingHorizontal: 16,
+    backgroundColor: "#f5f5f5",
   },
   socialButtonText: {
     color: "white",
@@ -343,17 +332,98 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   linkedinButton: {
-    backgroundColor: "#0A66C2",
+    backgroundColor: "#f5f5f5",
   },
   googleButton: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#ddd",
+    backgroundColor: "#f5f5f5",
   },
   appleButton: {
-    backgroundColor: "#000",
+    backgroundColor: "#f5f5f5",
   },
   facebookButton: {
-    backgroundColor: "#1877F2",
+    backgroundColor: "#f5f5f5",
+  },
+  socialButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  socialIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#e5e5e5",
+  },
+  dividerText: {
+    marginHorizontal: 16,
+    fontSize: 14,
+    color: "#999",
+  },
+  googleIcon: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#4285F4",
+  },
+  googleText: {
+    color: "#333",
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  linkedinIcon: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#0A66C2",
+  },
+  linkedinText: {
+    color: "#333",
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  logoContainer: {
+    alignItems: "center",
+    marginTop: 40,
+    marginBottom: 40,
+  },
+  logo: {
+    width: 120,
+    height: 120,
+  },
+  appleIcon: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#000",
+  },
+  appleText: {
+    color: "#333",
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  facebookIcon: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#1877F2",
+  },
+  facebookText: {
+    color: "#333",
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  termsText: {
+    fontSize: 12,
+    color: "#666",
+    textAlign: "center",
+    marginTop: 20,
+    marginBottom: 20,
+    lineHeight: 18,
   },
 })

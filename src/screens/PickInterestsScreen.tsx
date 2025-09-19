@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react"  
+import React, { useState, useEffect } from "react"
+import { useTranslation } from "react-i18next"  
 import {  
   View,  
   Text,  
@@ -9,25 +10,26 @@ import {
   ActivityIndicator,  
   Alert,  
 } from "react-native"  
-import { ArrowLeft } from "lucide-react-native"  
-import { getCurrentUserId } from "../api"  
+  
+import { getCurrentUserId, getInvestmentInterests, saveUserInterests } from "../rest/api"  
 import { supabase } from "../supabase"  
   
-const INTERESTS = [  
-  { id: "local", icon: "🇨🇱", text: "Acciones Locales" },  
-  { id: "crypto", icon: "₿", text: "Criptomonedas" },  
-  { id: "foreign", icon: "🌍", text: "Acciones Extranjeras" },  
-  { id: "deposit", icon: "🏦", text: "Depósitos a plazo" },  
-  { id: "realestate", icon: "🏢", text: "Inversión Inmobiliaria" },  
-  { id: "education", icon: "🎓", text: "Educación Financiera" },  
-  { id: "funds", icon: "📊", text: "Fondos Mutuos" },  
-  { id: "startups", icon: "🚀", text: "Startups" },  
-]  
+interface InvestmentInterest {
+  id: string
+  name: string
+  description: string
+  icon: string
+  category: string
+  risk_level: string
+  popularity_score: number
+}  
   
 export const PickInterestsScreen = ({ navigation }: any) => {  
+  const { t } = useTranslation()
   const [selectedInterests, setSelectedInterests] = useState<string[]>([])  
   const [loading, setLoading] = useState(false)  
-  const [initialLoading, setInitialLoading] = useState(true)  
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [interests, setInterests] = useState<InvestmentInterest[]>([])  
   
   useEffect(() => {  
     loadUserData()  
@@ -35,23 +37,16 @@ export const PickInterestsScreen = ({ navigation }: any) => {
   
   const loadUserData = async () => {  
     try {  
-      const uid = await getCurrentUserId()  
-      if (uid) {  
-        // Intentar cargar datos existentes, pero no fallar si no existen  
-        try {  
-          const { data: user, error } = await supabase  
-            .from("users")  
-            .select("intereses")  
-            .eq("id", uid)  
-            .maybeSingle() // Usar maybeSingle en lugar de single para evitar error si no existe  
-  
-          if (user?.intereses && Array.isArray(user.intereses)) {  
-            setSelectedInterests(user.intereses)  
-          }  
-        } catch (loadError) {  
-          console.log("No existing interests found, starting fresh")  
-        }  
-      }  
+      const [uid, interestsData] = await Promise.all([
+        getCurrentUserId(),
+        getInvestmentInterests()
+      ])
+      
+      if (interestsData) {
+        setInterests(interestsData)
+      }
+      
+      // Skip loading existing interests for now - let user select fresh
     } catch (error) {  
       console.error("Error loading user data:", error)  
     } finally {  
@@ -68,44 +63,7 @@ export const PickInterestsScreen = ({ navigation }: any) => {
     })  
   }  
   
-  // Función que usa RPC para evitar completamente el cache de PostgREST  
-  const updateUserInterestsViaRPC = async (userId: string, interests: string[]) => {  
-    try {  
-      // Crear una función RPC en Supabase si no existe  
-      const { data, error } = await supabase.rpc('update_user_interests', {  
-        user_id: userId,  
-        new_interests: interests  
-      })  
   
-      if (error) {  
-        // Si la función RPC no existe, usar SQL directo  
-        throw error  
-      }  
-  
-      return data  
-    } catch (rpcError) {  
-      console.log("RPC not available, using direct SQL update")  
-        
-      // Fallback: usar SQL directo con upsert  
-      const { data, error } = await supabase  
-        .from("users")  
-        .upsert({   
-          id: userId,   
-          intereses: interests   
-        }, {   
-          onConflict: 'id',  
-          ignoreDuplicates: false   
-        })  
-        .select()  
-  
-      if (error) {  
-        console.error("Direct SQL update error:", error)  
-        throw error  
-      }  
-  
-      return data  
-    }  
-  }  
   
   const handleContinue = async () => {  
     if (selectedInterests.length < 3) {  
@@ -117,11 +75,10 @@ export const PickInterestsScreen = ({ navigation }: any) => {
     try {  
       const uid = await getCurrentUserId()  
       if (uid) {  
-        await updateUserInterestsViaRPC(uid, selectedInterests)  
+        // Save to new segmentation system
+        await saveUserInterests(uid, selectedInterests, 'beginner')
         console.log("Interests updated successfully")  
           
-        // Navegar a la siguiente pantalla disponible  
-        // Cambiar "PickKnowledgeLevel" por una pantalla que exista  
         navigation.navigate("PickGoals")  
       }  
     } catch (error: any) {  
@@ -153,20 +110,20 @@ export const PickInterestsScreen = ({ navigation }: any) => {
     <SafeAreaView style={styles.container}>  
       <View style={styles.header}>  
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>  
-          <ArrowLeft size={24} color="#111" />  
+          <Text style={styles.backButtonText}>{"<"}</Text>  
         </TouchableOpacity>  
         <View style={styles.headerRight} />  
       </View>  
   
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>  
         <View style={styles.content}>  
-          <Text style={styles.title}>  
-            ¿Cuáles son tus <Text style={styles.titleBlue}>intereses</Text>?  
-          </Text>  
+          <Text style={styles.title}>
+            ¿Cuáles son tus <Text style={styles.titleBlue}>intereses</Text>?
+          </Text>
           <Text style={styles.subtitle}>Selecciona al menos 3 temas para comenzar</Text>  
   
           <View style={styles.interestsContainer}>  
-            {INTERESTS.map((item) => (  
+            {interests.map((item) => (  
               <TouchableOpacity  
                 key={item.id}  
                 style={[  
@@ -182,7 +139,7 @@ export const PickInterestsScreen = ({ navigation }: any) => {
                     selectedInterests.includes(item.id) && styles.interestTextSelected,  
                   ]}  
                 >  
-                  {item.text}  
+                  {item.name}  
                 </Text>  
               </TouchableOpacity>  
             ))}  
@@ -219,7 +176,7 @@ export const PickInterestsScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({  
   container: {  
     flex: 1,  
-    backgroundColor: "#FFFFFF",  
+    backgroundColor: "#f7f8fa",  
   },  
   header: {  
     flexDirection: "row",  
@@ -230,7 +187,15 @@ const styles = StyleSheet.create({
     paddingBottom: 20,  
   },  
   backButton: {  
-    width: 40,  
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButtonText: {
+    fontSize: 24,
+    fontWeight: '400',
+    color: '#111',
   },  
   headerRight: {  
     width: 40,  
@@ -243,54 +208,54 @@ const styles = StyleSheet.create({
     paddingBottom: 100,  
   },  
   title: {  
-    fontFamily: "Figtree-Bold",  
-    fontSize: 22,  
+    fontSize: 20,  
+    fontWeight: '600',
     color: "#111",  
     textAlign: "center",  
     marginBottom: 8,  
     lineHeight: 28,  
   },  
   titleBlue: {  
-    color: "#007AFF",  
+    color: "#2673f3",  
   },  
   subtitle: {  
-    fontFamily: "Figtree-Regular",  
-    fontSize: 15,  
+    fontSize: 14,  
     color: "#666",  
     textAlign: "center",  
     marginBottom: 32,  
-    lineHeight: 22,  
+    lineHeight: 20,  
   },  
   interestsContainer: {  
-    gap: 12,  
+    // gap: 12, // Removido porque ya está en interestItem 
   },  
   interestItem: {  
     flexDirection: "row",  
     alignItems: "center",  
     backgroundColor: "white",  
-    paddingHorizontal: 20,  
-    paddingVertical: 14,  
+    paddingHorizontal: 16,  
+    paddingVertical: 16,  
     borderRadius: 12,  
-    borderWidth: 1.5,  
-    borderColor: "#E5E5E5",  
+    borderWidth: 1,  
+    borderColor: "#E5E5E5",
+    marginBottom: 12,
   },  
   interestItemSelected: {  
-    borderColor: "#007AFF",  
-    backgroundColor: "#F0F7FF",  
+    borderColor: "#2673f3",  
+    backgroundColor: "#f0f7ff",  
   },  
   interestIcon: {  
     fontSize: 20,  
     marginRight: 14,  
   },  
   interestText: {  
-    fontFamily: "Figtree-Regular",  
     fontSize: 15,  
     color: "#111",  
-    flex: 1,  
+    flex: 1,
+    fontWeight: '500',
   },  
   interestTextSelected: {  
-    color: "#007AFF",  
-    fontFamily: "Figtree-Medium",  
+    color: "#2673f3",  
+    fontWeight: '600',
   },  
   progressContainer: {  
     alignItems: "center",  
@@ -299,7 +264,6 @@ const styles = StyleSheet.create({
   progressText: {  
     fontSize: 14,  
     color: "#666",  
-    fontFamily: "Figtree-Regular",  
   },  
   footer: {  
     paddingHorizontal: 24,  
@@ -308,8 +272,8 @@ const styles = StyleSheet.create({
     backgroundColor: "white",  
   },  
   continueButton: {  
-    backgroundColor: "#007AFF",  
-    paddingVertical: 14,  
+    backgroundColor: "#2673f3",  
+    paddingVertical: 16,  
     borderRadius: 12,  
     alignItems: "center",  
   },  
@@ -318,8 +282,8 @@ const styles = StyleSheet.create({
   },  
   continueButtonText: {  
     color: "white",  
-    fontSize: 15,  
-    fontFamily: "Figtree-SemiBold",  
+    fontSize: 16,  
+    fontWeight: '600',
   },  
   loadingContainer: {  
     flex: 1,  

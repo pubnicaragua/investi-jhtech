@@ -1,0 +1,155 @@
+{
+  "report": {
+    "timestamp": "2025-09-13T14:38:20.942Z",
+    "totalConsoleErrors": 12,
+    "totalNetworkErrors": 5,
+    "totalNavigationErrors": 0,
+    "criticalErrors": 0,
+    "warningErrors": 0,
+    "apiErrors": 5,
+    "imageErrors": 0
+  },
+  "consoleErrors": [
+    {
+      "text": "No user ID available",
+      "location": {
+        "url": "http://localhost:19006/static/js/bundle.js",
+        "lineNumber": 149791,
+        "columnNumber": 16
+      },
+      "timestamp": "2025-09-13T14:38:08.914Z"
+    },
+    {
+      "text": "Unexpected text node: . A text node cannot be a child of a <View>.",
+      "location": {
+        "url": "http://localhost:19006/static/js/bundle.js",
+        "lineNumber": 101809,
+        "columnNumber": 16
+      },
+      "timestamp": "2025-09-13T14:38:10.766Z"
+    },
+    {
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "location": {
+        "url": "https://paoliakwfoczcallnecf.supabase.co/rest/v1/courses?select=id%2Ctitulo%2Cdescripcion%2Cimagen_url%2Ccategoria%2Cprecio%2Ctotal_lecciones%2Cduracion_total",
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2025-09-13T14:38:13.129Z"
+    },
+    {
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "location": {
+        "url": "https://paoliakwfoczcallnecf.supabase.co/rest/v1/lessons?select=id%2Ctitulo%2Cdescripcion%2Cduracion%2Ctipo%2Corden",
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2025-09-13T14:38:13.130Z"
+    },
+    {
+      "text": "Error fetching courses: {code: 42703, message: column courses.categoria does not exist, details: null, status: 400}",
+      "location": {
+        "url": "http://localhost:19006/static/js/bundle.js",
+        "lineNumber": 129878,
+        "columnNumber": 12
+      },
+      "timestamp": "2025-09-13T14:38:13.131Z"
+    },
+    {
+      "text": "Error fetching lessons: {code: 42703, message: column lessons.duracion does not exist, details: null, status: 400}",
+      "location": {
+        "url": "http://localhost:19006/static/js/bundle.js",
+        "lineNumber": 129894,
+        "columnNumber": 12
+      },
+      "timestamp": "2025-09-13T14:38:13.132Z"
+    },
+    {
+      "text": "Failed to load resource: the server responded with a status of 400 ()",
+      "location": {
+        "url": "https://paoliakwfoczcallnecf.supabase.co/rest/v1/rpc/get_personalized_feed",
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2025-09-13T14:38:15.327Z"
+    },
+    {
+      "text": "Direct query also failed: {code: PGRST201, message: Could not embed because more than one relationship was found for 'posts' and 'users', details: Array(2), status: 300}",
+      "location": {
+        "url": "http://localhost:19006/static/js/bundle.js",
+        "lineNumber": 129604,
+        "columnNumber": 14
+      },
+      "timestamp": "2025-09-13T14:38:15.483Z"
+    },
+    {
+      "text": "Failed to load resource: the server responded with a status of 404 ()",
+      "location": {
+        "url": "https://paoliakwfoczcallnecf.supabase.co/rest/v1/investment_goals?select=id%2Cname%2Cdescription%2Cicon%2Ccategory%2Cpriority&order=priority.asc",
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2025-09-13T14:38:17.440Z"
+    },
+    {
+      "text": "Error fetching investment goals: {code: PGRST205, message: Could not find the table 'public.investment_goals' in the schema cache, details: null, status: 404}",
+      "location": {
+        "url": "http://localhost:19006/static/js/bundle.js",
+        "lineNumber": 130254,
+        "columnNumber": 12
+      },
+      "timestamp": "2025-09-13T14:38:17.441Z"
+    },
+    {
+      "text": "Failed to load resource: the server responded with a status of 404 ()",
+      "location": {
+        "url": "https://paoliakwfoczcallnecf.supabase.co/rest/v1/investment_interests?select=id%2Cname%2Cdescription%2Cicon%2Ccategory%2Crisk_level%2Cpopularity_score&order=popularity_score.desc",
+        "lineNumber": 0,
+        "columnNumber": 0
+      },
+      "timestamp": "2025-09-13T14:38:19.427Z"
+    },
+    {
+      "text": "Error fetching investment interests: {code: PGRST205, message: Could not find the table 'public.investment_interests' in the schema cache, details: null, status: 404}",
+      "location": {
+        "url": "http://localhost:19006/static/js/bundle.js",
+        "lineNumber": 130282,
+        "columnNumber": 12
+      },
+      "timestamp": "2025-09-13T14:38:19.429Z"
+    }
+  ],
+  "networkErrors": [
+    {
+      "url": "https://paoliakwfoczcallnecf.supabase.co/rest/v1/courses?select=id%2Ctitulo%2Cdescripcion%2Cimagen_url%2Ccategoria%2Cprecio%2Ctotal_lecciones%2Cduracion_total",
+      "status": 400,
+      "statusText": "",
+      "timestamp": "2025-09-13T14:38:13.129Z"
+    },
+    {
+      "url": "https://paoliakwfoczcallnecf.supabase.co/rest/v1/lessons?select=id%2Ctitulo%2Cdescripcion%2Cduracion%2Ctipo%2Corden",
+      "status": 400,
+      "statusText": "",
+      "timestamp": "2025-09-13T14:38:13.130Z"
+    },
+    {
+      "url": "https://paoliakwfoczcallnecf.supabase.co/rest/v1/rpc/get_personalized_feed",
+      "status": 400,
+      "statusText": "",
+      "timestamp": "2025-09-13T14:38:15.326Z"
+    },
+    {
+      "url": "https://paoliakwfoczcallnecf.supabase.co/rest/v1/investment_goals?select=id%2Cname%2Cdescription%2Cicon%2Ccategory%2Cpriority&order=priority.asc",
+      "status": 404,
+      "statusText": "",
+      "timestamp": "2025-09-13T14:38:17.440Z"
+    },
+    {
+      "url": "https://paoliakwfoczcallnecf.supabase.co/rest/v1/investment_interests?select=id%2Cname%2Cdescription%2Cicon%2Ccategory%2Crisk_level%2Cpopularity_score&order=popularity_score.desc",
+      "status": 404,
+      "statusText": "",
+      "timestamp": "2025-09-13T14:38:19.426Z"
+    }
+  ],
+  "navigationErrors": []
+}

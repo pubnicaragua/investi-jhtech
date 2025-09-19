@@ -13,6 +13,8 @@ import {
   FlatList,  
 } from "react-native"  
 import { useTranslation } from "react-i18next"  
+import { useNavigation } from "@react-navigation/native"
+import { StackNavigationProp } from "@react-navigation/stack"
 import {   
   Users,   
   ArrowRight,   
@@ -23,15 +25,17 @@ import {
   Share2,   
   Bookmark,  
   Settings,  
-  TrendingUp,  
+  TrendingUp,   
   Gift,  
   Building,  
   UserCheck,  
   Newspaper,  
   Bell,  
-  Mail  
+  Mail,
+  Globe  
 } from "lucide-react-native"  
-import { useSafeAreaInsets } from "react-native-safe-area-context"  
+import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { useLanguage } from "../contexts/LanguageContext"  
   
 const screens = [  
   {  
@@ -230,18 +234,40 @@ const screens = [
     id: '25',  
     number: '25',  
     title: 'Publicaciones Guardadas',  
-    description: 'Contenido que has guardado',  
-    icon: <Bookmark size={24} color="#007AFF" />,  
-    screen: 'SavedPosts'  
+    description: 'Contenido que has guardado', 
+    icon: <Bookmark size={24} color="#007AFF" />,
+    screen: 'SavedPosts'
   }  
-]  
-  
-export function WelcomeScreen({ navigation }: any) {  
+];
+
+interface WelcomeScreenProps {
+  navigation?: any;
+}
+
+export const WelcomeScreen = ({ navigation }: WelcomeScreenProps) => {  
   const { t } = useTranslation()  
+  const { isLanguageSelected } = useLanguage()
   const [loading, setLoading] = useState(false)  
   const [loadingScreen, setLoadingScreen] = useState('')  
-  const insets = useSafeAreaInsets()  
+  const insets = useSafeAreaInsets()
   
+  // Usar el hook de navegación si no se proporciona por props
+  const nav = navigation || useNavigation<StackNavigationProp<any>>()
+  
+  const handleSignIn = () => {
+    nav.navigate('SignIn')
+  }
+  
+  const handleSignUp = () => {
+    nav.navigate('SignUp')
+  }
+
+  // Redirect to language selection if no language has been chosen
+  useEffect(() => {
+    // Language selection is now handled by the navigation flow
+    // No se necesita navegación aquí ya que se maneja en el flujo principal
+  }, [])
+
   const renderScreenItem = ({ item }: { item: typeof screens[0] }) => (  
     <TouchableOpacity  
       style={styles.screenItem}  
@@ -250,7 +276,12 @@ export function WelcomeScreen({ navigation }: any) {
         setLoadingScreen(item.title)  
         setTimeout(() => {  
           try {  
-            navigation.navigate(item.screen)  
+            // Navegación a través de los handlers
+            if (item.screen === 'SignIn') {
+              handleSignIn();
+            } else if (item.screen === 'SignUp') {
+              handleSignUp();
+            }  
           } catch (error) {  
             console.error(`Error navegando a ${item.screen}:`, error)  
           } finally {  
@@ -281,60 +312,54 @@ export function WelcomeScreen({ navigation }: any) {
         contentContainerStyle={styles.content}  
         showsVerticalScrollIndicator={false}  
       >  
-        <View style={styles.logoContainer}>  
+        <View style={styles.heroContainer}>  
           <Image  
-            source={{  
-              uri: "https://www.investiiapp.com/investi-logo-new-main.png",  
-            }}  
+            source={require("../../assets/Frame1.png")}  
             style={styles.heroImage}  
             resizeMode="contain"  
           />  
         </View>  
-  
-        <View style={styles.titleContainer}>  
-          <View style={styles.iconContainer}>  
-            <Text style={styles.iconText}>i</Text>  
-          </View>  
-          <Text style={styles.title}>Investí</Text>  
-          <Text style={styles.subtitle}>Demo</Text>  
-        </View>  
-  
-        <Text style={styles.description}>  
-          Demostración completa de todas las pantallas desarrolladas  
-        </Text>  
-  
-        <View style={styles.statsContainer}>  
-          <Text style={styles.statsText}>{screens.length} pantallas disponibles</Text>  
-        </View>  
-  
-        <View style={styles.screensList}>  
-          <FlatList  
-            data={screens}  
-            renderItem={renderScreenItem}  
-            keyExtractor={item => item.id}  
-            scrollEnabled={false}  
-            showsVerticalScrollIndicator={false}  
+
+        <View style={styles.logoContainer}>  
+          <Image  
+            source={require("../../assets/logo-investi.jpeg")}  
+            style={styles.logo}  
+            resizeMode="contain"  
           />  
         </View>  
-  
-        <View style={styles.buttonsContainer}>  
-          <TouchableOpacity   
-            style={styles.primaryButton}   
-            onPress={() => navigation.navigate("SignUp")}  
-          >  
-            <Text style={styles.primaryButtonText}>  
-              Comenzar Registro  
-            </Text>  
-          </TouchableOpacity>  
-            
-          <TouchableOpacity   
-            style={styles.secondaryButton}   
-            onPress={() => navigation.navigate("SignIn")}  
-          >  
-            <Text style={styles.secondaryButtonText}>  
-              Ya tengo cuenta  
-            </Text>  
-          </TouchableOpacity>  
+
+        <Text style={styles.description}>  
+          {t('welcome.description', '¡Únete a la primera red social de educación financiera y de inversionistas en el mundo!')}
+        </Text>
+
+        <View style={styles.statsContainer}>  
+          <Text style={styles.statsText}>“👥Conecta, 🎓Aprende, 📈Crece”.</Text>  
+        </View>  
+        
+        <View style={styles.buttonsContainer}>
+          <TouchableOpacity 
+            style={styles.primaryButton} 
+            onPress={handleSignUp}
+            disabled={loading}
+          >
+            {loading && loadingScreen === 'signup' ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Empezar</Text>
+            )}
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.secondaryButton} 
+            onPress={handleSignIn}
+            disabled={loading}
+          >
+            {loading && loadingScreen === 'signin' ? (
+              <ActivityIndicator color="#2673f3" />
+            ) : (
+              <Text style={styles.secondaryButtonText}>Ya tengo una cuenta</Text>
+            )}
+          </TouchableOpacity>
         </View>  
   
         {loading && (  
@@ -363,19 +388,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,  
     paddingVertical: 20,  
   },  
-  logoContainer: {  
+  heroContainer: {  
     alignItems: "center",  
-    marginBottom: 20,  
+    marginBottom: 32,  
   },  
   heroImage: {  
-    width: 200,  
-    height: 150,  
+    width: 300,  
+    height: 200,  
   },  
-  titleContainer: {  
-    flexDirection: "row",  
+  logoContainer: {  
     alignItems: "center",  
-    justifyContent: "center",  
-    marginBottom: 16,  
+    marginBottom: 24,  
+  },  
+  logo: {  
+    width: 200,  
+    height: 60,  
+  },  
+  buttonsContainer: {
+    width: '100%',
+    paddingHorizontal: 30,
+    marginTop: 40,
+    gap: 16,
   },  
   iconContainer: {  
     width: 36,  
@@ -406,16 +439,18 @@ const styles = StyleSheet.create({
     fontSize: 16,  
     color: "#666",  
     textAlign: "center",  
-    marginBottom: 16,  
+    marginHorizontal: 30,  
+    marginBottom: 30,  
+    lineHeight: 24,  
   },  
   statsContainer: {  
     alignItems: "center",  
-    marginBottom: 24,  
+    marginBottom: 10,  
   },  
   statsText: {  
-    color: "#007AFF",  
-    fontWeight: "600",  
     fontSize: 14,  
+    color: "#2673f3",  
+    fontWeight: "500",  
   },  
   screensList: {  
     marginBottom: 24,  
@@ -469,15 +504,12 @@ const styles = StyleSheet.create({
     fontSize: 13,  
     color: '#666',  
   },  
-  buttonsContainer: {  
-    gap: 16,  
-    marginTop: 8,  
-  },  
   primaryButton: {  
-    backgroundColor: "#007AFF",  
-    paddingVertical: 16,  
+    backgroundColor: "#2673f3",  
+    paddingVertical: 18,  
     borderRadius: 12,  
     alignItems: "center",  
+    width: '100%',
   },  
   primaryButtonText: {  
     color: "white",  
@@ -487,13 +519,14 @@ const styles = StyleSheet.create({
   secondaryButton: {  
     backgroundColor: "transparent",  
     borderWidth: 1,  
-    borderColor: "#007AFF",  
-    paddingVertical: 16,  
+    borderColor: "#2673f3",  
+    paddingVertical: 18,  
     borderRadius: 12,  
     alignItems: "center",  
+    width: '100%',
   },  
   secondaryButtonText: {  
-    color: "#007AFF",  
+    color: "#2673f3",  
     fontSize: 16,  
     fontWeight: "600",  
   },  

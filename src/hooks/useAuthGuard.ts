@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { useNavigation } from "@react-navigation/native"
-import * as SecureStore from "expo-secure-store"
+import { storage } from "../utils/storage"
 
 export function useAuthGuard() {
   const navigation = useNavigation()
@@ -10,15 +10,15 @@ export function useAuthGuard() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const token = await SecureStore.getItemAsync("access_token")
+        const token = await storage.getItem("access_token")
         if (!token) {
-          navigation.reset({
+          (navigation as any).reset({
             index: 0,
             routes: [{ name: "Welcome" }],
           })
         }
       } catch (error) {
-        navigation.reset({
+        (navigation as any).reset({
           index: 0,
           routes: [{ name: "Welcome" }],
         })

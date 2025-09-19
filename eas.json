@@ -1,28 +1,51 @@
-{  
-  "cli": {  
-    "version": ">= 16.14.1",  
-    "appVersionSource": "remote"  
-  },  
-  "build": {  
-    "development": {  
-      "developmentClient": true,  
-      "distribution": "internal"  
-    },  
-    "preview": {  
-      "distribution": "internal",  
-      "android": {  
-        "buildType": "apk",  
-        "credentialsSource": "remote"  
-      }  
-    },  
-    "production": {  
-      "autoIncrement": true,  
-      "android": {  
-        "credentialsSource": "remote"  
-      }  
-    }  
-  },  
-  "submit": {  
-    "production": {}  
-  }  
+{
+  "cli": {
+    "version": ">= 5.2.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "gradleCommand": ":app:assembleDebug",
+        "buildType": "apk"
+      },
+      "env": {
+        "NODE_ENV": "development"
+      }
+    },
+    "preview": {
+      "developmentClient": false,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "NODE_ENV": "production"
+      }
+    },
+    "production": {
+      "developmentClient": false,
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "NODE_ENV": "production"
+      }
+    },
+    "standalone": {
+      "developmentClient": false,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
+      },
+      "env": {
+        "NODE_ENV": "production"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
 }

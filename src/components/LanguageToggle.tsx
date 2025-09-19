@@ -1,17 +1,17 @@
 import { TouchableOpacity, Text, StyleSheet } from "react-native"
-import { useTranslation } from "react-i18next"
+import { useLanguage } from "../contexts/LanguageContext"
 
 export function LanguageToggle() {
-  const { i18n } = useTranslation()
+  const { language, setLanguage } = useLanguage()
 
-  const toggleLanguage = () => {
-    const newLang = i18n.language === "es" ? "en" : "es"
-    i18n.changeLanguage(newLang)
+  const toggleLanguage = async () => {
+    const newLang = language === "es" ? "en" : "es"
+    await setLanguage(newLang)
   }
 
   return (
     <TouchableOpacity style={styles.container} onPress={toggleLanguage}>
-      <Text style={styles.text}>{i18n.language.toUpperCase()}</Text>
+      <Text style={styles.text}>{language.toUpperCase()}</Text>
     </TouchableOpacity>
   )
 }

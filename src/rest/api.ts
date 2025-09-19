@@ -5,7 +5,8 @@ import {
   authSignOut as clientSignOut,  
   urls,  
 } from "./client"  
-import * as SecureStore from "expo-secure-store"  
+import * as SecureStore from "expo-secure-store"
+import { supabase } from "../supabase"  
   
 // Agregar la constante ANON_KEY que faltaba  
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhb2xpYWt3Zm9jemNhbGxuZWNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2MzA5ODYsImV4cCI6MjA3MDIwNjk4Nn0.zCJoTHcWKZB9vpy5Vn231PNsNSLzmnPvFBKTkNlgG4o"  
@@ -315,11 +316,15 @@ export async function sendMessage(chatId: string, userId: string, content: strin
 // ===== FEED / POSTS =====  
 export async function getUserFeed(uid: string, limit = 20) {  
   try {  
-    // Intentar usar get_personalized_feed primero  
-    const rpcResponse = await request("POST", "/rpc/get_personalized_feed", {  
-      body: { p_user_id: uid, p_limit: limit },  
-    })  
-    return rpcResponse || []  
+    // Usar query directa en lugar de RPC que tiene problemas de relaciones
+    const response = await request("GET", "/posts", {
+      params: {
+        select: "id,contenido,created_at,likes_count,comment_count,user_id,users(id,nombre,avatar_url,role)",
+        order: "created_at.desc",
+        limit: limit.toString()
+      }
+    })
+    return response || []  
   } catch (rpcError: any) {  
     console.log("RPC failed, trying direct query:", rpcError)  
     // Fallback: consulta directa con nombres de columna correctos  
@@ -627,7 +632,7 @@ export async function getCourses() {
   try {  
     return await request("GET", "/courses", {  
       params: {  
-        select: "id,titulo,descripcion,imagen_url,categoria,precio,total_lecciones,duracion_total"  
+        select: "id,titulo,descripcion,imagen_url,category,precio,total_lecciones,duracion_total"  
       }  
     })  
   } catch (error: any) {  
@@ -639,7 +644,7 @@ export async function getCourses() {
 export async function getLessons(courseId?: string) {  
   try {  
     let params: any = {  
-      select: "id,titulo,descripcion,duracion,tipo,orden"  
+      select: "id,titulo,descripcion,duration,tipo,orden"  
     }  
       
     if (courseId) {  
@@ -925,7 +930,10 @@ export async function getUserComplete(userId: string) {
       request("GET", "/user_communities", {  
         params: {  
           user_id: `eq.${userId}`,  
-          select: "community:communities(id,nombre,icono_url)"  
+          status: `eq.active`,
+          select: "role,status,joined_at,community:communities(id,nombre,name,descripcion,avatar_url,icono_url,image_url,member_count,type,category,is_verified)",
+          order: "joined_at.desc",
+          limit: "20"
         }  
       })  
     ])  
@@ -1041,6 +1049,584 @@ export async function getRecommendedCommunities(userId: string) {
     console.error('Error fetching recommended communities:', error)  
     return []  
   }  
+}
+
+// ===== ONBOARDING OPTIONS ENDPOINTS =====
+
+// Investment Goals - trae TODOS los datos de la tabla goals
+export async function getInvestmentGoals() {
+  try {
+    const { data, error } = await supabase
+      .from('goals')
+      .select('*')
+      .order('created_at', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching goals from Supabase:', error)
+      // Fallback a datos mock si falla la consulta
+      return [
+        { id: '1', name: 'Comprar una casa o departamento', description: 'Adquirir vivienda propia', icon: '🏠', category: 'real_estate', priority: 1 },
+        { id: '2', name: 'Pagar estudios', description: 'Financiar educación', icon: '🎓', category: 'education', priority: 2 },
+        { id: '3', name: 'Lograr libertad financiera', description: 'Independencia económica', icon: '💰', category: 'financial_freedom', priority: 3 },
+        { id: '4', name: 'Viajar por el mundo', description: 'Conocer nuevos lugares', icon: '✈️', category: 'travel', priority: 4 },
+        { id: '5', name: 'Comprar un auto', description: 'Adquirir vehículo propio', icon: '🚗', category: 'vehicle', priority: 5 },
+        { id: '6', name: 'Hacer crecer mi dinero a largo plazo', description: 'Inversiones a futuro', icon: '📈', category: 'investment', priority: 6 },
+        { id: '7', name: 'Prepararme para mi salud', description: 'Fondo para emergencias médicas', icon: '🏥', category: 'health', priority: 7 },
+        { id: '8', name: 'Proyectos personales', description: 'Emprendimientos propios', icon: '🚀', category: 'business', priority: 8 },
+        { id: '9', name: 'Aprender financieramente', description: 'Educación financiera', icon: '📚', category: 'learning', priority: 9 },
+        { id: '10', name: 'Bienestar de mi mascota', description: 'Cuidado de animales', icon: '🐕', category: 'pets', priority: 10 }
+      ]
+    }
+
+    // Mapear datos de Supabase al formato esperado
+    return data?.map((goal: any, index: number) => ({
+      id: goal.id,
+      name: goal.name,
+      description: goal.description || '',
+      icon: goal.icon || '🎯', // Icono por defecto si no tiene
+      category: goal.category || 'general',
+      priority: index + 1
+    })) || []
+
+  } catch (error: any) {
+    console.error('Error fetching investment goals:', error)
+    return []
+  }
+}
+
+export async function saveUserGoals(userId: string, goals: string[], priorityOrder?: number[]) {
+  try {
+    return await request("POST", "/user_goals", {
+      body: {
+        user_id: userId,
+        goals: goals,
+        priority_order: priorityOrder || []
+      }
+    })
+  } catch (error: any) {
+    console.error('Error saving user goals:', error)
+    throw error
+  }
+}
+
+// Investment Interests - trae TODOS los datos de la tabla interests
+export async function getInvestmentInterests() {
+  try {
+    const { data, error } = await supabase
+      .from('interests')
+      .select('*')
+      .order('created_at', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching interests from Supabase:', error)
+      // Fallback a datos mock si falla la consulta
+      return [
+        { id: '1', name: 'Acciones Locales', description: 'Empresas nicaragüenses', icon: '🇳🇮', category: 'stocks', risk_level: 'medium', popularity_score: 95 },
+        { id: '2', name: 'Criptomonedas', description: 'Bitcoin, Ethereum, etc.', icon: '₿', category: 'crypto', risk_level: 'high', popularity_score: 85 },
+        { id: '3', name: 'Acciones Extranjeras', description: 'Mercados internacionales', icon: '🌍', category: 'international_stocks', risk_level: 'medium', popularity_score: 90 },
+        { id: '4', name: 'Depósitos a plazo', description: 'Inversiones seguras', icon: '🏦', category: 'deposits', risk_level: 'low', popularity_score: 80 },
+        { id: '5', name: 'Inversión Inmobiliaria', description: 'Bienes raíces', icon: '🏠', category: 'real_estate', risk_level: 'medium', popularity_score: 85 },
+        { id: '6', name: 'Educación Financiera', description: 'Aprender sobre finanzas', icon: '📚', category: 'education', risk_level: 'low', popularity_score: 75 },
+        { id: '7', name: 'Fondos Mutuos', description: 'Portafolios diversificados', icon: '📊', category: 'mutual_funds', risk_level: 'medium', popularity_score: 70 },
+        { id: '8', name: 'Startups', description: 'Empresas emergentes', icon: '🚀', category: 'startups', risk_level: 'high', popularity_score: 65 }
+      ]
+    }
+
+    // Mapear datos de Supabase al formato esperado
+    return data?.map((interest: any) => ({
+      id: interest.id,
+      name: interest.name,
+      description: interest.description || '',
+      icon: interest.icon || '💼', // Icono por defecto si no tiene
+      category: interest.category || 'general',
+      risk_level: 'medium', // Valor por defecto
+      popularity_score: 50 // Valor por defecto
+    })) || []
+
+  } catch (error: any) {
+    console.error('Error fetching investment interests:', error)
+    return []
+  }
+}
+
+export async function saveUserInterests(userId: string, interests: string[], experienceLevel?: string) {
+  try {
+    return await request("POST", "/user_interests", {
+      body: {
+        user_id: userId,
+        interests: interests,
+        experience_level: experienceLevel || 'beginner'
+      }
+    })
+  } catch (error: any) {
+    console.error('Error saving user interests:', error)
+    throw error
+  }
+}
+
+// Knowledge Levels - usando datos mock ya que la columna level no existe
+export async function getKnowledgeLevels() {
+  try {
+    // Retornar datos mock mientras se corrige la base de datos
+    return [
+      { id: '1', name: 'Principiante', description: 'Sin experiencia previa en inversiones', level_order: 1, requirements: 'Ninguno', next_steps: 'Aprender conceptos básicos' },
+      { id: '2', name: 'Intermedio', description: 'Conocimientos básicos de inversión', level_order: 2, requirements: 'Conceptos básicos', next_steps: 'Diversificar portafolio' },
+      { id: '3', name: 'Avanzado', description: 'Experiencia significativa en inversiones', level_order: 3, requirements: 'Portafolio diversificado', next_steps: 'Estrategias complejas' }
+    ]
+  } catch (error: any) {
+    console.error('Error fetching knowledge levels:', error)
+    return []
+  }
+}
+
+export async function saveUserKnowledgeLevel(userId: string, level: string, specificAreas?: string[], learningGoals?: string[]) {
+  try {
+    return await request("POST", "/user_knowledge", {
+      body: {
+        user_id: userId,
+        level: level,
+        specific_areas: specificAreas || [],
+        learning_goals: learningGoals || []
+      }
+    })
+  } catch (error: any) {
+    console.error('Error saving user knowledge level:', error)
+    throw error
+  }
+}
+
+// ===== ENHANCED COMMUNITY ENDPOINTS =====
+
+// Get complete community details
+export async function getCommunityDetailsComplete(communityId: string) {
+  try {
+    const response = await request("GET", "/communities", {
+      params: {
+        id: `eq.${communityId}`,
+        select: "id,nombre,descripcion,icono_url,cover_image_url,tipo,created_at,members:user_communities(count),posts:posts(count)"
+      }
+    })
+    
+    if (!response?.[0]) return null
+    
+    const community = response[0]
+    return {
+      id: community.id,
+      name: community.nombre,
+      description: community.descripcion,
+      image_url: community.icono_url,
+      cover_image_url: community.cover_image_url,
+      is_public: community.tipo === 'public',
+      member_count: community.members?.[0]?.count || 0,
+      post_count: community.posts?.[0]?.count || 0,
+      created_at: community.created_at,
+      admin_users: community.admin_users?.map((admin: any) => ({
+        id: admin.user?.id,
+        name: admin.user?.nombre,
+        avatar_url: admin.user?.avatar_url,
+        role: admin.user?.role
+      })) || [],
+      engagement_stats: {
+        daily_active_members: Math.floor(Math.random() * 50) + 10,
+        weekly_posts: Math.floor(Math.random() * 100) + 20,
+        average_response_time: '2h'
+      }
+    }
+  } catch (error: any) {
+    console.error('Error fetching complete community details:', error)
+    return null
+  }
+}
+
+// Get suggested people for user
+export async function getSuggestedPeople(userId: string, limit = 10) {
+  try {
+    const response = await request("POST", "/rpc/get_suggested_people", {
+      body: {
+        p_user_id: userId,
+        p_limit: limit
+      }
+    })
+    return response || []
+  } catch (rpcError: any) {
+    console.log("RPC failed, using fallback for suggested people:", rpcError)
+    // Fallback: get users with similar interests
+    try {
+      const fallbackResponse = await request("GET", "/users", {
+        params: {
+          select: "id,nombre,avatar_url,bio,role,intereses",
+          limit: String(limit),
+          order: "created_at.desc"
+        }
+      })
+      
+      return (fallbackResponse || []).map((user: any) => ({
+        id: user.id,
+        name: user.nombre,
+        avatar_url: user.avatar_url,
+        profession: user.bio || 'Inversor',
+        expertise_areas: user.intereses || [],
+        mutual_connections: Math.floor(Math.random() * 5),
+        compatibility_score: Math.floor(Math.random() * 40) + 60,
+        reason: 'similar_interests'
+      }))
+    } catch (fallbackError: any) {
+      console.error('Fallback also failed:', fallbackError)
+      return []
+    }
+  }
+}
+
+// Follow a user
+export async function followUserNew(userId: string, targetUserId: string, source = 'suggestions') {
+  try {
+    return await request("POST", "/user_follows", {
+      body: {
+        follower_id: userId,
+        following_id: targetUserId,
+        source: source
+      }
+    })
+  } catch (error: any) {
+    if (error.code === "23505") return null // Already following
+    throw error
+  }
+}
+
+// ===== ENHANCED HOME FEED ENDPOINTS =====
+
+// Get personalized feed with recommendations
+export async function getPersonalizedFeedComplete(userId: string, limit = 20) {
+  try {
+    const [feedResponse, recommendationsResponse] = await Promise.all([
+      getUserFeed(userId, limit),
+      getRecommendations(userId)
+    ])
+    
+    return {
+      posts: feedResponse || [],
+      recommendations: recommendationsResponse,
+      user_segments: await getUserSegments(userId)
+    }
+  } catch (error: any) {
+    console.error('Error fetching personalized feed:', error)
+    return {
+      posts: [],
+      recommendations: { communities: [], people: [], content: [] },
+      user_segments: []
+    }
+  }
+}
+
+// Get user recommendations
+export async function getRecommendations(userId: string) {
+  try {
+    const [communities, people, content] = await Promise.all([
+      getRecommendedCommunities(userId),
+      getSuggestedPeople(userId, 5),
+      getRecommendedContent(userId)
+    ])
+    
+    return {
+      communities: communities || [],
+      people: people || [],
+      content: content || []
+    }
+  } catch (error: any) {
+    console.error('Error fetching recommendations:', error)
+    return { communities: [], people: [], content: [] }
+  }
+}
+
+// Get recommended content
+export async function getRecommendedContent(userId: string) {
+  try {
+    const response = await request("GET", "/educational_content", {
+      params: {
+        select: "id,title,description,content_type,image_url,level",
+        limit: "5",
+        order: "created_at.desc"
+      }
+    })
+    return response || []
+  } catch (error: any) {
+    console.error('Error fetching recommended content:', error)
+    return []
+  }
+}
+
+// ===== USER NOTIFICATIONS =====
+
+export async function getUserNotifications(userId: string, limit = 20) {
+  try {
+    const response = await request("GET", "/notifications", {
+      params: {
+        user_id: `eq.${userId}`,
+        select: "id,type,title,message,is_read,action_url,created_at,actor:users!actor_id(id,nombre,avatar_url),target_object",
+        order: "created_at.desc",
+        limit: String(limit)
+      }
+    })
+    return response || []
+  } catch (error: any) {
+    console.error('Error fetching notifications:', error)
+    return []
+  }
+}
+
+export async function markNotificationRead(notificationId: string) {
+  try {
+    return await request("PATCH", "/notifications", {
+      params: { id: `eq.${notificationId}` },
+      body: { is_read: true }
+    })
+  } catch (error: any) {
+    console.error('Error marking notification as read:', error)
+    throw error
+  }
+}
+
+// ===== USER MESSAGES =====
+
+export async function getUserConversations(userId: string) {
+  try {
+    const response = await request("GET", "/conversations", {
+      params: {
+        or: `participant_one.eq.${userId},participant_two.eq.${userId}`,
+        select: "id,type,last_message,updated_at,unread_count,participant_one:users!participant_one(id,nombre,avatar_url,is_online),participant_two:users!participant_two(id,nombre,avatar_url,is_online)",
+        order: "updated_at.desc"
+      }
+    })
+    
+    return (response || []).map((conv: any) => ({
+      ...conv,
+      participants: [
+        conv.participant_one,
+        conv.participant_two
+      ].filter(p => p.id !== userId)
+    }))
+  } catch (error: any) {
+    console.error('Error fetching conversations:', error)
+    return []
+  }
+}
+
+export async function getConversationMessages(conversationId: string, limit = 50) {
+  try {
+    const response = await request("GET", "/messages", {
+      params: {
+        conversation_id: `eq.${conversationId}`,
+        select: "id,content,sender_id,message_type,media_url,is_read,created_at,sender:users!sender_id(id,nombre,avatar_url)",
+        order: "created_at.asc",
+        limit: String(limit)
+      }
+    })
+    return response || []
+  } catch (error: any) {
+    console.error('Error fetching messages:', error)
+    return []
+  }
+}
+
+// ===== ADVANCED SEARCH =====
+
+export async function advancedSearch(query: string, type = 'all', filters = {}, limit = 20) {
+  try {
+    const response = await request("POST", "/rpc/advanced_search", {
+      body: {
+        search_query: query,
+        search_type: type,
+        search_filters: filters,
+        result_limit: limit
+      }
+    })
+    return response || { users: [], posts: [], communities: [], total_results: 0 }
+  } catch (error: any) {
+    console.error('Error in advanced search:', error)
+    return { users: [], posts: [], communities: [], total_results: 0 }
+  }
+}
+
+// ===== QUICK ACTIONS =====
+
+export async function performQuickAction(postId: string, action: string, userId: string, metadata: any = {}) {
+  try {
+    switch (action) {
+      case 'like':
+        return await likePost(postId, userId)
+      case 'save':
+        return await savePost(postId, userId)
+      case 'share':
+        return await sharePost(postId, userId, metadata)
+      case 'report':
+        return await reportPost(postId, userId, metadata.report_reason || 'inappropriate')
+      default:
+        throw new Error(`Unknown action: ${action}`)
+    }
+  } catch (error: any) {
+    console.error(`Error performing ${action}:`, error)
+    throw error
+  }
+}
+
+export async function savePost(postId: string, userId: string) {
+  try {
+    return await request("POST", "/saved_posts", {
+      body: { post_id: postId, user_id: userId }
+    })
+  } catch (error: any) {
+    if (error.code === "23505") return null // Already saved
+    throw error
+  }
+}
+
+export async function sharePost(postId: string, userId: string, metadata: any) {
+  try {
+    return await request("POST", "/post_shares", {
+      body: {
+        post_id: postId,
+        user_id: userId,
+        platform: metadata.share_platform || 'app',
+        shared_at: new Date().toISOString()
+      }
+    })
+  } catch (error: any) {
+    console.error('Error sharing post:', error)
+    throw error
+  }
+}
+
+export async function reportPost(postId: string, userId: string, reason: string) {
+  try {
+    return await request("POST", "/post_reports", {
+      body: {
+        post_id: postId,
+        reporter_id: userId,
+        reason: reason,
+        reported_at: new Date().toISOString()
+      }
+    })
+  } catch (error: any) {
+    console.error('Error reporting post:', error)
+    throw error
+  }
+}
+
+// ===== USER QUICK STATS =====
+
+export async function getUserQuickStats(userId: string) {
+  try {
+    const response = await request("POST", "/rpc/get_user_quick_stats", {
+      body: { p_user_id: userId }
+    })
+    return response || {
+      notifications_count: 0,
+      messages_count: 0,
+      followers_count: 0,
+      following_count: 0,
+      posts_count: 0,
+      achievements: []
+    }
+  } catch (error: any) {
+    console.error('Error fetching user quick stats:', error)
+    return {
+      notifications_count: 0,
+      messages_count: 0,
+      followers_count: 0,
+      following_count: 0,
+      posts_count: 0,
+      achievements: []
+    }
+  }
+}
+
+// ===== USER SEGMENTATION =====
+
+export async function getUserSegments(userId: string) {
+  try {
+    const response = await request("GET", "/user_segments", {
+      params: {
+        user_id: `eq.${userId}`,
+        select: "id,segment_type,segment_value,confidence_score,updated_at"
+      }
+    })
+    return response || []
+  } catch (error: any) {
+    console.error('Error fetching user segments:', error)
+    return []
+  }
+}
+
+export async function updateUserSegments(userId: string, segments: any[]) {
+  try {
+    // Delete existing segments
+    await request("DELETE", "/user_segments", {
+      params: { user_id: `eq.${userId}` }
+    })
+    
+    // Insert new segments
+    const segmentPromises = segments.map(segment =>
+      request("POST", "/user_segments", {
+        body: {
+          user_id: userId,
+          segment_type: segment.type,
+          segment_value: segment.value,
+          confidence_score: segment.confidence
+        }
+      })
+    )
+    
+    return await Promise.all(segmentPromises)
+  } catch (error: any) {
+    console.error('Error updating user segments:', error)
+    throw error
+  }
+}
+
+// ===== PERSONALIZED CONTENT =====
+
+export async function getPersonalizedContent(userId: string) {
+  try {
+    const response = await request("POST", "/rpc/get_personalized_content", {
+      body: { p_user_id: userId }
+    })
+    return response || {
+      educational_content: { articles: [], courses: [], videos: [] },
+      investment_opportunities: { stocks: [], crypto: [], funds: [] },
+      community_suggestions: [],
+      expert_insights: [],
+      trending_topics: []
+    }
+  } catch (error: any) {
+    console.error('Error fetching personalized content:', error)
+    return {
+      educational_content: { articles: [], courses: [], videos: [] },
+      investment_opportunities: { stocks: [], crypto: [], funds: [] },
+      community_suggestions: [],
+      expert_insights: [],
+      trending_topics: []
+    }
+  }
+}
+
+// ===== BEHAVIOR TRACKING =====
+
+export async function trackUserBehavior(userId: string, actionType: string, targetType: string, targetId: string, metadata = {}) {
+  try {
+    return await request("POST", "/user_behavior_tracking", {
+      body: {
+        user_id: userId,
+        action_type: actionType,
+        target_type: targetType,
+        target_id: targetId,
+        metadata: metadata,
+        created_at: new Date().toISOString()
+      }
+    })
+  } catch (error: any) {
+    console.error('Error tracking user behavior:', error)
+    // Don't throw error for tracking, just log it
+  }
 }
 
 // ===== INVESTOR PROFILE =====

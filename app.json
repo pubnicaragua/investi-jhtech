@@ -29,14 +29,6 @@
       "package": "com.investi.app"
     },
     "plugins": [
-      [
-        "expo-build-properties",
-        {
-          "ios": {
-            "useFrameworks": "static"
-          }
-        }
-      ],
       "expo-localization",
       "expo-secure-store",
       "expo-router"
@@ -46,6 +38,7 @@
       "eas": {
         "projectId": "82b22488-cbbd-45ea-bd0e-dd6ec1f2b7fb"
       }
-    }
+    },
+    "sdkVersion": "51.0.0"
   }
 }

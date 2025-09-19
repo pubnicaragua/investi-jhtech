@@ -71,7 +71,7 @@ export function InvestmentKnowledgeScreen() {
         <TouchableOpacity 
           style={[styles.button, !selectedLevel && styles.buttonDisabled]}
           disabled={!selectedLevel}
-          onPress={() => navigation.navigate('OnboardingComplete' as never)}
+          onPress={() => navigation.navigate('CommunityRecommendations' as never)}
         >
           <Text style={styles.buttonText}>Siguiente</Text>
         </TouchableOpacity>

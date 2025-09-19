@@ -2,8 +2,10 @@
   "welcome": {  
     "title": "Join Investí Community!",  
     "subtitle": "The first social network for financial education",  
-    "getStarted": "Get Started",  
-    "signIn": "I already have an account"  
+    "description": "Join the first social network for financial education and investors in the world!",
+    "stats": "Over 100k registered users",
+    "getStarted": "Get Started",
+    "haveAccount": "I already have an account"  
   },  
   "auth": {  
     "signIn": "Sign In",  
@@ -159,5 +161,12 @@
     "skip": "Skip",  
     "next": "Next",  
     "previous": "Previous"  
-  }  
+  },
+  "languageSelection": {
+    "title": "Choose your language",
+    "subtitle": "Select your preferred language to continue",
+    "english": "English",
+    "spanish": "Español",
+    "continue": "Continue"
+  }
 }

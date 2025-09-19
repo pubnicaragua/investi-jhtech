@@ -18,7 +18,7 @@ import {
   Search,  
   Edit3,  
 } from "lucide-react-native";  
-import { getCurrentUserId, request } from "../rest/api";  
+import { getCurrentUserId, getUserConversations, getUnreadMessageCount, searchConversations } from "../api";  
 import { useAuthGuard } from "../hooks/useAuthGuard";  
   
 interface User {  
@@ -67,35 +67,59 @@ export function ChatListScreen({ navigation }: any) {
     filterChats();  
   }, [chats, activeFilter, searchQuery]);  
   
-  const loadData = async () => {  
-    try {  
-      setLoading(true);  
-      const uid = await getCurrentUserId();  
-      if (!uid) return;  
-  
-      const usersRes = await request("GET", "/users", {  
-        params: {  
-          select: "id,nombre,avatar_url,is_online,last_seen_at",  
-          order: "last_seen_at.desc",  
-          limit: "10",  
-        },  
-      });  
-      setUsers(usersRes || []);  
-  
-      const chatsRes = await request("GET", "/chats", {  
-        params: {  
-          or: `user_id.eq.${uid},participant_id.eq.${uid}`,  
-          select: "id,type,last_message,last_message_at,unread_count,community:communities(id,nombre,icono_url),user:users!chats_participant_id_fkey(id,nombre,avatar_url)",  
-          order: "last_message_at.desc",  
-        },  
-      });  
-      setChats(chatsRes || []);  
-    } catch (err) {  
-      console.error("Error loading chats:", err);  
-    } finally {  
-      setLoading(false);  
-      setRefreshing(false);  
-    }  
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const uid = await getCurrentUserId();
+      if (!uid) return;
+
+      // Load conversations using new API
+      const conversations = await getUserConversations(uid);
+      
+      // Transform conversations to match existing Chat interface
+      const transformedChats = conversations.map((conv: any) => {
+        const otherParticipant = conv.participants?.find((p: any) => p.id !== uid);
+        const isDirect = conv.type === 'direct';
+        
+        return {
+          id: conv.id,
+          type: isDirect ? 'direct' : 'community',
+          last_message: conv.last_message?.content || 'Sin mensajes aún',
+          last_message_at: conv.last_message?.created_at || conv.updated_at,
+          unread_count: 0, // Will be calculated separately
+          ...(isDirect ? {
+            user: {
+              id: otherParticipant?.id || '',
+              nombre: otherParticipant?.nombre || otherParticipant?.full_name || 'Usuario',
+              avatar_url: otherParticipant?.avatar_url || otherParticipant?.photo_url
+            }
+          } : {
+            community: {
+              id: conv.id,
+              nombre: conv.name || 'Grupo',
+              icono_url: conv.avatar_url || '',
+              members_count: conv.participants?.length || 0
+            }
+          })
+        };
+      });
+      
+      setChats(transformedChats);
+      
+      // Load online users (mock data for stories)
+      const mockUsers = [
+        { id: '1', nombre: 'Ana García', avatar_url: 'https://i.pravatar.cc/100?img=1', is_online: true, last_seen_at: new Date().toISOString() },
+        { id: '2', nombre: 'Carlos López', avatar_url: 'https://i.pravatar.cc/100?img=2', is_online: true, last_seen_at: new Date().toISOString() },
+        { id: '3', nombre: 'María Rodríguez', avatar_url: 'https://i.pravatar.cc/100?img=3', is_online: false, last_seen_at: new Date().toISOString() },
+      ];
+      setUsers(mockUsers);
+      
+    } catch (err) {
+      console.error("Error loading chats:", err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };  
   
   const onRefresh = useCallback(() => {  
@@ -156,9 +180,10 @@ export function ChatListScreen({ navigation }: any) {
         style={styles.chatItem}  
         onPress={() =>  
           navigation.navigate("ChatScreen", {  
-            chatId: item.id,  
+            conversationId: item.id,  
             type: item.type,  
             name: name,  
+            participant: item.type === 'direct' ? item.user : null  
           })  
         }  
       >  

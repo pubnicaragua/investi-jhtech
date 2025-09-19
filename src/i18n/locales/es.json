@@ -2,8 +2,17 @@
   "welcome": {  
     "title": "¡Únete a Investí Community!",  
     "subtitle": "La primera red social de educación financiera",  
+    "description": "¡Únete a la primera red social de educación financiera y de inversionistas en el mundo!",
+    "stats": "Más de 100k usuarios registrados",
     "getStarted": "Empezar",  
-    "signIn": "Ya tengo una cuenta"  
+    "haveAccount": "Ya tengo una cuenta"
+  },
+  "languageSelection": {
+    "title": "Elige tu idioma",
+    "subtitle": "Selecciona tu idioma preferido para continuar",
+    "english": "English",
+    "spanish": "Español",
+    "continue": "Continuar"
   },  
   "auth": {  
     "signIn": "Iniciar sesión",  

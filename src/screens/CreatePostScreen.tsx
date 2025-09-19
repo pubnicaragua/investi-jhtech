@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Image, Alert, Modal, FlatList, ActivityIndicator } from "react-native"  
 import { useTranslation } from "react-i18next"  
 import { ArrowLeft, ChevronDown, Camera, Video, Star, FileText, Users, BarChart3, Check, X } from "lucide-react-native"  
-import { createPost, getCurrentUser, getUserCommunities } from "../rest/api"  
+import { createPost, getCurrentUser, getUserCommunities, createEnhancedPost, createPoll, createCelebrationPost, createPartnershipPost, uploadPostMedia } from "../api"  
 import { useAuthGuard } from "../hooks/useAuthGuard"
 import * as ImagePicker from 'expo-image-picker'  
   
@@ -22,7 +22,21 @@ export function CreatePostScreen({ navigation }: any) {
   const [showCommunityModal, setShowCommunityModal] = useState(false)  
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [selectedMedia, setSelectedMedia] = useState<string[]>([])
-  const [postType, setPostType] = useState<'text' | 'celebration' | 'poll' | 'partnership'>('text')  
+  const [postType, setPostType] = useState<'text' | 'celebration' | 'poll' | 'partnership'>('text')
+  const [pollOptions, setPollOptions] = useState<string[]>(['', ''])
+  const [pollDuration, setPollDuration] = useState(24)
+  const [celebrationType, setCelebrationType] = useState<'milestone' | 'achievement' | 'success' | 'investment_win' | 'other'>('achievement')
+  const [partnershipDetails, setPartnershipDetails] = useState({
+    businessType: '',
+    investmentAmount: '',
+    location: '',
+    partnershipType: 'equity' as 'equity' | 'loan' | 'joint_venture' | 'other',
+    requirements: [] as string[],
+    contactPreferences: [] as string[]
+  })
+  const [showPollModal, setShowPollModal] = useState(false)
+  const [showCelebrationModal, setShowCelebrationModal] = useState(false)
+  const [showPartnershipModal, setShowPartnershipModal] = useState(false)  
   
   useAuthGuard()  
   
@@ -54,33 +68,103 @@ export function CreatePostScreen({ navigation }: any) {
     }  
   }  
   
-  const handlePublish = async () => {  
-    if (!content.trim()) {  
-      Alert.alert('Error', 'Por favor escribe algo antes de publicar')  
-      return  
-    }  
-  
-    setLoading(true)  
-    try {  
-      if (currentUser) {  
-        const postData = {  
-          user_id: currentUser.id,  
-          contenido: content.trim(),  
-          media_url: [],  
-          ...(selectedCommunity?.id !== 'public' && { community_id: selectedCommunity?.id })  
-        }  
-  
-        await createPost(postData)  
-        Alert.alert('Éxito', 'Publicación creada correctamente', [  
-          { text: 'OK', onPress: () => navigation.goBack() }  
-        ])  
-      }  
-    } catch (error) {  
-      console.error("Error creating post:", error)  
-      Alert.alert('Error', 'No se pudo crear la publicación')  
-    } finally {  
-      setLoading(false)  
-    }  
+  const handlePublish = async () => {
+    if (!content.trim()) {
+      Alert.alert('Error', 'Por favor escribe algo antes de publicar')
+      return
+    }
+
+    setLoading(true)
+    try {
+      if (currentUser) {
+        let mediaUrls: string[] = []
+        
+        // Upload media files if any
+        if (selectedMedia.length > 0) {
+          for (const mediaUri of selectedMedia) {
+            try {
+              // Convert URI to File for upload (simplified for React Native)
+              const response = await fetch(mediaUri)
+              const blob = await response.blob()
+              const file = new File([blob], `media_${Date.now()}.jpg`, { type: blob.type })
+              
+              const uploadResult = await uploadPostMedia(currentUser.id, file, 'image')
+              if (uploadResult?.url) {
+                mediaUrls.push(uploadResult.url)
+              }
+            } catch (uploadError) {
+              console.error('Error uploading media:', uploadError)
+            }
+          }
+        }
+
+        let result
+        const communityId = selectedCommunity?.id !== 'public' ? selectedCommunity?.id : undefined
+
+        switch (postType) {
+          case 'poll':
+            const validOptions = pollOptions.filter(opt => opt.trim())
+            if (validOptions.length < 2) {
+              Alert.alert('Error', 'Las encuestas necesitan al menos 2 opciones')
+              return
+            }
+            result = await createPoll({
+              user_id: currentUser.id,
+              question: content.trim(),
+              options: validOptions,
+              duration_hours: pollDuration,
+              community_id: communityId
+            })
+            break
+            
+          case 'celebration':
+            result = await createCelebrationPost({
+              user_id: currentUser.id,
+              content: content.trim(),
+              celebration_type: celebrationType,
+              community_id: communityId,
+              media_urls: mediaUrls
+            })
+            break
+            
+          case 'partnership':
+            if (!partnershipDetails.businessType || !partnershipDetails.investmentAmount) {
+              Alert.alert('Error', 'Por favor completa los detalles de la sociedad')
+              return
+            }
+            result = await createPartnershipPost({
+              user_id: currentUser.id,
+              content: content.trim(),
+              business_type: partnershipDetails.businessType,
+              investment_amount: partnershipDetails.investmentAmount,
+              location: partnershipDetails.location,
+              partnership_type: partnershipDetails.partnershipType,
+              requirements: partnershipDetails.requirements,
+              contact_preferences: partnershipDetails.contactPreferences,
+              community_id: communityId
+            })
+            break
+            
+          default:
+            result = await createEnhancedPost({
+              user_id: currentUser.id,
+              contenido: content.trim(),
+              community_id: communityId,
+              post_type: 'text',
+              media_urls: mediaUrls
+            })
+        }
+
+        Alert.alert('Éxito', 'Publicación creada correctamente', [
+          { text: 'OK', onPress: () => navigation.goBack() }
+        ])
+      }
+    } catch (error) {
+      console.error("Error creating post:", error)
+      Alert.alert('Error', 'No se pudo crear la publicación')
+    } finally {
+      setLoading(false)
+    }
   }  
   
   const handleMediaPicker = async (type: 'photo' | 'video') => {
@@ -111,12 +195,15 @@ export function CreatePostScreen({ navigation }: any) {
     switch (type) {
       case 'celebration':
         setContent('🎉 ¡Celebremos! ')
+        setShowCelebrationModal(true)
         break
       case 'poll':
         setContent('📊 Encuesta: ')
+        setShowPollModal(true)
         break
       case 'partnership':
         setContent('🤝 Busco socio para: ')
+        setShowPartnershipModal(true)
         break
     }
   }
@@ -310,9 +397,158 @@ export function CreatePostScreen({ navigation }: any) {
         </View>  
       </Modal>  
   
-      <View style={styles.bottomIndicator}>  
-        <View style={styles.indicator} />  
-      </View>  
+      <Modal
+        visible={showPollModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPollModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Crear Encuesta</Text>
+              <TouchableOpacity onPress={() => setShowPollModal(false)}>
+                <X size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.modalLabel}>Opciones:</Text>
+            {pollOptions.map((option, index) => (
+              <TextInput
+                key={index}
+                style={styles.modalInput}
+                placeholder={`Opción ${index + 1}`}
+                value={option}
+                onChangeText={(text) => {
+                  const newOptions = [...pollOptions]
+                  newOptions[index] = text
+                  setPollOptions(newOptions)
+                }}
+              />
+            ))}
+            
+            <TouchableOpacity
+              style={styles.addOptionButton}
+              onPress={() => setPollOptions([...pollOptions, ''])}
+            >
+              <Text style={styles.addOptionText}>+ Agregar opción</Text>
+            </TouchableOpacity>
+            
+            <Text style={styles.modalLabel}>Duración (horas):</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="24"
+              value={pollDuration.toString()}
+              onChangeText={(text) => setPollDuration(parseInt(text) || 24)}
+              keyboardType="numeric"
+            />
+            
+            <TouchableOpacity
+              style={styles.modalSaveButton}
+              onPress={() => setShowPollModal(false)}
+            >
+              <Text style={styles.modalSaveText}>Guardar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showCelebrationModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCelebrationModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Tipo de Celebración</Text>
+              <TouchableOpacity onPress={() => setShowCelebrationModal(false)}>
+                <X size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            {['milestone', 'achievement', 'success', 'investment_win', 'other'].map((type) => (
+              <TouchableOpacity
+                key={type}
+                style={[
+                  styles.celebrationOption,
+                  celebrationType === type && styles.celebrationOptionSelected
+                ]}
+                onPress={() => setCelebrationType(type as any)}
+              >
+                <Text style={styles.celebrationOptionText}>
+                  {type === 'milestone' ? '🎯 Hito alcanzado' :
+                   type === 'achievement' ? '🏆 Logro personal' :
+                   type === 'success' ? '✨ Éxito empresarial' :
+                   type === 'investment_win' ? '💰 Ganancia de inversión' : '🎉 Otro'}
+                </Text>
+                {celebrationType === type && <Check size={20} color="#007AFF" />}
+              </TouchableOpacity>
+            ))}
+            
+            <TouchableOpacity
+              style={styles.modalSaveButton}
+              onPress={() => setShowCelebrationModal(false)}
+            >
+              <Text style={styles.modalSaveText}>Guardar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showPartnershipModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPartnershipModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <ScrollView style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Detalles de Sociedad</Text>
+              <TouchableOpacity onPress={() => setShowPartnershipModal(false)}>
+                <X size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.modalLabel}>Tipo de negocio:</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="ej. Tecnología, Restaurante, etc."
+              value={partnershipDetails.businessType}
+              onChangeText={(text) => setPartnershipDetails({...partnershipDetails, businessType: text})}
+            />
+            
+            <Text style={styles.modalLabel}>Monto de inversión:</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="ej. $50,000 USD"
+              value={partnershipDetails.investmentAmount}
+              onChangeText={(text) => setPartnershipDetails({...partnershipDetails, investmentAmount: text})}
+            />
+            
+            <Text style={styles.modalLabel}>Ubicación:</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="ej. Ciudad de México"
+              value={partnershipDetails.location}
+              onChangeText={(text) => setPartnershipDetails({...partnershipDetails, location: text})}
+            />
+            
+            <TouchableOpacity
+              style={styles.modalSaveButton}
+              onPress={() => setShowPartnershipModal(false)}
+            >
+              <Text style={styles.modalSaveText}>Guardar</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      <View style={styles.bottomIndicator}>
+        <View style={styles.indicator} />
+      </View>
     </SafeAreaView>  
   )  
 }  
@@ -541,5 +777,59 @@ const styles = StyleSheet.create({
     height: 24,  
     justifyContent: 'center',  
     alignItems: 'center',  
+  },  
+  modalLabel: {  
+    fontSize: 16,  
+    fontWeight: '600',  
+    marginBottom: 8,  
+    marginTop: 16,  
+  },  
+  modalInput: {  
+    borderWidth: 1,  
+    borderColor: '#ddd',  
+    borderRadius: 8,  
+    padding: 12,  
+    fontSize: 16,  
+    marginBottom: 12,  
+  },  
+  addOptionButton: {  
+    padding: 12,  
+    backgroundColor: '#f0f0f0',  
+    borderRadius: 8,  
+    alignItems: 'center',  
+    marginBottom: 16,  
+  },  
+  addOptionText: {  
+    color: '#007AFF',  
+    fontWeight: '600',  
+  },  
+  modalSaveButton: {  
+    backgroundColor: '#007AFF',  
+    padding: 15,  
+    borderRadius: 8,  
+    alignItems: 'center',  
+    marginTop: 16,  
+  },  
+  modalSaveText: {  
+    color: 'white',  
+    fontSize: 16,  
+    fontWeight: '600',  
+  },  
+  celebrationOption: {  
+    flexDirection: 'row',  
+    justifyContent: 'space-between',  
+    alignItems: 'center',  
+    padding: 16,  
+    borderWidth: 1,  
+    borderColor: '#ddd',  
+    borderRadius: 8,  
+    marginBottom: 8,  
+  },  
+  celebrationOptionSelected: {  
+    borderColor: '#007AFF',  
+    backgroundColor: '#f0f8ff',  
+  },  
+  celebrationOptionText: {  
+    fontSize: 16,  
   },  
 })

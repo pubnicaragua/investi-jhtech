@@ -1,19 +1,19 @@
-import { useState, useEffect, useCallback, useRef } from "react"  
+import React, { useState, useEffect, useCallback, useRef } from "react"  
 import { useFocusEffect, useRoute, useNavigation } from "@react-navigation/native"  
 import { useSafeAreaInsets } from 'react-native-safe-area-context'  
 import {  
   Search, X, ArrowLeft, Clock, MapPin, Home, TrendingUp,  
-  PlusCircle, Newspaper, BookOpen, ThumbsUp, MessageCircle,   
-  Share2, Send  
-} from "lucide-react-native"  
+  PlusCircle, Newspaper, BookOpen, Users, Heart, MessageCircle,  
+  Share2, Bookmark, MoreHorizontal, User, Building  
+} from 'lucide-react-native'  
 import {  
-  View, Text, TextInput, TouchableOpacity,  
-  StyleSheet, ScrollView, Image,  
-  ActivityIndicator, RefreshControl, Alert, StatusBar  
-} from "react-native"  
-import { useTranslation } from "react-i18next"  
-import { EmptyState } from "../components/EmptyState"  
-import { useAuthGuard } from "../hooks/useAuthGuard"  
+  View, Text, ScrollView, TouchableOpacity, TextInput,  
+  Image, StyleSheet, StatusBar, RefreshControl, Alert,  
+  ActivityIndicator, Dimensions  
+} from 'react-native'  
+import { useTranslation } from 'react-i18next'  
+import { useAuthGuard } from '../hooks/useAuthGuard'  
+import { EmptyState } from '../components/EmptyState'  
 import {  
   fetchPromotions,  
   getUserFeed,  
@@ -127,27 +127,31 @@ const fetchPosts = async (uid: string): Promise<Post[]> => {
 }  
   
 // --- Componente principal ---  
-export function PromotionsScreen() {  
+interface PromotionsScreenProps {
+  route?: {
+    params?: any
+  }
+}
+
+export function PromotionsScreen({ route }: PromotionsScreenProps) {  
   const { t } = useTranslation()  
   const navigation = useNavigation()  
-  const route = useRoute()  
   const insets = useSafeAreaInsets()  
     
   // Estados  
   const [promotions, setPromotions] = useState<Promotion[]>([])  
+  const [filteredPromotions, setFilteredPromotions] = useState<Promotion[]>([])
   const [people, setPeople] = useState<Person[]>([])  
   const [communities, setCommunities] = useState<Community[]>([])  
   const [posts, setPosts] = useState<Post[]>([])  
-  const [filteredPromotions, setFilteredPromotions] = useState<Promotion[]>([])  
   const [loading, setLoading] = useState(true)  
   const [refreshing, setRefreshing] = useState(false)  
   const [error, setError] = useState<string | null>(null)  
-  const [page, setPage] = useState(1)  
-  const [hasMore, setHasMore] = useState(true)  
-  const [searchQuery, setSearchQuery] = useState('')  
+  const [searchQuery, setSearchQuery] = useState('Inversiones')  
   const [isSearchFocused, setIsSearchFocused] = useState(false)  
-  const [selectedChip, setSelectedChip] = useState('Personas')  
-  const [selectedPostFilter, setSelectedPostFilter] = useState('De mis contactos')  
+  const [selectedTab, setSelectedTab] = useState('Personas')  
+  const [selectedPostFilter, setSelectedPostFilter] = useState('De mis contactos')
+  const [currentPage, setCurrentPage] = useState(1)  
     
   const searchInputRef = useRef<TextInput>(null)  
   useAuthGuard()  
@@ -161,7 +165,7 @@ export function PromotionsScreen() {
       const user = await getCurrentUser()  
         
       const [promos, peopleRes, commRes, postsRes] = await Promise.all([  
-        fetchPromotionsData({ page: isRefreshing ? 1 : page, limit: 10 }),  
+        fetchPromotionsData({ page: isRefreshing ? 1 : currentPage, limit: 10 }),  
         fetchPeople(),  
         fetchCommunitiesData(),  
         fetchPosts(user?.id || "")  
@@ -169,10 +173,10 @@ export function PromotionsScreen() {
   
       if (isRefreshing) {  
         setPromotions(promos.data)  
-        setPage(2)  
+        setCurrentPage(2)  
       } else {  
         setPromotions(prev => [...prev, ...promos.data])  
-        setPage(prev => prev + 1)  
+        setCurrentPage(prev => prev + 1)  
       }  
   
       setPeople(peopleRes)  
@@ -186,7 +190,7 @@ export function PromotionsScreen() {
       setLoading(false)  
       setRefreshing(false)  
     }  
-  }, [page])  
+  }, [currentPage])  
   
   useEffect(() => {  
     loadData()  
@@ -217,16 +221,18 @@ export function PromotionsScreen() {
   }, [])  
   
   // --- Navegación ---  
-  const currentRoute = (route as any).name  
+  const currentRoute = route?.name || 'PromotionsScreen'  
   const handleNavigation = (screen: string) => {  
-    navigation.navigate(screen as never)  
+    if (navigation && navigation.navigate) {
+      navigation.navigate(screen as never)  
+    }
   }  
   
   const showEmptyState = !loading && !refreshing &&   
-    filteredPromotions.length === 0 &&   
-    people.length === 0 &&   
-    communities.length === 0 &&   
-    posts.length === 0  
+    (filteredPromotions?.length || 0) === 0 &&   
+    (people?.length || 0) === 0 &&   
+    (communities?.length || 0) === 0 &&   
+    (posts?.length || 0) === 0  
   
   return (  
     <View style={[styles.container, { paddingTop: insets.top }]}>  
@@ -265,10 +271,10 @@ export function PromotionsScreen() {
           {['Personas', 'Comunidades', 'Publicaciones'].map((chip) => (  
             <TouchableOpacity  
               key={chip}  
-              style={[styles.chip, selectedChip === chip && styles.chipSelected]}  
-              onPress={() => setSelectedChip(chip)}  
+              style={[styles.chip, selectedTab === chip && styles.chipSelected]}  
+              onPress={() => setSelectedTab(chip)}  
             >  
-              <Text style={[styles.chipText, selectedChip === chip && styles.chipTextSelected]}>  
+              <Text style={[styles.chipText, selectedTab === chip && styles.chipTextSelected]}>  
                 {chip}  
               </Text>  
             </TouchableOpacity>  
@@ -298,7 +304,7 @@ export function PromotionsScreen() {
         ) : (  
           <>  
             {/* Promociones */}  
-            {filteredPromotions.length > 0 && (  
+            {filteredPromotions?.length > 0 && (  
               <Section   
                 title="Promociones para ti"   
                 subtitle="Ofertas únicas que podrían interesarte ver"  
@@ -312,7 +318,7 @@ export function PromotionsScreen() {
             )}  
   
             {/* Personas */}  
-            {people.length > 0 && (  
+            {people?.length > 0 && (  
               <Section   
                 title="Personas que podrías conocer"   
                 subtitle="Según tus intereses"  
@@ -324,7 +330,7 @@ export function PromotionsScreen() {
             )}  
   
             {/* Comunidades */}  
-            {communities.length > 0 && (  
+            {communities?.length > 0 && (  
               <Section   
                 title="Comunidades que podrían gustarte"   
                 subtitle="Según tus intereses"  
@@ -334,7 +340,7 @@ export function PromotionsScreen() {
             )}  
   
             {/* Posts */}  
-            {posts.length > 0 && (  
+            {posts?.length > 0 && (  
               <View style={styles.section}>  
                 <Text style={styles.sectionTitle}>Publicaciones recientes</Text>  
                   
@@ -408,9 +414,9 @@ const PromotionCard: React.FC<{ promo: Promotion; navigation?: any }> = ({ promo
   onPress={() => navigation?.navigate("PromotionDetail", { promotionId: promo.id })}  
 >  
   <Image   
-    source={{ uri: promo.image_url || 'https://via.placeholder.com/200x100/2673f3/ffffff?text=Software+Nicaragua' }}   
+    source={{ uri: promo.image_url || 'https://picsum.photos/200x100/2673f3/ffffff?text=Software+Nicaragua' }}   
     style={styles.promoImage}  
-    defaultSource={{ uri: 'https://via.placeholder.com/200x100/2673f3/ffffff?text=Software+Nicaragua' }}  
+    defaultSource={{ uri: 'https://picsum.photos/200x100/2673f3/ffffff?text=Software+Nicaragua' }}  
   />  
   <View style={styles.promoContent}>  
     <Text style={styles.promoTitle} numberOfLines={2}>{promo.title || 'Software Nicaragua'}</Text>  
@@ -459,33 +465,42 @@ const PersonCard: React.FC<{ person: Person; navigation?: any }> = ({ person, na
 
 // 🔹 Card de comunidad PIXEL PERFECT  
 // 🔹 Card de comunidad PIXEL PERFECT - CON NAVEGACIÓN  
-const CommunityCard: React.FC<{ community: Community; navigation?: any }> = ({ community, navigation }) => (  
-  <TouchableOpacity  
-    style={styles.communityCard}  
-    onPress={() => navigation?.navigate("CommunityDetail", { communityId: community.id })}  
-  >  
-    <Image   
-      source={{ uri: community.image_url || 'https://via.placeholder.com/100x60/2673f3/ffffff?text=Comunidad' }}   
-      style={styles.communityBanner}  
-      defaultSource={{ uri: 'https://via.placeholder.com/100x60/2673f3/ffffff?text=Comunidad' }}  
-    />  
-    <View style={styles.communityContent}>  
-      <Text style={styles.communityName}>{community.name || 'Inversiones para principiantes'}</Text>  
-      <Text style={styles.communityMeta}>  
-        {community.members_count || 12}k miembros · Comunidad pública  
-      </Text>  
-    </View>  
-    <TouchableOpacity   
-      style={styles.joinBtn}  
-      onPress={(e) => {  
-        e.stopPropagation() // Evitar que se active el onPress del card  
-        handleJoinCommunity(community.id)  
-      }}  
+const CommunityCard: React.FC<{ community?: Community; navigation?: any }> = ({ community, navigation }) => {  
+  // Return null if community is not defined
+  if (!community) {
+    return null;
+  }
+  
+  return (
+    <TouchableOpacity  
+      style={styles.communityCard}  
+      onPress={() => navigation?.navigate("CommunityDetail", { communityId: community?.id })}  
     >  
-      <Text style={styles.joinText}>Unirse</Text>  
+      <Image   
+        source={{ uri: community?.image_url || 'https://picsum.photos/100x60/2673f3/ffffff?text=Comunidad' }}   
+        style={styles.communityBanner}  
+        defaultSource={{ uri: 'https://picsum.photos/100x60/2673f3/ffffff?text=Comunidad' }}  
+      />  
+      <View style={styles.communityContent}>  
+        <Text style={styles.communityName}>{community?.name || 'Inversiones para principiantes'}</Text>  
+        <Text style={styles.communityMeta}>  
+          {community?.members_count || 12}k miembros · Comunidad pública  
+        </Text>  
+      </View>  
+      <TouchableOpacity   
+        style={styles.joinBtn}  
+        onPress={(e) => {  
+          e.stopPropagation() // Evitar que se active el onPress del card  
+          if (community?.id) {
+            handleJoinCommunity(community.id)  
+          }
+        }}  
+      >  
+        <Text style={styles.joinText}>Unirse</Text>  
+      </TouchableOpacity>  
     </TouchableOpacity>  
-  </TouchableOpacity>  
-)  
+  );
+}
   
 // Función para manejar unirse a comunidad  
 const handleJoinCommunity = async (communityId: string) => {  
@@ -627,15 +642,16 @@ clearButton: {
 // Chips de filtro con sombra  
 chipsContainer: {  
   flexDirection: "row",  
-  gap: 8,  
+  gap: 12,  
+  paddingVertical: 4,
 },  
 chip: {  
-  paddingVertical: 6,  
-  paddingHorizontal: 16,  
-  borderRadius: 20,  
+  paddingVertical: 8,  
+  paddingHorizontal: 20,  
+  borderRadius: 25,  
   borderWidth: 1,  
   borderColor: "#e9ecef",  
-  backgroundColor: "#fff",  
+  backgroundColor: "#f8f9fa",  
   shadowColor: "#000",  
   shadowOffset: { width: 0, height: 1 },  
   shadowOpacity: 0.05,  
@@ -686,55 +702,56 @@ sectionSubtitle: {
   
 // Cards de promoción PIXEL PERFECT  
 promotionCard: {  
-  width: 200,  
-  marginRight: 12,  
-  borderRadius: 12,  
-  backgroundColor: "#fff",  
+  width: 280,  
+  marginRight: 16,  
+  borderRadius: 16,  
+  backgroundColor: "#2673f3",  
   shadowColor: "#000",  
-  shadowOffset: { width: 0, height: 2 },  
-  shadowOpacity: 0.08,  
-  shadowRadius: 4,  
-  elevation: 3,  
+  shadowOffset: { width: 0, height: 4 },  
+  shadowOpacity: 0.15,  
+  shadowRadius: 8,  
+  elevation: 6,  
   overflow: "hidden",  
 },  
 promoImage: {  
   width: "100%",  
-  height: 100,  
-  backgroundColor: "#f0f0f0",  
+  height: 120,  
+  backgroundColor: "rgba(255,255,255,0.1)",  
 },  
 promoContent: {  
-  padding: 12,  
+  padding: 16,  
 },  
 promoTitle: {  
-  fontSize: 14,  
-  fontWeight: "600",  
-  color: "#111",  
-  marginBottom: 4,  
-  lineHeight: 18,  
+  fontSize: 16,  
+  fontWeight: "700",  
+  color: "#fff",  
+  marginBottom: 6,  
+  lineHeight: 22,  
 },  
 promoDiscount: {  
-  fontSize: 13,  
-  fontWeight: "700",  
-  color: "#2673f3",  
-  marginBottom: 8,  
+  fontSize: 14,  
+  fontWeight: "600",  
+  color: "#fff",  
+  marginBottom: 12,  
 },  
 promoDetails: {  
   flexDirection: "row",  
   alignItems: "center",  
 },  
 promoDetailText: {  
-  fontSize: 10,  
-  color: "#666",  
-  marginLeft: 3,  
-  marginRight: 6,  
+  fontSize: 12,  
+  color: "#fff",  
+  marginLeft: 4,  
+  marginRight: 8,  
+  opacity: 0.9,
 },  
   
 // Cards de persona PIXEL PERFECT  
 personCard: {  
-  width: 180,  
+  width: 200,  
   marginRight: 16,  
-  backgroundColor: "#fff",  
-  borderRadius: 12,  
+  backgroundColor: "#f8f9fa",  
+  borderRadius: 16,  
   shadowColor: "#000",  
   shadowOffset: { width: 0, height: 2 },  
   shadowOpacity: 0.08,  
