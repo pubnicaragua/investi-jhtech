@@ -6,12 +6,17 @@
     "orientation": "portrait",
     "jsEngine": "hermes",
     "userInterfaceStyle": "light",
+    "updates": {
+      "enabled": false,
+      "fallbackToCacheTimeout": 0
+    },
+    "newArchEnabled": false,
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/investi-logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "icon": "https://www.investiiapp.com/investi-logo-new-main.png",
+    "icon": "./assets/investi-logo.png",
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -22,7 +27,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "https://www.investiiapp.com/investi-logo-new-main.png",
+        "foregroundImage": "./assets/investi-logo.png",
         "backgroundColor": "#FFFFFF"
       },
       "jsEngine": "hermes",

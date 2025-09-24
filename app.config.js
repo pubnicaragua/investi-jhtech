@@ -6,12 +6,17 @@ export default {
     orientation: 'portrait',
     jsEngine: 'hermes',
     userInterfaceStyle: 'light',
+    updates: {
+      enabled: false,
+      fallbackToCacheTimeout: 0
+    },
+    newArchEnabled: false,
     splash: {
-      image: './assets/splash.png',
+      image: './assets/investi-logo.png',
       resizeMode: 'contain',
       backgroundColor: '#ffffff'
     },
-    icon: 'https://www.investiiapp.com/investi-logo-new-main.png',
+    icon: './assets/investi-logo.png',
     assetBundlePatterns: ['**/*'],
     scheme: 'investi-community',
     plugins: [
@@ -22,12 +27,18 @@ export default {
         'expo-build-properties',
         {
           android: {
-            compileSdkVersion: 34,
-            targetSdkVersion: 34,
-            buildToolsVersion: '34.0.0',
-            gradleVersion: '8.10.2',
-            androidGradlePluginVersion: '8.2.1',
-            kotlinVersion: '1.8.22'
+            newArchEnabled: false,
+            compileSdkVersion: 33,
+            targetSdkVersion: 33,
+            buildToolsVersion: '33.0.0',
+            gradleVersion: '7.6.4',
+            androidGradlePluginVersion: '7.4.2',
+            kotlinVersion: '1.8.22',
+            proguardMinifyEnabled: false,
+            enableProguardInReleaseBuilds: false
+          },
+          ios: {
+            newArchEnabled: false
           }
         }
       ]
@@ -41,7 +52,7 @@ export default {
       package: 'com.investi.app',
       versionCode: 1,
       adaptiveIcon: {
-        foregroundImage: 'https://www.investiiapp.com/investi-logo-new-main.png',
+        foregroundImage: './assets/investi-logo.png',
         backgroundColor: '#FFFFFF'
       },
       jsEngine: 'hermes'
@@ -53,6 +64,6 @@ export default {
         projectId: '82b22488-cbbd-45ea-bd0e-dd6ec1f2b7fb'
       }
     },
-    sdkVersion: '51.0.0'
+    sdkVersion: '51.0.0',
   },
 };

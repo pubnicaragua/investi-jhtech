@@ -1677,4 +1677,242 @@ export const fetchInvestorProfile = async (userId: string): Promise<InvestorProf
   }
 }
 
+// ===== ENDPOINTS CRÍTICOS FALTANTES =====
+
+// CHAT Y MENSAJERÍA CORREGIDOS
+export async function getUserConversationsFixed(userId: string) {
+  try {
+    const response = await request("POST", "/rpc/get_user_conversations", {
+      body: { p_user_id: userId }
+    })
+    return response || []
+  } catch (error: any) {
+    console.error('Error fetching conversations:', error)
+    return []
+  }
+}
+
+export async function getConversationMessagesFixed(conversationId: string, limit = 50) {
+  try {
+    const response = await request("GET", "/messages", {
+      params: {
+        conversation_id: `eq.${conversationId}`,
+        select: "id,content,sender_id,created_at,sender:users!sender_id(id,nombre,avatar_url)",
+        order: "created_at.asc",
+        limit: String(limit)
+      }
+    })
+    return response || []
+  } catch (error: any) {
+    console.error('Error fetching messages:', error)
+    return []
+  }
+}
+
+export async function sendMessageFixed(conversationId: string, userId: string, content: string) {
+  try {
+    const response = await request("POST", "/messages", {
+      body: {
+        conversation_id: conversationId,
+        sender_id: userId,
+        content: content
+      }
+    })
+    
+    // Marcar mensajes como leídos
+    await request("POST", "/rpc/mark_messages_as_read", {
+      body: {
+        p_conversation_id: conversationId,
+        p_user_id: userId
+      }
+    })
+    
+    return response
+  } catch (error: any) {
+    console.error('Error sending message:', error)
+    throw error
+  }
+}
+
+// PLANIFICADOR FINANCIERO
+export async function getUserBudgets(userId: string) {
+  try {
+    const response = await request("GET", "/user_budgets", {
+      params: {
+        user_id: `eq.${userId}`,
+        select: "*",
+        order: "created_at.desc"
+      }
+    })
+    return response || []
+  } catch (error: any) {
+    console.error('Error fetching budgets:', error)
+    return []
+  }
+}
+
+export async function createBudget(userId: string, budgetData: any) {
+  try {
+    return await request("POST", "/user_budgets", {
+      body: {
+        user_id: userId,
+        ...budgetData
+      }
+    })
+  } catch (error: any) {
+    console.error('Error creating budget:', error)
+    throw error
+  }
+}
+
+export async function getUserTransactions(userId: string, filters: any = {}) {
+  try {
+    let params: any = {
+      user_id: `eq.${userId}`,
+      select: "*",
+      order: "date.desc",
+      limit: "50"
+    }
+    
+    if (filters.category) {
+      params.category = `eq.${filters.category}`
+    }
+    
+    if (filters.type) {
+      params.type = `eq.${filters.type}`
+    }
+    
+    const response = await request("GET", "/user_transactions", { params })
+    return response || []
+  } catch (error: any) {
+    console.error('Error fetching transactions:', error)
+    return []
+  }
+}
+
+export async function createTransaction(userId: string, transactionData: any) {
+  try {
+    return await request("POST", "/user_transactions", {
+      body: {
+        user_id: userId,
+        ...transactionData
+      }
+    })
+  } catch (error: any) {
+    console.error('Error creating transaction:', error)
+    throw error
+  }
+}
+
+// PROMOCIONES MEJORADAS
+export async function claimPromotion(promotionId: string, userId: string) {
+  try {
+    return await request("POST", "/promotion_claims", {
+      body: {
+        promotion_id: promotionId,
+        user_id: userId,
+        claimed_at: new Date().toISOString()
+      }
+    })
+  } catch (error: any) {
+    if (error.code === "23505") return null // Already claimed
+    throw error
+  }
+}
+
+export async function trackPromotionView(promotionId: string, userId: string) {
+  try {
+    return await request("POST", "/promotion_views", {
+      body: {
+        promotion_id: promotionId,
+        user_id: userId,
+        viewed_at: new Date().toISOString()
+      }
+    })
+  } catch (error: any) {
+    console.error('Error tracking promotion view:', error)
+    // No throw error for tracking
+  }
+}
+
+export async function getPromotionsByCategory(category: string, limit = 10) {
+  try {
+    const response = await request("GET", "/promotions", {
+      params: {
+        category: `eq.${category}`,
+        active: "eq.true",
+        select: "*",
+        order: "created_at.desc",
+        limit: String(limit)
+      }
+    })
+    return response || []
+  } catch (error: any) {
+    console.error('Error fetching promotions by category:', error)
+    return []
+  }
+}
+
+// ESTADÍSTICAS RÁPIDAS
+export async function getUserQuickStatsFixed(userId: string) {
+  try {
+    const response = await request("POST", "/rpc/get_user_quick_stats", {
+      body: { p_user_id: userId }
+    })
+    return response || {
+      notifications_count: 0,
+      messages_count: 0,
+      followers_count: 0,
+      following_count: 0,
+      posts_count: 0
+    }
+  } catch (error: any) {
+    console.error('Error fetching user quick stats:', error)
+    return {
+      notifications_count: 0,
+      messages_count: 0,
+      followers_count: 0,
+      following_count: 0,
+      posts_count: 0
+    }
+  }
+}
+
+// CORREGIR UPLOAD DE IMÁGENES
+export async function uploadPostMedia(userId: string, file: any) {
+  try {
+    const token = await SecureStore.getItemAsync("access_token")
+    const fileExt = file.uri ? file.uri.split('.').pop() : 'jpg'
+    const fileName = `posts/${userId}/${Date.now()}_${Math.random().toString(36).substr(2, 5)}.${fileExt}`
+    
+    // Crear FormData correctamente
+    const formData = new FormData()
+    formData.append('file', {
+      uri: file.uri,
+      type: file.mimeType || 'image/jpeg',
+      name: fileName
+    } as any)
+    
+    const response = await fetch(`${urls.STORAGE_URL}/object/post-media/${fileName}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'apikey': ANON_KEY,
+      },
+      body: formData,
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Upload failed: ${response.status}`)
+    }
+    
+    // Obtener URL pública
+    const publicUrl = `${urls.STORAGE_URL}/object/public/post-media/${fileName}`
+    return publicUrl
+  } catch (error: any) {
+    console.error('Error uploading post media:', error)
+    throw error
+  }
+}
+
 export { request }

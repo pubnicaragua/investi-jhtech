@@ -11,7 +11,7 @@ module.exports = async function (env, argv) {
     argv
   );
 
-  // Add polyfills for Node.js modules
+  // Polyfills para Node.js
   config.resolve.fallback = {
     ...config.resolve.fallback,
     "crypto": require.resolve("crypto-browserify"),
@@ -19,17 +19,26 @@ module.exports = async function (env, argv) {
     "buffer": require.resolve("buffer"),
     "util": require.resolve("util"),
     "url": require.resolve("url"),
-    "assert": require.resolve("assert")
+    "assert": require.resolve("assert"),
+    "vm": require.resolve("vm-browserify"),
+    "os": require.resolve("os-browserify/browser")
   };
 
-  // Add plugins for polyfills
+  // Configuración de plugins
   const webpack = require('webpack');
-  config.plugins.push(
+  config.plugins = [
+    ...config.plugins,
     new webpack.ProvidePlugin({
       Buffer: ['buffer', 'Buffer'],
       process: 'process/browser',
+    }),
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+      'process.platform': JSON.stringify('web'),
+      'process.browser': true,
+      global: 'window',
     })
-  );
+  ];
 
   return config;
 };

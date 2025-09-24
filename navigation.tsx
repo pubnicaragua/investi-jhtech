@@ -164,7 +164,7 @@ export function RootStack() {
     return (  
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f8fa' }}>  
         <Image  
-          source={require('./assets/logo-investi.jpeg')}  
+          source={require('./assets/investi-logo.png')}  
           style={{ width: 120, height: 120, marginBottom: 20 }}  
           resizeMode="contain"  
         />  
@@ -174,22 +174,9 @@ export function RootStack() {
     )  
   }  
   
-  // Contenedor principal de navegación  
+  // Stack Navigator sin NavigationContainer (ya está en App.tsx)
   return (  
-    <NavigationContainer   
-      linking={linking}   
-      fallback={  
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>  
-          <Image  
-            source={require('./assets/logo-investi.jpeg')}  
-            style={{ width: 100, height: 100, marginBottom: 16 }}  
-            resizeMode="contain"  
-          />  
-          <ActivityIndicator size="large" color="#007AFF" />  
-        </View>  
-      }  
-    >  
-      <Stack.Navigator  
+    <Stack.Navigator  
         initialRouteName={initialRoute}  
         screenOptions={{  
           headerShown: false,  
@@ -437,6 +424,5 @@ export function RootStack() {
           />  
         )}  
       </Stack.Navigator>  
-    </NavigationContainer>  
   )  
 }

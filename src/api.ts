@@ -1764,7 +1764,7 @@ export const globalSearch = async (query: string, userId: string, limit = 20): P
       supabase
         .from('communities')
         .select('*')
-        .or(`nombre.ilike.%${query}%,name.ilike.%${query}%,description.ilike.%${query}%`)
+        .or(`name.ilike.%${query}%,description.ilike.%${query}%`)
         .limit(Math.floor(limit / 3))
     ])
 
