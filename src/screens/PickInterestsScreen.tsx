@@ -52,22 +52,31 @@ export const PickInterestsScreen = ({ navigation }: any) => {
     } finally {  
       setInitialLoading(false)  
     }  
-  }  
   
   const toggleInterest = (id: string) => {  
     setSelectedInterests((prev) => {  
       if (prev.includes(id)) {  
         return prev.filter((item) => item !== id)  
+      } else {  
+        // Limitar a máximo 3 intereses
+        if (prev.length >= 3) {
+          Alert.alert(
+            "Límite alcanzado",
+            "Puedes seleccionar un máximo de 3 intereses. Deselecciona uno para elegir otro.",
+            [{ text: "Entendido" }]
+          )
+          return prev
+        }
+        return [...prev, id]  
       }  
-      return [...prev, id]  
     })  
-  }  
-  
+  }
   
   
   const handleContinue = async () => {  
     if (selectedInterests.length < 3) {  
       Alert.alert("Error", "Selecciona al menos 3 intereses para continuar")  
+{{ ... }}
       return  
     }  
   

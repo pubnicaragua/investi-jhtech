@@ -97,7 +97,7 @@ export function PickGoalsScreen({ navigation }: any) {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate("UploadAvatar")}>
           <Text style={styles.backButtonText}>{"<"}</Text>
         </TouchableOpacity>
         <View style={styles.headerRight} />
