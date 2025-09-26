@@ -15,71 +15,52 @@ export function UploadAvatarScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false)  
   
   const pickImage = async () => {  
-    // Solicitar permisos primero  
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()  
     if (status !== 'granted') {  
       Alert.alert('Error', 'Se necesitan permisos para acceder a la galería')  
       return  
     }  
-  
+
     const result = await ImagePicker.launchImageLibraryAsync({  
       mediaTypes: ImagePicker.MediaTypeOptions.Images,  
       allowsEditing: true,  
       aspect: [1, 1],  
       quality: 0.8,  
     })  
-  
+
     if (!result.canceled) {  
-      setAvatar(result.assets[0])  
+      setAvatar(result.assets[0])
     }  
-  }  
-  
+  }
+
   const uploadAvatarToStorage = async (userId: string, file: any) => {  
     try {  
-      // Crear el bucket si no existe  
-      const { data: buckets } = await supabase.storage.listBuckets()  
-      const bucketExists = buckets?.some(bucket => bucket.name === 'avatars')  
-        
-      if (!bucketExists) {  
-        console.log('Creating avatars bucket...')  
-        const { error: bucketError } = await supabase.storage.createBucket('avatars', {  
-          public: true,  
-          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg'],  
-          fileSizeLimit: 5242880 // 5MB  
-        })  
-          
-        if (bucketError) {  
-          console.error('Error creating bucket:', bucketError)  
-          // Continuar aunque falle la creación del bucket  
-        }  
-      }  
-  
       // Preparar el archivo para upload  
       const fileExt = file.uri.split(".").pop()  
       const fileName = `${userId}/avatar.${fileExt}`  
-  
+      
       // Convertir la imagen a blob  
       const response = await fetch(file.uri)  
       const blob = await response.blob()  
-  
-      // Subir el archivo  
+
+      // Subir el archivo (el bucket 'avatars' debe existir en Supabase)
       const { data, error } = await supabase.storage  
         .from("avatars")  
         .upload(fileName, blob, {  
           cacheControl: '3600',  
           upsert: true  
         })  
-  
+
       if (error) {  
         console.error('Storage upload error:', error)  
         throw error  
       }  
-  
+
       // Obtener la URL pública  
       const { data: { publicUrl } } = supabase.storage  
         .from("avatars")  
         .getPublicUrl(fileName)  
-  
+
       return publicUrl  
     } catch (error) {  
       console.error('Upload error:', error)  
@@ -105,7 +86,7 @@ export function UploadAvatarScreen({ navigation }: any) {
           await updateUser(uid, { photo_url: avatarUrl })  
             
           Alert.alert("Éxito", "Avatar subido correctamente", [  
-            { text: "OK", onPress: () => navigation.navigate("PickInterests") }  
+            { text: "OK", onPress: () => navigation.navigate("PickGoals") }  
           ])  
         } catch (uploadError: any) {  
           console.error("Upload failed:", uploadError)  
@@ -115,14 +96,14 @@ export function UploadAvatarScreen({ navigation }: any) {
             "Aviso",   
             "No se pudo subir la imagen, pero puedes continuar. Podrás agregar tu foto más tarde.",  
             [  
-              { text: "Continuar", onPress: () => navigation.navigate("PickInterests") },  
+              { text: "Continuar", onPress: () => navigation.navigate("PickGoals") },  
               { text: "Reintentar", onPress: () => handleSave() }  
             ]  
           )  
         }  
       } else {  
         // Si no hay avatar, simplemente continuar  
-        navigation.navigate("PickInterests")  
+        navigation.navigate("PickGoals")  
       }  
     } catch (error: any) {  
       console.error("General error:", error)  
@@ -132,14 +113,14 @@ export function UploadAvatarScreen({ navigation }: any) {
     }  
   }  
   
-  const handleSkip = () => {  
-    navigation.navigate("PickInterests")  
-  }  
+  const handleSkip = () => {
+    navigation.navigate("PickGoals")
+  }
   
   return (  
     <SafeAreaView style={styles.container}>  
       <View style={styles.header}>  
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>  
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <ArrowLeft size={24} color="#111" />  
         </TouchableOpacity>  
         <Text style={styles.headerTitle}>{t("avatar.title")}</Text>  

@@ -5,34 +5,39 @@ import {
   StyleSheet,  
   TouchableOpacity,  
   Animated,  
-  Dimensions,  
+  Dimensions,
   PanResponder,  
   Image,  
-  ScrollView,  
+  ScrollView,
+  Alert,
 } from "react-native";  
 import { useNavigation } from "@react-navigation/native";  
-import {  
-  Bookmark,  
-  Users,  
-  Settings,  
-  MessageCircle,  
-  ChevronRight,  
-  Edit3,  
+import {
+  Bookmark,
+  Users,
+  Settings,
+  MessageCircle,
+  ChevronRight,
+  Edit3,
+  LogOut,
 } from "lucide-react-native";  
-import { getCurrentUser, listCommunities } from "../rest/api";  
+import { getCurrentUser, listCommunities } from "../rest/api";
+import { useAuth } from "../contexts/AuthContext";
+import AsyncStorage from '@react-native-async-storage/async-storage';  
   
 const { width } = Dimensions.get("window");  
   
-export const Sidebar = ({  
-  isOpen,  
-  onClose,  
-}: {  
-  isOpen: boolean;  
-  onClose: () => void;  
-}) => {  
-  const navigation = useNavigation();  
-  const slideAnim = useRef(new Animated.Value(-width)).current;  
-  const [user, setUser] = useState<any>(null);  
+export const Sidebar = ({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+}) => {
+  const navigation = useNavigation();
+  const { signOut } = useAuth();
+  const slideAnim = useRef(new Animated.Value(-width)).current;
+  const [user, setUser] = useState<any>(null);
   const [communities, setCommunities] = useState<any[]>([]);  
   
   // Animación cuando abre/cierra  
@@ -114,8 +119,51 @@ export const Sidebar = ({
     console.log("Saved posts functionality not implemented yet");  
   };  
   
-  const handleChatPress = () => {  
-    console.log("Chat with Irí functionality not implemented yet");  
+  const handleChatPress = () => {
+    console.log("Chat with Irí functionality not implemented yet");
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      "Cerrar Sesión",
+      "¿Estás seguro que deseas cerrar sesión?",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel"
+        },
+        {
+          text: "Cerrar Sesión",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // Limpiar datos locales
+              await AsyncStorage.multiRemove([
+                'user_language',
+                'user_token',
+                'user_data',
+                'onboarding_completed'
+              ]);
+              
+              // Cerrar sesión en Supabase
+              await signOut();
+              
+              // Cerrar sidebar
+              onClose();
+              
+              // Navegar a selección de idioma
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'LanguageSelection' as never }],
+              });
+            } catch (error) {
+              console.error('Error during logout:', error);
+              Alert.alert('Error', 'No se pudo cerrar la sesión correctamente');
+            }
+          }
+        }
+      ]
+    );
   };  
   
   if (!isOpen) return null;  
@@ -194,16 +242,23 @@ export const Sidebar = ({
             <Text style={styles.menuText}>Habla con Irí</Text>  
           </TouchableOpacity>  
   
-          <TouchableOpacity style={styles.menuItem} onPress={handleSettingsPress}>  
-            <Settings size={20} color="#111" style={styles.menuIcon} />  
-            <Text style={styles.menuText}>Configuración</Text>  
-          </TouchableOpacity>  
+          <TouchableOpacity style={styles.menuItem} onPress={handleSettingsPress}>
+            <Settings size={20} color="#111" style={styles.menuIcon} />
+            <Text style={styles.menuText}>Configuración</Text>
+          </TouchableOpacity>
+
+          <View style={styles.divider} />
+
+          <TouchableOpacity style={[styles.menuItem, styles.logoutItem]} onPress={handleLogout}>
+            <LogOut size={20} color="#dc2626" style={styles.menuIcon} />
+            <Text style={[styles.menuText, styles.logoutText]}>Cerrar Sesión</Text>
+          </TouchableOpacity>
         </ScrollView>  
       </Animated.View>  
     </View>  
   );  
 };  
-  
+
 const styles = StyleSheet.create({  
   overlayContainer: {  
     ...StyleSheet.absoluteFillObject,  
@@ -291,8 +346,15 @@ const styles = StyleSheet.create({
   menuIcon: {  
     marginRight: 12,  
   },  
-  menuText: {  
-    fontSize: 15,  
-    color: "#111",  
-  },  
+  menuText: {
+    fontSize: 15,
+    color: "#111",
+  },
+  logoutItem: {
+    marginTop: 10,
+  },
+  logoutText: {
+    color: "#dc2626",
+    fontWeight: "600",
+  },
 });

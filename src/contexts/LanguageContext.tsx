@@ -43,13 +43,16 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
 
   const setLanguage = async (lang: string) => {
     try {
+      console.log('🌍 LanguageContext: Guardando idioma:', lang)
       await AsyncStorage.setItem('user_language', lang)
       await AsyncStorage.setItem('language_selected', 'true')
       setLanguageState(lang)
       setIsLanguageSelected(true)
       await i18n.changeLanguage(lang)
+      console.log('✅ LanguageContext: Idioma guardado exitosamente')
     } catch (error) {
-      console.error('Error saving language preference:', error)
+      console.error('❌ LanguageContext: Error saving language preference:', error)
+      throw error
     }
   }
 

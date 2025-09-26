@@ -18,7 +18,7 @@ import {
   Search,  
   Edit3,  
 } from "lucide-react-native";  
-import { getCurrentUserId, getUserConversations, getUnreadMessageCount, searchConversations } from "../api";  
+import { getCurrentUserId, getUserConversations } from "../rest/api";  
 import { useAuthGuard } from "../hooks/useAuthGuard";  
   
 interface User {  

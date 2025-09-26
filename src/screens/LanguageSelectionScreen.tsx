@@ -1,5 +1,5 @@
 import React from 'react'
-import * as SecureStore from 'expo-secure-store'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useNavigation } from '@react-navigation/native'
 import type { StackNavigationProp } from '@react-navigation/stack'
 import {
@@ -9,6 +9,7 @@ import {
   StyleSheet,
   SafeAreaView,
   Image,
+  ActivityIndicator,
 } from 'react-native'
 import { useLanguage } from '../contexts/LanguageContext'
 import { Globe } from 'lucide-react-native'
@@ -21,21 +22,78 @@ interface LanguageSelectionScreenProps {
 export function LanguageSelectionScreen({ navigation: navProp, onLanguageSelected }: LanguageSelectionScreenProps) {
   const navigation = useNavigation<StackNavigationProp<any>>()
   const { setLanguage } = useLanguage()
+  const [isLoading, setIsLoading] = React.useState(false)
 
   const handleLanguageSelect = async (lang: string) => {
+    console.log('🔥 BOTÓN PRESIONADO! Idioma:', lang)
+    
+    // Alert para confirmar que el touch funciona
+    // alert(`Botón ${lang} presionado!`) // Descomenta si necesitas confirmar touch
+    
+    if (isLoading) {
+      console.log('⏳ Ya está cargando, ignorando clic')
+      return // Prevenir múltiples clics
+    }
+    
     try {
-      await setLanguage(lang)
-      // Guardar en SecureStore que ya se seleccionó el idioma
-      await SecureStore.setItemAsync('@user_language', lang)
+      setIsLoading(true)
+      console.log('🌍 LanguageSelectionScreen: Iniciando selección de idioma:', lang)
       
-      // Navegar a Welcome
-      if (onLanguageSelected) {
-        onLanguageSelected()
-      } else if (navigation) {
-        navigation.navigate('Welcome')
+      // Guardar idioma usando el contexto
+      await setLanguage(lang)
+      console.log('✅ LanguageSelectionScreen: Idioma guardado exitosamente')
+      
+      // Verificar que se guardó correctamente
+      const savedLang = await AsyncStorage.getItem('user_language')
+      const langSelected = await AsyncStorage.getItem('language_selected')
+      console.log('🔍 LanguageSelectionScreen: Verificación - idioma guardado:', savedLang)
+      console.log('🔍 LanguageSelectionScreen: Verificación - flag seleccionado:', langSelected)
+      
+      // Pequeña pausa para mostrar feedback visual
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // NAVEGACIÓN DIRECTA Y SIMPLE
+      console.log('🧭 LanguageSelectionScreen: Iniciando navegación a Welcome...')
+      
+      try {
+        // Método 1: Hook de navegación
+        if (navigation && typeof navigation.replace === 'function') {
+          console.log('🚀 Método 1: navigation.replace("Welcome")')
+          navigation.replace('Welcome')
+        } 
+        // Método 2: Prop de navegación
+        else if (navProp && typeof navProp.replace === 'function') {
+          console.log('🚀 Método 2: navProp.replace("Welcome")')
+          navProp.replace('Welcome')
+        }
+        // Método 3: Navigate normal
+        else if (navigation && typeof navigation.navigate === 'function') {
+          console.log('🚀 Método 3: navigation.navigate("Welcome")')
+          navigation.navigate('Welcome')
+        }
+        // Método 4: NavProp navigate
+        else if (navProp && typeof navProp.navigate === 'function') {
+          console.log('🚀 Método 4: navProp.navigate("Welcome")')
+          navProp.navigate('Welcome')
+        }
+        // Método 5: Callback
+        else if (onLanguageSelected) {
+          console.log('🚀 Método 5: onLanguageSelected callback')
+          onLanguageSelected()
+        }
+        else {
+          console.error('❌ NO HAY NAVEGACIÓN DISPONIBLE!')
+          console.log('navigation:', navigation)
+          console.log('navProp:', navProp)
+          console.log('onLanguageSelected:', onLanguageSelected)
+        }
+      } catch (navError) {
+        console.error('❌ ERROR EN NAVEGACIÓN:', navError)
       }
     } catch (error) {
-      console.error('Error al guardar el idioma:', error)
+      console.error('❌ LanguageSelectionScreen: Error al guardar el idioma:', error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -59,8 +117,9 @@ export function LanguageSelectionScreen({ navigation: navProp, onLanguageSelecte
 
         <View style={styles.languageContainer}>
           <TouchableOpacity
-            style={styles.languageButton}
+            style={[styles.languageButton, isLoading && styles.languageButtonDisabled]}
             onPress={() => handleLanguageSelect('es')}
+            disabled={isLoading}
           >
             <View style={styles.flagContainer}>
               <Text style={styles.flag}>🇪🇸</Text>
@@ -69,11 +128,15 @@ export function LanguageSelectionScreen({ navigation: navProp, onLanguageSelecte
               <Text style={styles.languageName}>Español</Text>
               <Text style={styles.languageNative}>Spanish</Text>
             </View>
+            {isLoading && (
+              <ActivityIndicator size="small" color="#2673f3" style={styles.loadingIndicator} />
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.languageButton}
+            style={[styles.languageButton, isLoading && styles.languageButtonDisabled]}
             onPress={() => handleLanguageSelect('en')}
+            disabled={isLoading}
           >
             <View style={styles.flagContainer}>
               <Text style={styles.flag}>🇺🇸</Text>
@@ -82,6 +145,9 @@ export function LanguageSelectionScreen({ navigation: navProp, onLanguageSelecte
               <Text style={styles.languageName}>English</Text>
               <Text style={styles.languageNative}>Inglés</Text>
             </View>
+            {isLoading && (
+              <ActivityIndicator size="small" color="#2673f3" style={styles.loadingIndicator} />
+            )}
           </TouchableOpacity>
         </View>
 
@@ -197,5 +263,12 @@ const styles = StyleSheet.create({
     width: 180,
     height: 50,
     opacity: 0.7,
+  },
+  languageButtonDisabled: {
+    opacity: 0.6,
+    backgroundColor: '#f0f0f0',
+  },
+  loadingIndicator: {
+    marginLeft: 12,
   },
 })

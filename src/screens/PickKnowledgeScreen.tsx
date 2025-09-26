@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import {
   View,
   Text,
@@ -8,153 +8,119 @@ import {
   StyleSheet,
   SafeAreaView,
   ActivityIndicator,
-  ScrollView,
 } from "react-native"
 import { useTranslation } from "react-i18next"
-import { getCurrentUserId, updateUser, getKnowledgeLevels, saveUserKnowledgeLevel } from "../rest/api"
+import { ArrowLeft } from "lucide-react-native"
+import { getCurrentUserId, saveUserKnowledgeLevel } from "../rest/api"
 
-interface KnowledgeLevel {
-  id: string
-  name: string
-  description: string
-  level: string
-  requirements: string[]
-  next_steps: string[]
-}
+const knowledgeLevels = [
+  {
+    id: "no_knowledge",
+    title: "No tengo conocimiento",
+    color: "#FF6B6B",
+    icon: "🔴"
+  },
+  {
+    id: "basic",
+    title: "Tengo un poco de conocimiento", 
+    color: "#FFA726",
+    icon: "🟠"
+  },
+  {
+    id: "intermediate",
+    title: "Tengo conocimiento",
+    color: "#FFEB3B", 
+    icon: "🟡"
+  },
+  {
+    id: "expert",
+    title: "Soy experto",
+    color: "#4CAF50",
+    icon: "🟢"
+  }
+]
 
 export function PickKnowledgeScreen({ navigation }: any) {
   const { t } = useTranslation()
   const [selectedLevel, setSelectedLevel] = useState<string>("")
   const [loading, setLoading] = useState(false)
-  const [initialLoading, setInitialLoading] = useState(true)
-  const [knowledgeLevels, setKnowledgeLevels] = useState<KnowledgeLevel[]>([])
-
-  useEffect(() => {
-    loadUserData()
-  }, [])
-
-  const loadUserData = async () => {
-    try {
-      const [uid, levelsData] = await Promise.all([
-        getCurrentUserId(),
-        getKnowledgeLevels()
-      ])
-      
-      if (levelsData) {
-        setKnowledgeLevels(levelsData)
-      }
-      
-      // Skip loading existing knowledge level for now - let user select fresh
-    } catch (error) {
-      console.error("Error loading user data:", error)
-    } finally {
-      setInitialLoading(false)
-    }
-  }
 
   const handleContinue = async () => {
-    if (!selectedLevel) return
+    if (!selectedLevel) {
+      return
+    }
 
     setLoading(true)
     try {
       const uid = await getCurrentUserId()
-      if (uid) {
-        // Save to new segmentation system
-        await saveUserKnowledgeLevel(uid, selectedLevel)
-        // Also update user table for backward compatibility
-        await updateUser(uid, { nivel_finanzas: selectedLevel })
-        navigation.navigate("InvestmentKnowledge")
+      if (!uid) {
+        console.error("No user ID found")
+        return
       }
+      await saveUserKnowledgeLevel(uid, selectedLevel)
+      navigation.navigate("PickInterests")
     } catch (error) {
-      console.error("Error updating knowledge level:", error)
+      console.error("Error saving knowledge level:", error)
     } finally {
       setLoading(false)
     }
   }
 
-  if (initialLoading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-        </View>
-      </SafeAreaView>
-    )
+  const handleBack = () => {
+    navigation.goBack()
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header con chevron pegado arriba */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backButtonText}>{"<"}</Text>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+          <ArrowLeft size={24} color="#111" />
         </TouchableOpacity>
-        <View style={styles.headerRight} />
       </View>
 
-      {/* Contenido scrollable */}
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.content}>
-          <Text style={styles.title}>
-            ¿Cuál es tu nivel de <Text style={styles.titleBlue}>conocimientos</Text> financieros?
-          </Text>
+      <View style={styles.content}>
+        <Text style={styles.title}>
+          ¿Cuál es tu nivel de <Text style={styles.titleHighlight}>conocimientos</Text> financieros?
+        </Text>
 
-          <View style={styles.levelsContainer}>
-            {knowledgeLevels.map((level) => {
-              const getIcon = (levelValue: string) => {
-                switch(levelValue) {
-                  case 'none': return '🔴'
-                  case 'little': return '🟠'
-                  case 'basic': return '🟡'
-                  case 'expert': return '🟢'
-                  default: return '⚪'
-                }
-              }
-              
-              return (
-                <TouchableOpacity
-                  key={level.id}
-                  style={[
-                    styles.levelItem,
-                    selectedLevel === level.level && styles.levelItemSelected,
-                  ]}
-                  onPress={() => setSelectedLevel(level.level)}
-                >
-                  <Text style={styles.levelIcon}>{getIcon(level.level)}</Text>
-                  <Text
-                    style={[
-                      styles.levelText,
-                      selectedLevel === level.level && styles.levelTextSelected,
-                    ]}
-                  >
-                    {level.name}
-                  </Text>
-                </TouchableOpacity>
-              )
-            })}
-          </View>
+        <View style={styles.optionsContainer}>
+          {knowledgeLevels.map((level) => (
+            <TouchableOpacity
+              key={level.id}
+              style={[
+                styles.optionButton,
+                selectedLevel === level.id && styles.optionButtonSelected,
+                { borderColor: level.color }
+              ]}
+              onPress={() => setSelectedLevel(level.id)}
+            >
+              <View style={[styles.optionIcon, { backgroundColor: level.color }]}>
+                <Text style={styles.optionIconText}>{level.icon}</Text>
+              </View>
+              <Text style={[
+                styles.optionText,
+                selectedLevel === level.id && styles.optionTextSelected
+              ]}>
+                {level.title}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
-      </ScrollView>
+      </View>
 
-      {/* Footer */}
       <View style={styles.footer}>
         <TouchableOpacity
           style={[
             styles.continueButton,
-            (!selectedLevel || loading) && styles.continueButtonDisabled,
+            !selectedLevel && styles.continueButtonDisabled
           ]}
           onPress={handleContinue}
-          disabled={loading || !selectedLevel}
+          disabled={!selectedLevel || loading}
         >
           {loading ? (
             <ActivityIndicator color="white" />
           ) : (
-            <Text style={styles.continueButtonText}>
-              Continuar
-            </Text>
+            <Text style={styles.continueButtonText}>Continuar</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -168,9 +134,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#f7f8fa",
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 20,
@@ -178,19 +141,90 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
-  backButtonText: {
-    fontSize: 24,
-    fontWeight: '400',
-    color: '#111',
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 20,
   },
-  chevron: {
-    fontSize: 30,
+  title: {
+    fontSize: 28,
+    fontWeight: "700",
     color: "#111",
-    lineHeight: 30,
+    textAlign: "center",
+    marginBottom: 60,
+    lineHeight: 36,
   },
+  titleHighlight: {
+    color: "#2673f3",
+  },
+  optionsContainer: {
+    gap: 16,
+  },
+  optionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "white",
+    borderWidth: 2,
+    borderColor: "#e5e5e5",
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  optionButtonSelected: {
+    borderWidth: 2,
+    backgroundColor: "#f8f9ff",
+  },
+  optionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  optionIconText: {
+    fontSize: 20,
+  },
+  optionText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#333",
+    flex: 1,
+  },
+  optionTextSelected: {
+    color: "#2673f3",
+    fontWeight: "600",
+  },
+  footer: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    paddingTop: 20,
+  },
+  continueButton: {
+    backgroundColor: "#2673f3",
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  continueButtonDisabled: {
+    backgroundColor: "#a0a0a0",
+  },
+  continueButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+})
   headerRight: {
     width: 40,
   },

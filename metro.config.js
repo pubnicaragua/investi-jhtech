@@ -2,46 +2,63 @@ const { getDefaultConfig } = require('expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
 
-// Fix EPERM errors on Windows by disabling workers
+// Configuración súper optimizada para velocidad
 config.transformer = {
   ...config.transformer,
-  minifierPath: 'metro-minify-terser',
-  minifierConfig: {
-    keep_fnames: true,
-    mangle: {
-      keep_fnames: true,
-    },
-  },
   unstable_allowRequireContext: true,
-  // Disable worker processes to avoid EPERM errors
-  enableBabelRCLookup: false,
-  enableBabelConfigLookup: false,
-  workerPath: require.resolve('metro/src/DeltaBundler/Worker'),
+  // Desactivar minificación en desarrollo
+  minifierPath: require.resolve('metro-minify-terser'),
+  minifierConfig: {
+    ecma: 8,
+    keep_fnames: true,
+    module: true,
+  },
 };
 
-// Configure resolver for web compatibility
+// Resolver optimizado
 config.resolver = {
   ...config.resolver,
-  sourceExts: ['jsx', 'js', 'ts', 'tsx', 'cjs', 'json'],
+  sourceExts: [...config.resolver.sourceExts, 'cjs'],
   platforms: ['ios', 'android', 'native', 'web'],
-  alias: {
-    // Use crypto-browserify for crypto on web
-    crypto: 'crypto-browserify',
-    stream: 'stream-browserify',
+  // Blacklist para evitar módulos problemáticos
+  blockList: [
+    /.*\/__tests__\/.*/,
+    /.*\/test\/.*/,
+    /.*\.test\.(js|jsx|ts|tsx)$/,
+    /.*\.spec\.(js|jsx|ts|tsx)$/,
+  ],
+};
+
+// Configuración de workers para velocidad
+const os = require('os');
+config.maxWorkers = Math.max(1, Math.floor(os.cpus().length * 0.75));
+
+// Cache agresivo
+config.resetCache = false;
+
+// Servidor optimizado
+config.server = {
+  ...config.server,
+  port: 8081,
+  enhanceMiddleware: (middleware) => {
+    return (req, res, next) => {
+      // Headers de cache para assets
+      if (req.url.includes('.bundle') || req.url.includes('.map')) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000');
+      }
+      return middleware(req, res, next);
+    };
   },
 };
 
-// Prevent EPERM issues by using single worker
-config.maxWorkers = 1;
-config.resetCache = true;
-
-// Disable problematic cache stores
-config.cacheStores = [];
-
-// Add Windows-specific fixes
-if (process.platform === 'win32') {
-  config.watchFolders = [];
-  config.transformer.enableBabelRuntime = false;
-}
+// Watcher optimizado
+config.watchFolders = [];
+config.watcher = {
+  ...config.watcher,
+  additionalExts: ['cjs'],
+  healthCheck: {
+    enabled: false,
+  },
+};
 
 module.exports = config;

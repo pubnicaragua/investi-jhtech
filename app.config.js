@@ -27,15 +27,15 @@ export default {
         'expo-build-properties',
         {
           android: {
+            compileSdkVersion: 35,
+            targetSdkVersion: 35,
+            buildToolsVersion: '35.0.0',
+            gradleVersion: '8.8',
+            androidGradlePluginVersion: '8.7.0',
+            kotlinVersion: '1.9.24',
             newArchEnabled: false,
-            compileSdkVersion: 33,
-            targetSdkVersion: 33,
-            buildToolsVersion: '33.0.0',
-            gradleVersion: '7.6.4',
-            androidGradlePluginVersion: '7.4.2',
-            kotlinVersion: '1.8.22',
-            proguardMinifyEnabled: false,
-            enableProguardInReleaseBuilds: false
+            enableProguardInReleaseBuilds: false,
+            enableHermes: true
           },
           ios: {
             newArchEnabled: false
@@ -64,6 +64,6 @@ export default {
         projectId: '82b22488-cbbd-45ea-bd0e-dd6ec1f2b7fb'
       }
     },
-    sdkVersion: '51.0.0',
+    sdkVersion: '53.0.0',
   },
 };

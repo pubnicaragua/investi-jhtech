@@ -1,25 +1,25 @@
 "use client"  
   
-import { useEffect, useState, useContext } from "react"  
+import { useEffect, useState } from "react"  
 import { NavigationContainer, type LinkingOptions } from "@react-navigation/native"  
 import { createStackNavigator } from "@react-navigation/stack"  
 import * as Linking from "expo-linking"  
-import * as SecureStore from "expo-secure-store"  
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { ActivityIndicator, View, Text, Image } from "react-native"  
 import { useAuth } from "./src/contexts/AuthContext"
 import { useNavigation, NavigationProp } from "@react-navigation/native"
   
-// Import screens  
+// Import screens normalmente (sin lazy loading por ahora)
 import { WelcomeScreen } from "./src/screens/WelcomeScreen"  
 import { LanguageSelectionScreen } from "./src/screens/LanguageSelectionScreen"
 import { SignInScreen } from "./src/screens/SignInScreen"  
 import { SignUpScreen } from "./src/screens/SignUpScreen"  
+import { HomeFeedScreen } from "./src/screens/HomeFeedScreen"  
 import { UploadAvatarScreen } from "./src/screens/UploadAvatarScreen"  
 import { PickGoalsScreen } from "./src/screens/PickGoalsScreen"  
 import { PickInterestsScreen } from "./src/screens/PickInterestsScreen"  
 import { PickKnowledgeScreen } from "./src/screens/PickKnowledgeScreen"  
 import { CommunityRecommendationsScreen } from "./src/screens/CommunityRecommendationsScreen"  
-import { HomeFeedScreen } from "./src/screens/HomeFeedScreen"  
 import { CreatePostScreen } from "./src/screens/CreatePostScreen"  
 import { PostDetailScreen } from "./src/screens/PostDetailScreen"  
 import { CommunitiesScreen } from "./src/screens/CommunitiesScreen"  
@@ -35,9 +35,8 @@ import InversionistaScreen from "./src/screens/InversionistaScreen"
 import { ChatListScreen } from "./src/screens/ChatListScreen"  
 import { ChatScreen } from "./src/screens/ChatScreen"  
 import { NewsScreen } from "./src/screens/NewsScreen"  
-import { getCurrentUser, getMe } from "./src/rest/api"  
 import DevMenuScreen from "./src/screens/DevMenuScreen"  
-import PaymentScreen from "./src/screens/PaymentScreen"  
+import PaymentScreen from "./src/screens/PaymentScreen"
 import CourseDetailScreen from "./src/screens/CourseDetailScreen"  
 import LearningPathsScreen from "./src/screens/LearningPathsScreen"  
 import GroupChatScreen from "./src/screens/GroupChatScreen"  
@@ -49,6 +48,11 @@ import { PlanificadorFinancieroScreen } from './src/screens/PlanificadorFinancie
 import { CazaHormigasScreen } from './src/screens/CazaHormigasScreen';
 import { ReportesAvanzadosScreen } from './src/screens/ReportesAvanzadosScreen';
 import { VideoPlayerScreen } from './src/screens/VideoPlayerScreen';
+import { NotificationsScreen } from './src/screens/NotificationsScreen';
+import { NewsDetailScreen } from './src/screens/NewsDetailScreen';
+import { DebugStorageScreen } from './src/screens/DebugStorageScreen';
+
+import { getCurrentUser, getMe } from "./src/rest/api"
   
 // Check if we're in development mode  
 const isDevelopment = process.env.NODE_ENV === 'development' || __DEV__  
@@ -58,20 +62,6 @@ const MessagesScreen = () => (
   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>  
     <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>Mensajes</Text>  
     <Text style={{ color: '#666' }}>Sistema de mensajería en desarrollo</Text>  
-  </View>  
-)  
-  
-const NotificationsScreen = () => (  
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>  
-    <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>Notificaciones</Text>  
-    <Text style={{ color: '#666' }}>Centro de notificaciones en desarrollo</Text>  
-  </View>  
-)  
-  
-const NewsDetailScreen = ({ route }: any) => (  
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>  
-    <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10 }}>Detalle de Noticia</Text>  
-    <Text style={{ color: '#666' }}>ID: {route?.params?.newsId || 'No especificado'}</Text>  
   </View>  
 )  
   
@@ -136,23 +126,30 @@ export function RootStack() {
   
   const determineInitialRoute = async () => {
     try {
+      console.log('🚀 Navigation: Determinando ruta inicial...')
+      console.log('🔐 Navigation: isAuthenticated:', isAuthenticated)
+      
       // Si ya está autenticado, ir al HomeFeed
       if (isAuthenticated) {
+        console.log('✅ Navigation: Usuario autenticado, yendo a HomeFeed')
         setInitialRoute("HomeFeed")
       } else {
         // Verificar si ya se seleccionó un idioma
-        const languageSelected = await SecureStore.getItemAsync('@user_language')
+        const languageSelected = await AsyncStorage.getItem('user_language')
+        console.log('🌍 Navigation: Idioma guardado:', languageSelected)
         
         if (languageSelected) {
           // Si ya seleccionó idioma, ir a Welcome
+          console.log('✅ Navigation: Idioma seleccionado, yendo a Welcome')
           setInitialRoute("Welcome")
         } else {
           // Si no ha seleccionado idioma, ir a LanguageSelection
+          console.log('🌍 Navigation: Sin idioma, yendo a LanguageSelection')
           setInitialRoute("LanguageSelection")
         }
       }
     } catch (error) {
-      console.error("Error determining initial route:", error)
+      console.error("❌ Navigation: Error determining initial route:", error)
       setInitialRoute("LanguageSelection")
     } finally {
       setLoading(false)
@@ -423,6 +420,18 @@ export function RootStack() {
             component={DevMenuScreen}  
           />  
         )}  
+        
+        {/* Debug Tools */}
+        {isDevelopment && (  
+          <Stack.Screen  
+            name="DebugStorage"  
+            component={DebugStorageScreen}
+            options={{
+              title: "🧪 Debug AsyncStorage",
+              headerShown: true,
+            }}  
+          />  
+        )}
       </Stack.Navigator>  
   )  
 }

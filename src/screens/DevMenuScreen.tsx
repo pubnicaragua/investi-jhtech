@@ -12,10 +12,14 @@ export default function DevMenuScreen() {
   const navigation = useNavigation();
 
   const screens: Screen[] = [
+    // Debug & Testing
+    { name: "🧪 Debug Storage", component: "DebugStorage", category: "Debug" },
+    { name: "🌍 Language Selection", component: "LanguageSelection", category: "Debug" },
+    
     // Auth & Onboarding
-    { name: "Welcome", component: "WelcomeScreen", category: "Auth" },
-    { name: "Sign In", component: "SignInScreen", category: "Auth" },
-    { name: "Sign Up", component: "SignUpScreen", category: "Auth" },
+    { name: "Welcome", component: "Welcome", category: "Auth" },
+    { name: "Sign In", component: "SignIn", category: "Auth" },
+    { name: "Sign Up", component: "SignUp", category: "Auth" },
     { name: "Upload Avatar", component: "UploadAvatarScreen", category: "Onboarding" },
     { name: "Pick Goals", component: "PickGoalsScreen", category: "Onboarding" },
     { name: "Pick Interests", component: "PickInterestsScreen", category: "Onboarding" },

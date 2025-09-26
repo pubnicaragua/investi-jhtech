@@ -1,6 +1,6 @@
 "use client"  
   
-import { useEffect, useState } from "react"  
+import { useState, useEffect } from "react"  
 import {  
   View,  
   Text,  
@@ -11,6 +11,7 @@ import {
   ScrollView,  
   ActivityIndicator,  
   FlatList,  
+  Animated,
 } from "react-native"  
 import { useTranslation } from "react-i18next"  
 import { useNavigation } from "@react-navigation/native"
@@ -333,7 +334,20 @@ export const WelcomeScreen = ({ navigation }: WelcomeScreenProps) => {
         </Text>
 
         <View style={styles.statsContainer}>  
-          <Text style={styles.statsText}>“👥Conecta, 🎓Aprende, 📈Crece”.</Text>  
+          <View style={styles.brandingContainer}>
+            <View style={styles.brandingItem}>
+              <Users size={20} color="#2673f3" />
+              <Text style={styles.brandingText}>Conecta</Text>
+            </View>
+            <View style={styles.brandingItem}>
+              <BookOpen size={20} color="#2673f3" />
+              <Text style={styles.brandingText}>Aprende</Text>
+            </View>
+            <View style={styles.brandingItem}>
+              <TrendingUp size={20} color="#2673f3" />
+              <Text style={styles.brandingText}>Crece</Text>
+            </View>
+          </View>
         </View>  
         
         <View style={styles.buttonsContainer}>
@@ -401,8 +415,9 @@ const styles = StyleSheet.create({
     marginBottom: 24,  
   },  
   logo: {  
-    width: 200,  
-    height: 60,  
+    width: 180,  
+    height: 50,  
+    maxWidth: '80%',
   },  
   buttonsContainer: {
     width: '100%',
@@ -530,6 +545,22 @@ const styles = StyleSheet.create({
     fontSize: 16,  
     fontWeight: "600",  
   },  
+  brandingContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  brandingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  brandingText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2673f3',
+  },
   loadingOverlay: {  
     position: 'absolute',  
     top: 0,  

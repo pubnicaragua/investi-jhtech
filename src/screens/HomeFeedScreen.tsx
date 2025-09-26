@@ -41,7 +41,7 @@ import {
   likePost, 
   globalSearch,
   getCurrentUser
-} from "../api"
+} from "../rest/api"
 import { getCurrentUserId } from "../rest/client"
 import { EmptyState } from "../components/EmptyState"
 import { useAuthGuard } from "../hooks/useAuthGuard"
@@ -526,8 +526,8 @@ export function HomeFeedScreen({ navigation }: any) {
         )}
       </View>
 
-      {/* BOTTOM NAVIGATION */}
-      <View style={styles.navbarContainer}>
+      {/* NAVBAR INFERIOR - Orden correcto con iconos profesionales */}
+      <View style={styles.bottomNavigation}>
         <TouchableOpacity 
           style={styles.navItem} 
           onPress={() => handleNavigation("HomeFeed")} 
@@ -546,9 +546,7 @@ export function HomeFeedScreen({ navigation }: any) {
           style={styles.fabContainer} 
           onPress={() => handleNavigation("CreatePost")} 
         >
-          <View style={styles.fabButton}>
-            <Text style={styles.fabIcon}>+</Text>
-          </View>
+          <PlusCircle size={34} color="#2673f3" />
         </TouchableOpacity>
 
         <TouchableOpacity 
@@ -858,7 +856,7 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   },
   
-  navbarContainer: {
+  bottomNavigation: {
     position: 'absolute',
     bottom: 0,
     left: 0,
@@ -886,25 +884,6 @@ const styles = StyleSheet.create({
   fabContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  fabButton: {
-    backgroundColor: '#2673f3',
-    borderRadius: 25,
-    width: 50,
-    height: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#2673f3',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  fabIcon: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: '300',
-    lineHeight: 24,
   },
   contentContainer: {
     flex: 1,

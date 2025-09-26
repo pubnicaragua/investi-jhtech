@@ -319,19 +319,51 @@ export async function getUserFeed(uid: string, limit = 20) {
     // Usar query directa en lugar de RPC que tiene problemas de relaciones
     const response = await request("GET", "/posts", {
       params: {
-        select: "id,contenido,created_at,likes_count,comment_count,user_id,users(id,nombre,avatar_url,role)",
+        select: "id,contenido,created_at,likes_count,comment_count,user_id",
         order: "created_at.desc",
         limit: limit.toString()
       }
     })
+    
+    // Obtener datos de usuarios por separado para evitar conflictos de relaciones
+    if (response && response.length > 0) {
+      const userIds = [...new Set(response.map((post: any) => post.user_id))]
+      const usersResponse = await request("GET", "/users", {
+        params: {
+          select: "id,nombre,full_name,username,photo_url,avatar_url,role",
+          id: `in.(${userIds.join(',')})`
+        }
+      })
+      
+      // Mapear datos de usuarios a los posts
+      return response.map((post: any) => {
+        const user = usersResponse?.find((u: any) => u.id === post.user_id)
+        return {
+          id: post.id,
+          user_data: {
+            name: user?.full_name || user?.nombre || user?.username || 'Usuario',
+            avatar: user?.avatar_url || user?.photo_url || 'https://i.pravatar.cc/100?img=1',
+            role: user?.role || 'Usuario'
+          },
+          content: post.contenido,
+          image: null,
+          post_time: new Date(post.created_at).toLocaleTimeString(),
+          likes: post.likes_count || 0,
+          comments: post.comment_count || 0,
+          shares: 0,
+          created_at: post.created_at,
+          user_id: post.user_id
+        }
+      })
+    }
     return response || []  
   } catch (rpcError: any) {  
-    console.log("RPC failed, trying direct query:", rpcError)  
-    // Fallback: consulta directa con nombres de columna correctos  
+    console.log("RPC failed, trying simple query:", rpcError)  
+    // Fallback: consulta muy simple  
     try {  
       const directResponse = await request("GET", "/posts", {  
         params: {  
-          select: "id,contenido,created_at,likes_count,comment_count,user_id,users!inner(nombre,full_name,username,photo_url,avatar_url,role)",  
+          select: "id,contenido,created_at,user_id",  
           order: "created_at.desc",  
           limit: String(limit),  
         },  
