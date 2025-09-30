@@ -49,11 +49,12 @@ export const PickInterestsScreen = ({ navigation }: any) => {
       // Skip loading existing interests for now - let user select fresh
     } catch (error) {  
       console.error("Error loading user data:", error)  
-    } finally {  
-      setInitialLoading(false)  
-    }  
-  
-  const toggleInterest = (id: string) => {  
+    } finally {
+      setInitialLoading(false)
+    }
+  }
+
+  const toggleInterest = (id: string) => {
     setSelectedInterests((prev) => {  
       if (prev.includes(id)) {  
         return prev.filter((item) => item !== id)  
@@ -73,12 +74,11 @@ export const PickInterestsScreen = ({ navigation }: any) => {
   }
   
   
-  const handleContinue = async () => {  
-    if (selectedInterests.length < 3) {  
-      Alert.alert("Error", "Selecciona al menos 3 intereses para continuar")  
-{{ ... }}
-      return  
-    }  
+  const handleContinue = async () => {
+    if (selectedInterests.length < 3) {
+      Alert.alert("Error", "Selecciona al menos 3 intereses para continuar")
+      return
+    }
   
     setLoading(true)  
     try {  

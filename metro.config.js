@@ -27,6 +27,10 @@ config.resolver = {
     /.*\.test\.(js|jsx|ts|tsx)$/,
     /.*\.spec\.(js|jsx|ts|tsx)$/,
   ],
+  // Polyfills para Node modules
+  extraNodeModules: {
+    buffer: require.resolve('buffer'),
+  },
 };
 
 // Configuración de workers para velocidad
