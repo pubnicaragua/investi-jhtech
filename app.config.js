@@ -23,25 +23,7 @@ export default {
       'expo-localization',
       'expo-secure-store',
       'expo-router',
-      [
-        'expo-build-properties',
-        {
-          android: {
-            compileSdkVersion: 35,
-            targetSdkVersion: 35,
-            buildToolsVersion: '35.0.0',
-            gradleVersion: '8.8',
-            androidGradlePluginVersion: '8.7.0',
-            kotlinVersion: '1.9.24',
-            newArchEnabled: false,
-            enableProguardInReleaseBuilds: false,
-            enableHermes: true
-          },
-          ios: {
-            newArchEnabled: false
-          }
-        }
-      ]
+      'expo-dev-client'
     ],
     ios: {
       supportsTablet: true,

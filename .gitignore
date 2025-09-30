@@ -1,5 +1,5 @@
 # .gitignore
-node_modules/
+/node_modules/
 *.log
 dist/
 build/
@@ -30,6 +30,7 @@ yarn-error.*
 *.pem
 
 # Local env files
+.env
 .env*.local
 
 # TypeScript
