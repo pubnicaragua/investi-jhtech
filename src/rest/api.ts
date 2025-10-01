@@ -845,36 +845,111 @@ export async function getUserBadges(userId: string) {
 
 
 // Obtener datos de mercado  
-export async function getMarketData() {  
-  try {  
-    const response = await request("GET", "/market_data", {  
-      params: {  
-        select: "*",  
-        order: "last_updated.desc"  
-      },  
-    })  
-    return response || []  
-  } catch (error: any) {  
-    console.error('Error fetching market data:', error)  
-    return []  
-  }  
-}  
+export async function getMarketData() {
+  try {
+    const envSymbols = process?.env?.EXPO_PUBLIC_MARKET_SYMBOLS || (global as any)?.EXPO_PUBLIC_MARKET_SYMBOLS
+    const symbols = envSymbols ? envSymbols.split(',').map((s: string) => s.trim()) : ["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA"]
+    const results = await fetchSearchApiForSymbols(symbols)
+    return results || []
+  } catch (error: any) {
+    console.error('Error fetching market data:', error)
+    return []
+  }
+}
   
 // Obtener datos destacados del mercado  
-export async function getFeaturedStocks() {  
-  try {  
-    const response = await request("GET", "/market_data", {  
-      params: {  
-        select: "*",  
-        is_featured: "eq.true",  
-        order: "last_updated.desc"  
-      },  
-    })  
-    return response || []  
-  } catch (error: any) {  
-    console.error('Error fetching featured stocks:', error)  
-    return []  
-  }  
+export async function getFeaturedStocks() {
+  try {
+    const envSymbols = process?.env?.EXPO_PUBLIC_FEATURED_SYMBOLS || (global as any)?.EXPO_PUBLIC_FEATURED_SYMBOLS
+    const symbols = envSymbols ? envSymbols.split(',').map((s: string) => s.trim()) : ["AAPL", "TSLA"]
+    const results = await fetchSearchApiForSymbols(symbols)
+    return results || []
+  } catch (error: any) {
+    console.error('Error fetching featured stocks:', error)
+    return []
+  }
+}
+
+async function fetchSearchApiForSymbols(symbols: string[]) {
+  const key = process?.env?.EXPO_PUBLIC_SEARCHAPI_KEY || (global as any)?.EXPO_PUBLIC_SEARCHAPI_KEY
+  if (!key) throw new Error('EXPO_PUBLIC_SEARCHAPI_KEY no configurada')
+
+  const baseUrl = 'https://www.searchapi.io/api/v1/search'
+  const results: any[] = []
+
+  // Simple in-memory cache to avoid excessive calls (TTL seconds)
+  const CACHE_TTL = 120 // seconds
+  ;(global as any).__searchApiCache = (global as any).__searchApiCache || {}
+
+  const fetchWithRetries = async (url: string, attempts = 2) => {
+    let lastErr: any = null
+    let delay = 300
+    for (let i = 0; i <= attempts; i++) {
+      try {
+        const resp = await fetch(url, { method: 'GET' })
+        if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`)
+        return await resp.json()
+      } catch (e: any) {
+        lastErr = e
+        if (i < attempts) await new Promise(r => setTimeout(r, delay))
+        delay *= 2
+      }
+    }
+    throw lastErr
+  }
+
+  for (const symbol of symbols) {
+    try {
+      const cacheKey = `searchapi:${symbol}`
+      const cached = (global as any).__searchApiCache[cacheKey]
+      if (cached && (Date.now() - cached.ts) / 1000 < CACHE_TTL) {
+        results.push(cached.value)
+        continue
+      }
+
+      const q = symbol.includes(':') ? symbol : `${symbol}:NASDAQ`
+      const params = new URLSearchParams({ engine: 'google_finance', q, api_key: key, hl: 'en' })
+      const url = `${baseUrl}?${params.toString()}`
+
+      const data = await fetchWithRetries(url, 2)
+      const summary = data?.summary || {}
+      const kg = data?.knowledge_graph || {}
+
+      const price = Number(summary.price || 0)
+      const changeAmount = Number(summary?.price_change?.amount || 0)
+      const changePercent = Number(summary?.price_change?.percentage || 0)
+      const company = summary.title || (kg.about && kg.about.company) || symbol
+
+      const website = summary?.website || (kg.about && kg.about.website) || null
+      let logo_url = null
+      try {
+        if (website) {
+          const u = website.replace(/^https?:\/\//, '').split('/')[0]
+          logo_url = `https://logo.clearbit.com/${u}`
+        }
+      } catch (e) { logo_url = null }
+      
+      const mapped = {
+        id: `${summary.stock || symbol}`,
+        symbol: summary.stock || symbol.split(':')[0],
+        company_name: company,
+        logo_url,
+        current_price: price,
+        price_change: changeAmount,
+        price_change_percent: changePercent,
+        color: changeAmount > 0 ? '#10B981' : '#EF4444',
+        is_featured: false,
+        last_updated: summary.date || new Date().toISOString(),
+      }
+
+      ;(global as any).__searchApiCache[cacheKey] = { ts: Date.now(), value: mapped }
+      results.push(mapped)
+    } catch (err: any) {
+      // Silent failure per symbol; continue with others
+    }
+  }
+
+  return results
 }
 
 

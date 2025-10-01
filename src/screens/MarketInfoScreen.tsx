@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react"  
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, TextInput, RefreshControl } from "react-native"  
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, TextInput, RefreshControl, Image } from "react-native"  
 import { useTranslation } from "react-i18next"  
 import { Search, TrendingUp, TrendingDown, Home, Users, MessageCircle, Bell, User } from "lucide-react-native"  
 import { LanguageToggle } from "../components/LanguageToggle"  
@@ -16,6 +16,7 @@ interface Stock {
   price_change_percent: number  
   color: string  
   is_featured: boolean  
+  logo_url?: string
 }  
   
 export function MarketInfoScreen({ navigation }: any) {  
@@ -103,13 +104,27 @@ export function MarketInfoScreen({ navigation }: any) {
   
           <View style={styles.featuredStocks}>  
             {featuredStocks.slice(0, 2).map((stock, index) => (  
-              <View key={stock.id} style={[styles.featuredStock, { backgroundColor: stock.color }]}>  
-                <Text style={styles.featuredSymbol}>{stock.symbol}</Text>  
-                <Text style={styles.featuredCompany}>{stock.company_name}</Text>  
-                <Text style={styles.featuredPrice}>${stock.current_price}</Text>  
-                <Text style={styles.featuredChange}>  
-                  {stock.price_change_percent > 0 ? '+' : ''}{stock.price_change_percent}%  
+              <View key={stock.id} style={[styles.featuredStock, { backgroundColor: '#fff' }]}>  
+                <View style={styles.featuredInline}>  
+                  <View style={[styles.stockIcon, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e6e6e6' }]}>  
+                    {stock.logo_url ? (
+                      <Image source={{ uri: stock.logo_url }} style={styles.stockLogo} resizeMode="contain" />
+                    ) : (
+                      <Text style={[styles.stockIconText, { color: '#111' }]}>{stock.symbol.charAt(0)}</Text>
+                    )}
+                  </View >
+                  <View style={{ marginLeft: 8 }}>
+                    <Text style={styles.featuredSymbolLight}>{stock.symbol}</Text>
+                    <Text style={styles.featuredCompanyLight}>{stock.company_name}</Text>
+                  </View>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+
+                <Text style={styles.featuredPriceLight}>${Number(stock.current_price).toFixed(2)}</Text>  
+                <Text style={[styles.featuredChangeLight, { color: stock.price_change_percent > 0 ? '#10B981' : '#EF4444' }]}>  
+                  {stock.price_change_percent > 0 ? '+' : ''}{Number(stock.price_change_percent).toFixed(2)}%  
                 </Text>  
+                </View>
               </View>  
             ))}  
           </View>  
@@ -127,8 +142,12 @@ export function MarketInfoScreen({ navigation }: any) {
           <View style={styles.stocksList}>  
             {filteredStocks.map((stock) => (  
               <TouchableOpacity key={stock.id} style={styles.stockItem}>  
-                <View style={[styles.stockIcon, { backgroundColor: stock.color }]}>  
-                  <Text style={styles.stockIconText}>{stock.symbol.charAt(0)}</Text>  
+                <View style={[styles.stockIcon, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e6e6e6' }]}>  
+                  {stock.logo_url ? (
+                    <Image source={{ uri: stock.logo_url }} style={styles.stockLogo} resizeMode="contain" />
+                  ) : (
+                    <Text style={styles.stockIconText}>{stock.symbol.charAt(0)}</Text>
+                  )}
                 </View>  
   
                 <View style={styles.stockInfo}>  
@@ -137,7 +156,7 @@ export function MarketInfoScreen({ navigation }: any) {
                 </View>  
   
                 <View style={styles.stockPrice}>  
-                  <Text style={styles.stockPriceText}>${stock.current_price}</Text>  
+                  <Text style={styles.stockPriceText}>${Number(stock.current_price).toFixed(2)}</Text>  
                   <View style={styles.stockChange}>  
                     {stock.price_change_percent > 0 ? (  
                       <TrendingUp size={16} color="#10B981" />  
@@ -148,7 +167,7 @@ export function MarketInfoScreen({ navigation }: any) {
                       styles.stockChangeText,   
                       { color: stock.price_change_percent > 0 ? "#10B981" : "#EF4444" }  
                     ]}>  
-                      {stock.price_change_percent > 0 ? '+' : ''}{stock.price_change_percent}%  
+                      {stock.price_change_percent > 0 ? '+' : ''}{Number(stock.price_change_percent).toFixed(2)}%  
                     </Text>  
                   </View>  
                 </View>  
@@ -279,6 +298,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,  
     padding: 16,  
   },  
+  featuredInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8
+  },
   featuredSymbol: {  
     color: "white",  
     fontSize: 16,  
@@ -301,6 +325,25 @@ const styles = StyleSheet.create({
     fontSize: 14,  
     fontWeight: "500",  
   },  
+  featuredSymbolLight: {
+    color: '#111',
+    fontSize: 16,
+    fontWeight: '700'
+  },
+  featuredCompanyLight: {
+    color: '#666',
+    fontSize: 14
+  },
+  featuredPriceLight: {
+    color: '#111',
+    fontSize: 16,
+    fontWeight: '700'
+  },
+  featuredChangeLight: {
+    fontSize: 14,
+    fontWeight: '600',
+    paddingLeft: 14,
+  },
   stocksList: {  
     gap: 12,  
   },  
@@ -314,7 +357,7 @@ const styles = StyleSheet.create({
   stockIcon: {  
     width: 40,  
     height: 40,  
-    borderRadius: 8,  
+    borderRadius: 999,  
     alignItems: "center",  
     justifyContent: "center",  
     marginRight: 16,  
@@ -324,6 +367,11 @@ const styles = StyleSheet.create({
     fontSize: 16,  
     fontWeight: "bold",  
   },  
+  stockLogo: {
+    width: 32,
+    height: 32,
+    borderRadius: 999,
+  },
   stockInfo: {  
     flex: 1,  
   },  
