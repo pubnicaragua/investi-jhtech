@@ -11,6 +11,8 @@ import {
   ScrollView,  
   RefreshControl,  
   ActivityIndicator,  
+  Platform,
+  StatusBar,
 } from "react-native";  
 import {  
   ArrowLeft,  
@@ -219,192 +221,370 @@ export function ChatListScreen({ navigation }: any) {
     );  
   }  
   
-  return (  
-    <SafeAreaView style={styles.container}>  
-      <View style={styles.header}>  
-        <Text style={styles.headerTitle}>Mensajes</Text>  
-        <View style={styles.headerActions}>  
-          <TouchableOpacity>  
-            <Search size={22} color="#111" style={{ marginRight: 16 }} />  
-          </TouchableOpacity>  
-          <TouchableOpacity>  
-            <MoreVertical size={22} color="#111" />  
-          </TouchableOpacity>  
-        </View>  
-      </View>  
-  
-      <View style={styles.searchBar}>  
-        <Search size={18} color="#999" />  
-        <TextInput  
-          placeholder="Buscar"  
-          placeholderTextColor="#999"  
-          style={styles.searchInput}  
-          value={searchQuery}  
-          onChangeText={setSearchQuery}  
-        />  
-      </View>  
-  
-      <ScrollView  
-        horizontal  
-        showsHorizontalScrollIndicator={false}  
-        style={styles.filters}  
-      >  
-        {["Todos", "No leídos", "Comunidades"].map((f) => (  
-          <TouchableOpacity  
-            key={f}  
-            style={[  
-              styles.filterChip,  
-              activeFilter === f && styles.filterChipActive,  
-            ]}  
-            onPress={() => setActiveFilter(f)}  
-          >  
-            <Text  
-              style={[  
-                styles.filterText,  
-                activeFilter === f && styles.filterTextActive,  
-              ]}  
-            >  
-              {f}  
-            </Text>  
-          </TouchableOpacity>  
-        ))}  
-      </ScrollView>  
-  
-      <FlatList  
-        data={users}  
-        renderItem={renderUserStory}  
-        keyExtractor={(item) => item.id}  
-        horizontal  
-        style={styles.stories}  
-        showsHorizontalScrollIndicator={false}  
-        refreshControl={  
-          <RefreshControl  
-            refreshing={refreshing}  
-            onRefresh={onRefresh}  
-            colors={['#2673f3']}  
-            tintColor="#2673f3"  
-          />  
-        }  
-      />  
-  
-      <FlatList  
-        data={filteredChats}  
-        renderItem={renderChatItem}  
-        keyExtractor={(item) => item.id}  
-        style={styles.chatList}  
-        showsVerticalScrollIndicator={false}  
-        refreshControl={  
-          <RefreshControl  
-            refreshing={refreshing}  
-            onRefresh={onRefresh}  
-            colors={['#2673f3']}  
-            tintColor="#2673f3"  
-          />  
-        }  
-        ListEmptyComponent={  
-          <View style={styles.emptyState}>  
-            <Text style={styles.emptyStateText}>No hay chats disponibles</Text>  
-            <Text style={styles.emptyStateSubtext}>  
-              {activeFilter === "No leídos"   
-                ? "No tienes mensajes sin leer"  
-                : "Inicia una conversación"}  
-            </Text>  
-          </View>  
-        }  
-      />  
-    </SafeAreaView>  
-  );  
+  return (
+  <SafeAreaView style={styles.container}>
+    {(() => {
+      const headerPaddingTop = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 20) + 10 : 12;
+      return (
+        <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity onPress={() => navigation.goBack()} accessibilityLabel="Volver" style={styles.backButton}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ justifyContent: 'center', alignItems: 'center' }}>
+                  <Text style={{
+                    fontSize: 40,
+                    color: '#666',
+                    position: 'absolute',
+                    left: 0,
+                  }}>{'<'}</Text>
+                  <Text style={{
+                    fontSize: 18,
+                    color: '#666',
+                    fontWeight: 'bold',
+                    paddingTop: 4,
+                    paddingLeft: 20,
+                  }}>Mensajes</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={() => navigation.navigate('CreatePost')} accessibilityLabel="Nuevo mensaje" style={styles.composeButton}>
+              <Edit3 size={16} color="#111" />
+            </TouchableOpacity>
+            <TouchableOpacity>
+              <MoreVertical size={22} color="#111" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    })()}
+
+    <View style={styles.topSection}>
+      <View style={styles.searchBar}>
+        <Search size={16} color="#999" />
+        <TextInput
+          placeholder="Buscar"
+          placeholderTextColor="#111"
+          style={styles.searchInput}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filters}
+        contentContainerStyle={styles.filtersContainer}
+      >
+        {["Todos", "No leídos", "Comunidades"].map((f) => (
+          <TouchableOpacity
+            key={f}
+            style={[
+              styles.filterChip,
+              activeFilter === f && styles.filterChipActive,
+            ]}
+            onPress={() => setActiveFilter(f)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+          >
+            <Text
+              style={[
+                styles.filterText,
+                activeFilter === f && styles.filterTextActive,
+              ]}
+            >
+              {f}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      <FlatList
+        data={users}
+        renderItem={renderUserStory}
+        keyExtractor={(item) => item.id}
+        horizontal
+        style={styles.stories}
+        showsHorizontalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#2673f3']}
+            tintColor="#2673f3"
+          />
+        }
+      />
+    </View>
+
+    <FlatList
+      data={filteredChats}
+      renderItem={renderChatItem}
+      keyExtractor={(item) => item.id}
+      style={styles.chatList}
+      contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-start' }}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={['#2673f3']}
+          tintColor="#2673f3"
+        />
+      }
+      ListEmptyComponent={
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyStateText}>No hay chats disponibles</Text>
+          <Text style={styles.emptyStateSubtext}>
+            {activeFilter === "No leídos"
+              ? "No tienes mensajes sin leer"
+              : "Inicia una conversación"}
+          </Text>
+        </View>
+      }
+    />
+  </SafeAreaView>
+); 
 }  
   
-const styles = StyleSheet.create({  
-  container: { flex: 1, backgroundColor: "#fff" },  
-  loadingContainer: {  
-    flex: 1,  
-    justifyContent: "center",  
-    alignItems: "center",  
-  },  
-  header: {  
-    flexDirection: "row",  
-    justifyContent: "space-between",  
-    alignItems: "center",  
-    paddingHorizontal: 16,  
-    paddingVertical: 12,  
-    borderBottomWidth: 1,  
-    borderBottomColor: "#eee",  
-  },  
-  headerTitle: { fontSize: 20, fontWeight: "600", color: "#111" },  
-  headerActions: { flexDirection: "row", alignItems: "center" },  
-  searchBar: {  
-    flexDirection: "row",  
-    alignItems: "center",  
-    margin: 16,  
-    paddingHorizontal: 12,  
-    paddingVertical: 8,  
-    borderRadius: 12,  
-    backgroundColor: "#f5f5f5",  
-  },  
-  searchInput: { marginLeft: 8, fontSize: 16, color: "#111", flex: 1 },  
-  filters: { marginLeft: 16, marginBottom: 12 },  
-  filterChip: {  
-    paddingHorizontal: 14,  
-    paddingVertical: 6,  
-    borderRadius: 20,  
-    backgroundColor: "#f5f5f5",  
-    marginRight: 8,  
-  },  
-  filterChipActive: { backgroundColor: "#2673f3" },  
-  filterText: { fontSize: 14, color: "#111" },  
-  filterTextActive: { color: "#fff" },  
-  stories: { paddingLeft: 16, marginBottom: 8 },  
-  storyContainer: { alignItems: "center", marginRight: 16 },  
-  storyAvatarContainer: { position: "relative" },  
-  storyAvatar: { width: 56, height: 56, borderRadius: 28 },  
-  onlineDot: {  
-    position: "absolute",  
-    bottom: 2,  
-    right: 2,  
-    width: 14,  
-    height: 14,  
-    borderRadius: 7,  
-    backgroundColor: "#2ecc71",  
-    borderWidth: 2,  
-    borderColor: "#fff",  
-  },  
-  storyName: { fontSize: 12, color: "#111", marginTop: 4, maxWidth: 60 },  
-  chatList: { flex: 1 },  
-  chatItem: {  
-    flexDirection: "row",  
-    alignItems: "center",  
-    paddingHorizontal: 16,  
-    paddingVertical: 14,  
-    borderBottomWidth: 1,  
-    borderBottomColor: "#f0f0f0",  
-  },  
-  chatAvatar: { width: 48, height: 48, borderRadius: 24 },  
-  chatContent: { flex: 1, marginLeft: 12 },  
-  chatName: { fontSize: 16, fontWeight: "600", color: "#111" },  
-  chatMessage: { fontSize: 14, color: "#666", marginTop: 2 },  
-  chatMeta: { alignItems: "flex-end" },  
-  chatTime: { fontSize: 12, color: "#999", marginBottom: 6 },  
-  unreadDot: {  
-    width: 10,  
-    height: 10,  
-    borderRadius: 5,  
-    backgroundColor: "#2673f3",  
-  },  
-  emptyState: {  
-    alignItems: "center",  
-    paddingVertical: 40,  
-  },  
-  emptyStateText: {  
-    fontSize: 16,  
-    fontWeight: "600",  
-    color: "#666",  
-    marginBottom: 8,  
-  },  
-  emptyStateSubtext: {  
-    fontSize: 14,  
-    color: "#999",  
-    textAlign: "center",  
-  },  
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#111",
+  },
+
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  backButton: {
+    padding: 6,
+    marginRight: 8,
+  },
+
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  backCaret: {
+    fontSize: 24,
+    color: '#111',
+    marginRight: 6,
+  },
+
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 16,
+    marginTop: 15,
+    marginBottom: 0,
+    paddingHorizontal: 10,
+    paddingVertical: 6, 
+    borderRadius: 10,
+    backgroundColor: "#f5f5f5",
+    borderWidth: 1, 
+    borderColor: "#ddd",
+  },
+
+  searchInput: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: "#111",
+    flex: 1,
+    paddingVertical: 0,
+  },
+
+  filters: {
+    marginHorizontal: 16,
+    marginTop: 20,  
+    marginBottom: 20, 
+  },
+
+  filtersContainer: {
+    alignItems: 'center',
+    paddingRight: 16,
+  },
+
+  filterChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: "#f5f5f5",
+    marginRight: 8,
+    minWidth: 80,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  filterChipActive: {
+    backgroundColor: "#2673f3",
+    marginLeft:19,
+  },
+
+  filterText: {
+    fontSize: 14,
+    color: "#111",
+  },
+
+  filterTextActive: {
+    color: "#fff",
+  },
+
+  composeButton: {
+    marginRight: 12,
+    padding: 6,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#eee',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topSection: {
+  paddingTop: 0,
+  paddingBottom: 0,
+},
+
+  stories: {
+    paddingLeft: 16,
+    marginTop: 0, 
+    marginBottom: 6,
+  },
+
+  storyContainer: {
+    alignItems: "center",
+    marginRight: 16,
+  },
+
+  storyAvatarContainer: {
+    position: "relative",
+  },
+
+  storyAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+
+  onlineDot: {
+    position: "absolute",
+    bottom: 2,
+    right: 2,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#2ecc71",
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+
+  storyName: {
+    fontSize: 12,
+    color: "#111",
+    marginTop: 4,
+    maxWidth: 60,
+  },
+
+  chatList: {
+    flex: 1,
+    marginTop: 4,
+  },
+
+  chatItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+
+  chatAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+
+  chatContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+
+  chatName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111",
+  },
+
+  chatMessage: {
+    fontSize: 14,
+    color: "#666",
+    marginTop: 2,
+  },
+
+  chatMeta: {
+    alignItems: "flex-end",
+  },
+
+  chatTime: {
+    fontSize: 12,
+    color: "#999",
+    marginBottom: 6,
+  },
+
+  unreadDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#2673f3",
+  },
+
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 40,
+    marginTop: 120,
+  },
+
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#666",
+    marginBottom: 8,
+  },
+
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: "#999",
+    textAlign: "center",
+  },
 });

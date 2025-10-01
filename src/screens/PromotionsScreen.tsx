@@ -221,7 +221,7 @@ export function PromotionsScreen({ route }: PromotionsScreenProps) {
   }, [])  
   
   // --- Navegación ---  
-  const currentRoute = route?.name || 'PromotionsScreen'  
+  const currentRoute = route?.name || 'Promociones para ti'  
   const handleNavigation = (screen: string) => {  
     if (navigation && navigation.navigate) {
       navigation.navigate(screen as never)  
