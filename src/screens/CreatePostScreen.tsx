@@ -9,6 +9,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  InteractionManager,
   Keyboard,
   Platform,
   Image as RNImage,
@@ -22,10 +23,8 @@ import {
   BarChart3,
   Globe,
   ChevronDown,
-  FileText,
 } from 'lucide-react-native'
 import * as ImagePicker from 'expo-image-picker'
-import * as DocumentPicker from 'expo-document-picker'
 
 import { useAuthGuard } from '../hooks/useAuthGuard'
 import {
@@ -243,7 +242,6 @@ export function CreatePostScreen({ navigation }: any) {
     }
   }, [])
   
-  
   const handleRemoveMedia = useCallback((id: string) => {
     setMediaItems((prev) => prev.filter((item) => item.id !== id))
   }, [])
@@ -292,33 +290,6 @@ export function CreatePostScreen({ navigation }: any) {
         { text: '🎉 Otro', onPress: () => setCelebrationType('other') },
         { text: 'Cancelar', style: 'cancel' },
       ]
-    )
-  }, [])
-  
-  // ===== PARTNERSHIP =====
-  
-  const handlePartnership = useCallback(() => {
-    Alert.prompt(
-      'Buscar socio',
-      'Tipo de negocio',
-      (businessType) => {
-        if (!businessType) return
-        Alert.prompt(
-          'Buscar socio',
-          'Monto de inversión',
-          (investmentAmount) => {
-            if (!investmentAmount) return
-            Alert.prompt(
-              'Buscar socio',
-              'Ubicación',
-              (location) => {
-                if (!location) return
-                setPartnershipData({ businessType, investmentAmount, location })
-              }
-            )
-          }
-        )
-      }
     )
   }, [])
   
@@ -475,418 +446,302 @@ export function CreatePostScreen({ navigation }: any) {
   const charCount = content.length
   const charCountColor = charCount > MAX_CONTENT_LENGTH ? '#EF4444' : charCount > MAX_CONTENT_LENGTH * 0.9 ? '#F59E0B' : '#9CA3AF'
   
-  
-
-    // Render
-    if (loadingData) {
-      return (
-        <SafeAreaView style={styles.container}>
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#3B82F6" />
-            <Text style={styles.loadingText}>Cargando...</Text>
-          </View>
-        </SafeAreaView>
-      )
-    }
-  
+  // Render
+  if (loadingData) {
     return (
       <SafeAreaView style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <ArrowLeft size={24} color="#111827" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Compartir publicación</Text>
-          <TouchableOpacity
-            style={[styles.publishButton, !canPublish && styles.publishButtonDisabled]}
-            onPress={handlePublish}
-            disabled={!canPublish || loading}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Text style={styles.publishButtonText}>Publicar</Text>
-            )}
-          </TouchableOpacity>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#3B82F6" />
+          <Text style={styles.loadingText}>Cargando...</Text>
         </View>
-  
-        <ScrollView style={styles.scrollView}>
-          {/* User Header */}
-          <View style={styles.userContainer}>
-            {currentUser?.avatar_url ? (
-              <RNImage source={{ uri: currentUser.avatar_url }} style={styles.avatar} />
-            ) : (
-              <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Text style={styles.avatarInitials}>
-                  {renderUserInitials(currentUser?.nombre || 'U')}
-                </Text>
-              </View>
-            )}
-            <View style={styles.userInfo}>
-              <Text style={styles.userName}>
-                {currentUser?.nombre || 'Usuario'}
-              </Text>
-              <TouchableOpacity
-                style={styles.audienceChip}
-                onPress={() => setShowAudiencePicker(true)}
-              >
-                <Globe size={14} color="#3B82F6" />
-                <Text style={styles.audienceText}>{audience.name}</Text>
-                <ChevronDown size={14} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-          </View>
-  
-          {/* Editor */}
-          <View style={styles.editorContainer}>
-            <TextInput
-              ref={contentInputRef}
-              style={styles.textInput}
-              placeholder="¿Qué estás pensando?"
-              placeholderTextColor="#6B7280"
-              value={content}
-              onChangeText={setContent}
-              multiline
-              maxLength={MAX_CONTENT_LENGTH}
-            />
-            <Text style={[styles.charCounter, { color: charCountColor }]}>
-              {charCount}/{MAX_CONTENT_LENGTH}
-            </Text>
-          </View>
-  
-          {/* Media Preview */}
-          {mediaItems.length > 0 && (
-            <MediaPreview
-              items={mediaItems}
-              onRemove={handleRemoveMedia}
-              onRetry={handleRetryUpload}
-            />
-          )}
-  
-          {/* Actions */}
-          <View style={styles.actionsContainer}>
-            <TouchableOpacity style={styles.actionButton} onPress={handleAddPhoto}>
-              <ImageIcon size={22} color="#374151" />
-              <Text style={styles.actionText}>Agregar una foto</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton} onPress={handleAddVideo}>
-              <VideoIcon size={22} color="#374151" />
-              <Text style={styles.actionText}>Agregar un video</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton} onPress={handleCelebration}>
-              <Star size={22} color="#374151" />
-              <Text style={styles.actionText}>Celebrar un momento</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton} onPress={() => setShowPollEditor(true)}>
-              <BarChart3 size={22} color="#374151" />
-              <Text style={styles.actionText}>Crea una encuesta</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-  
-        {/* Modals */}
-        <AudiencePicker
-          visible={showAudiencePicker}
-          onClose={() => setShowAudiencePicker(false)}
-          onSelect={(selected) => {
-            setAudience(selected)
-            setShowAudiencePicker(false)
-          }}
-          currentUserId={currentUser?.id || ''}
-          selectedAudience={audience}
-          fetchCommunities={fetchCommunitiesForPicker}
-        />
-  
-        <PollEditor
-          visible={showPollEditor}
-          onClose={() => setShowPollEditor(false)}
-          onSave={(poll) => {
-            setPollData(poll)
-            setShowPollEditor(false)
-          }}
-          initialData={pollData || undefined}
-        />
       </SafeAreaView>
     )
   }
-  
-const styles = StyleSheet.create({  
-  container: {  
-    flex: 1,  
-    backgroundColor: "#f7f8fa",  
-  },  
-  loadingContainer: {  
-    flex: 1,  
-    justifyContent: "center",  
-    alignItems: "center",  
-  },  
-  loadingText: {  
-    marginTop: 10,  
-    fontSize: 16,  
-    color: "#666",  
-  },  
-  header: {  
-    flexDirection: "row",  
-    alignItems: "center",  
-    justifyContent: "space-between",  
-    paddingHorizontal: 20,  
-    paddingVertical: 16,  
-    backgroundColor: "white",  
-    borderBottomWidth: 1,  
-    borderBottomColor: "#e5e5e5",  
-  },  
-  backButton: {  
-    padding: 4,  
-  },  
-  headerTitle: {  
-    fontSize: 18,  
-    fontWeight: "600",  
-    color: "#111",  
-  },  
-  publishButton: {  
-    padding: 4,  
-    minWidth: 60,  
-    alignItems: "center",  
-  },  
-  publishButtonDisabled: {  
-    opacity: 0.5,  
-  },  
-  publishButtonText: {  
-    fontSize: 16,  
-    fontWeight: "600",  
-  },  
-  scrollView: {  
-    flex: 1,  
-  },  
-  userContainer: {  
-    flexDirection: "row",  
-    paddingHorizontal: 20,  
-    paddingVertical: 20,  
-    backgroundColor: "white",  
-  },  
-  avatar: {  
-    width: 48,  
-    height: 48,  
-    borderRadius: 24,  
-    marginRight: 12,  
-  },  
-  userInfo: {  
-    flex: 1,  
-  },  
-  userName: {  
-    fontSize: 16,  
-    fontWeight: "600",  
-    color: "#111",  
-    marginBottom: 4,  
-  },  
-  communitySelector: {  
-    flexDirection: "row",  
-    alignItems: "center",  
-    backgroundColor: "#f0f0f0",  
-    paddingHorizontal: 12,  
-    paddingVertical: 6,  
-    borderRadius: 20,  
-    alignSelf: "flex-start",  
-  },  
-  communityIcon: {  
-    width: 8,  
-    height: 8,  
-    backgroundColor: "#007AFF",  
-    borderRadius: 4,  
-    marginRight: 8,  
-  },  
-  communityText: {  
-    fontSize: 14,  
-    color: "#111",  
-    marginRight: 4,  
-  },  
-  textContainer: {  
-    backgroundColor: "white",  
-    paddingHorizontal: 20,  
-    paddingBottom: 20,  
-  },  
-  textInput: {  
-    fontSize: 18,  
-    color: "#111",  
-    minHeight: 200,  
-    textAlignVertical: "top",  
-    marginBottom: 10,  
-  },  
-  characterCount: {  
-    fontSize: 12,  
-    color: "#999",  
-    textAlign: "right",  
-  },  
-  dividerContainer: {  
-    alignItems: "center",  
-    paddingVertical: 20,  
-    backgroundColor: "white",  
-  },  
-  divider: {  
-    width: 50,  
-    height: 4,  
-    backgroundColor: "#ddd",  
-    borderRadius: 2,  
-  },  
-  optionsContainer: {  
-    backgroundColor: "white",  
-    paddingHorizontal: 20,  
-    paddingBottom: 40,  
-  },  
-  option: {  
-    flexDirection: "row",  
-    alignItems: "center",  
-    paddingVertical: 16,  
-  },  
-  optionText: {  
-    fontSize: 16,  
-    color: "#111",  
-    marginLeft: 16,  
-  },  
-  bottomIndicator: {  
-    alignItems: "center",  
-    paddingVertical: 20,  
-    backgroundColor: "white",  
-  },  
-  indicator: {  
-    width: 134,  
-    height: 4,  
-    backgroundColor: "#111",  
-    borderRadius: 2,  
-  },  
-  modalOverlay: {  
-    flex: 1,  
-    backgroundColor: 'rgba(0,0,0,0.5)',  
-    justifyContent: 'flex-end',  
-  },  
-  modalContent: {  
-    backgroundColor: 'white',  
-    borderTopLeftRadius: 20,  
-    borderTopRightRadius: 20,  
-    padding: 20,  
-    maxHeight: '70%',  
-  },  
-  modalHeader: {  
-    flexDirection: 'row',  
-    justifyContent: 'space-between',  
-    alignItems: 'center',  
-    marginBottom: 20,  
-  },  
-  modalTitle: {  
-    fontSize: 18,  
-    fontWeight: '600',  
-    textAlign: 'center',  
-    flex: 1,  
-  },  
-  modalCloseIcon: {  
-    padding: 4,  
-  },  
-  communityItem: {  
-    flexDirection: 'row',  
-    alignItems: 'center',  
-    paddingVertical: 12,  
-    borderBottomWidth: 1,  
-    borderBottomColor: '#f0f0f0',  
-  },  
-  communityItemIcon: {  
-    width: 12,  
-    height: 12,  
-    backgroundColor: '#007AFF',  
-    borderRadius: 6,  
-    marginRight: 12,  
-  },  
-  communityItemText: {  
-    flex: 1,  
-    fontSize: 16,  
-  },  
-  modalCloseButton: {  
-    marginTop: 20,  
-    padding: 15,  
-    backgroundColor: '#f0f0f0',  
-    borderRadius: 10,  
-    alignItems: 'center',  
-  },  
-  modalCloseText: {  
-    fontSize: 16,  
-    fontWeight: '600',  
-  },  
-  mediaPreview: {  
-    backgroundColor: 'white',  
-    paddingHorizontal: 20,  
-    paddingVertical: 16,  
-  },  
-  mediaItem: {  
-    position: 'relative',  
-    marginRight: 12,  
-  },  
-  mediaImage: {  
-    width: 80,  
-    height: 80,  
-    borderRadius: 8,  
-  },  
-  removeMedia: {  
-    position: 'absolute',  
-    top: -8,  
-    right: -8,  
-    backgroundColor: '#ff4444',  
-    borderRadius: 12,  
-    width: 24,  
-    height: 24,  
-    justifyContent: 'center',  
-    alignItems: 'center',  
-  },  
-  modalLabel: {  
-    fontSize: 16,  
-    fontWeight: '600',  
-    marginBottom: 8,  
-    marginTop: 16,  
-  },  
-  modalInput: {  
-    borderWidth: 1,  
-    borderColor: '#ddd',  
-    borderRadius: 8,  
-    padding: 12,  
-    fontSize: 16,  
-    marginBottom: 12,  
-  },  
-  addOptionButton: {  
-    padding: 12,  
-    backgroundColor: '#f0f0f0',  
-    borderRadius: 8,  
-    alignItems: 'center',  
-    marginBottom: 16,  
-  },  
-  addOptionText: {  
-    color: '#007AFF',  
-    fontWeight: '600',  
-  },  
-  modalSaveButton: {  
-    backgroundColor: '#007AFF',  
-    padding: 15,  
-    borderRadius: 8,  
-    alignItems: 'center',  
-    marginTop: 16,  
-  },  
-  modalSaveText: {  
-    color: 'white',  
-    fontSize: 16,  
-    fontWeight: '600',  
-  },  
-  celebrationOption: {  
-    flexDirection: 'row',  
-    justifyContent: 'space-between',  
-    alignItems: 'center',  
-    padding: 16,  
-    borderWidth: 1,  
-    borderColor: '#ddd',  
-    borderRadius: 8,  
-    marginBottom: 8,  
-  },  
-  celebrationOptionSelected: {  
-    borderColor: '#007AFF',  
-    backgroundColor: '#f0f8ff',  
-  },  
-  celebrationOptionText: {  
-    fontSize: 16,  
-  },  
+
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <ArrowLeft size={24} color="#111827" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Compartir publicación</Text>
+        <TouchableOpacity
+          style={[styles.publishButton, !canPublish && styles.publishButtonDisabled]}
+          onPress={handlePublish}
+          disabled={!canPublish || loading}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.publishButtonText}>Publicar</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={styles.scrollView}>
+        {/* User Header */}
+        <View style={styles.userContainer}>
+          {currentUser?.avatar_url ? (
+            <RNImage source={{ uri: currentUser.avatar_url }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarPlaceholder]}>
+              <Text style={styles.avatarInitials}>
+                {renderUserInitials(currentUser?.nombre || 'U')}
+              </Text>
+            </View>
+          )}
+          <View style={styles.userInfo}>
+            <Text style={styles.userName}>
+              {currentUser?.nombre || 'Usuario'}
+            </Text>
+            <TouchableOpacity
+              style={styles.audienceChip}
+              onPress={() => setShowAudiencePicker(true)}
+            >
+              <Globe size={14} color="#3B82F6" />
+              <Text style={styles.audienceText}>{audience.name}</Text>
+              <ChevronDown size={14} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Editor */}
+        <View style={styles.editorContainer}>
+          <TextInput
+            ref={contentInputRef}
+            style={styles.textInput}
+            placeholder="¿Qué estás pensando?"
+            placeholderTextColor="#6B7280"
+            value={content}
+            onChangeText={setContent}
+            multiline
+            maxLength={MAX_CONTENT_LENGTH}
+          />
+          <Text style={[styles.charCounter, { color: charCountColor }]}>
+            {charCount}/{MAX_CONTENT_LENGTH}
+          </Text>
+        </View>
+
+        {/* Media Preview */}
+        {mediaItems.length > 0 && (
+          <MediaPreview
+            items={mediaItems}
+            onRemove={handleRemoveMedia}
+            onRetry={handleRetryUpload}
+          />
+        )}
+
+        {/* Divider */}
+        <View style={styles.dividerContainer}>
+          <View style={styles.divider} />
+        </View>
+
+        {/* Actions */}
+        <View style={styles.actionsContainer}>
+          <TouchableOpacity style={styles.actionButton} onPress={handleAddPhoto}>
+            <ImageIcon size={24} color="#374151" />
+            <Text style={styles.actionText}>Agregar una foto</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionButton} onPress={handleAddVideo}>
+            <VideoIcon size={24} color="#374151" />
+            <Text style={styles.actionText}>Agregar un video</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionButton} onPress={handleCelebration}>
+            <Star size={24} color="#374151" />
+            <Text style={styles.actionText}>Celebrar un momento</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionButton} onPress={() => setShowPollEditor(true)}>
+            <BarChart3 size={24} color="#374151" />
+            <Text style={styles.actionText}>Crea una encuesta</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Bottom Indicator */}
+        <View style={styles.bottomIndicatorContainer}>
+          <View style={styles.bottomIndicator} />
+        </View>
+      </ScrollView>
+
+      {/* Modals */}
+      <AudiencePicker
+        visible={showAudiencePicker}
+        onClose={() => setShowAudiencePicker(false)}
+        onSelect={(selected) => {
+          setAudience(selected)
+          setShowAudiencePicker(false)
+        }}
+        currentUserId={currentUser?.id || ''}
+        selectedAudience={audience}
+        fetchCommunities={fetchCommunitiesForPicker}
+      />
+
+      <PollEditor
+        visible={showPollEditor}
+        onClose={() => setShowPollEditor(false)}
+        onSave={(poll) => {
+          setPollData(poll)
+          setShowPollEditor(false)
+        }}
+        initialData={pollData || undefined}
+      />
+    </SafeAreaView>
+  )
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  publishButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#3B82F6',
+    minWidth: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  publishButtonDisabled: {
+    opacity: 0.5,
+  },
+  publishButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  userContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
+  },
+  avatarPlaceholder: {
+    backgroundColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitials: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 6,
+  },
+  audienceChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+    gap: 4,
+  },
+  audienceText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#374151',
+    marginLeft: 4,
+    marginRight: 2,
+  },
+  editorContainer: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  textInput: {
+    fontSize: 18,
+    color: '#111827',
+    minHeight: 180,
+    textAlignVertical: 'top',
+    marginBottom: 8,
+  },
+  charCounter: {
+    fontSize: 12,
+    textAlign: 'right',
+  },
+  dividerContainer: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+  },
+  divider: {
+    width: 60,
+    height: 4,
+    backgroundColor: '#D1D5DB',
+    borderRadius: 2,
+  },
+  actionsContainer: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  actionText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#374151',
+    marginLeft: 14,
+  },
+  bottomIndicatorContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    backgroundColor: '#FFFFFF',
+  },
+  bottomIndicator: {
+    width: 134,
+    height: 5,
+    backgroundColor: '#111827',
+    borderRadius: 100,
+  },
 })

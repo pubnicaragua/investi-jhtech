@@ -10,20 +10,52 @@ import {
   ActivityIndicator,  
   Alert,  
 } from "react-native"  
+import { 
+  Flag, 
+  Bitcoin, 
+  Globe, 
+  Building2, 
+  Home, 
+  GraduationCap, 
+  TrendingUp, 
+  Rocket 
+} from "lucide-react-native"
   
 import { getCurrentUserId, getInvestmentInterests, saveUserInterests } from "../rest/api"  
-import { supabase } from "../supabase"  
-  
+
 interface InvestmentInterest {
   id: string
   name: string
-  description: string
-  icon: string
+  description?: string
+  icon?: string
   category: string
-  risk_level: string
-  popularity_score: number
-}  
-  
+  risk_level?: string
+  popularity_score?: number
+}
+
+// 🎯 ICONOS LUCIDE - Mapeo por categoría
+const INTEREST_ICON_COMPONENTS: Record<string, any> = {
+  'stocks': Flag,
+  'crypto': Bitcoin,
+  'international_stocks': Globe,
+  'deposits': Building2,
+  'real_estate': Home,
+  'education': GraduationCap,
+  'mutual_funds': TrendingUp,
+  'startups': Rocket
+}
+
+const INTEREST_ICON_COLORS: Record<string, string> = {
+  'stocks': '#EF4444',
+  'crypto': '#F59E0B',
+  'international_stocks': '#3B82F6',
+  'deposits': '#10B981',
+  'real_estate': '#8B5CF6',
+  'education': '#EC4899',
+  'mutual_funds': '#06B6D4',
+  'startups': '#6366F1'
+}
+
 export const PickInterestsScreen = ({ navigation }: any) => {  
   const { t } = useTranslation()
   const [selectedInterests, setSelectedInterests] = useState<string[]>([])  
@@ -37,16 +69,11 @@ export const PickInterestsScreen = ({ navigation }: any) => {
   
   const loadUserData = async () => {  
     try {  
-      const [uid, interestsData] = await Promise.all([
-        getCurrentUserId(),
-        getInvestmentInterests()
-      ])
+      const interestsData = await getInvestmentInterests()
       
       if (interestsData) {
         setInterests(interestsData)
       }
-      
-      // Skip loading existing interests for now - let user select fresh
     } catch (error) {  
       console.error("Error loading user data:", error)  
     } finally {
@@ -59,7 +86,6 @@ export const PickInterestsScreen = ({ navigation }: any) => {
       if (prev.includes(id)) {  
         return prev.filter((item) => item !== id)  
       } else {  
-        // Limitar a máximo 3 intereses
         if (prev.length >= 3) {
           Alert.alert(
             "Límite alcanzado",
@@ -73,7 +99,6 @@ export const PickInterestsScreen = ({ navigation }: any) => {
     })  
   }
   
-  
   const handleContinue = async () => {
     if (selectedInterests.length < 3) {
       Alert.alert("Error", "Selecciona al menos 3 intereses para continuar")
@@ -84,7 +109,6 @@ export const PickInterestsScreen = ({ navigation }: any) => {
     try {  
       const uid = await getCurrentUserId()  
       if (uid) {  
-        // Save to new segmentation system
         await saveUserInterests(uid, selectedInterests, 'beginner')
         console.log("Interests updated successfully")  
           
@@ -132,26 +156,34 @@ export const PickInterestsScreen = ({ navigation }: any) => {
           <Text style={styles.subtitle}>Selecciona al menos 3 temas para comenzar</Text>  
   
           <View style={styles.interestsContainer}>  
-            {interests.map((item) => (  
-              <TouchableOpacity  
-                key={item.id}  
-                style={[  
-                  styles.interestItem,  
-                  selectedInterests.includes(item.id) && styles.interestItemSelected,  
-                ]}  
-                onPress={() => toggleInterest(item.id)}  
-              >  
-                <Text style={styles.interestIcon}>{item.icon}</Text>  
-                <Text  
+            {interests.map((item) => {
+              const IconComponent = INTEREST_ICON_COMPONENTS[item.category]
+              const iconColor = INTEREST_ICON_COLORS[item.category] || '#2673f3'
+              const isSelected = selectedInterests.includes(item.id)
+              
+              return (
+                <TouchableOpacity  
+                  key={item.id}  
                   style={[  
-                    styles.interestText,  
-                    selectedInterests.includes(item.id) && styles.interestTextSelected,  
+                    styles.interestItem,  
+                    isSelected && styles.interestItemSelected,  
                   ]}  
+                  onPress={() => toggleInterest(item.id)}  
                 >  
-                  {item.name}  
-                </Text>  
-              </TouchableOpacity>  
-            ))}  
+                  <View style={[styles.iconContainer, isSelected && { backgroundColor: iconColor + '20' }]}>  
+                    {IconComponent && <IconComponent size={24} color={isSelected ? iconColor : '#6B7280'} />}  
+                  </View>  
+                  <Text  
+                    style={[  
+                      styles.interestText,  
+                      isSelected && styles.interestTextSelected,  
+                    ]}  
+                  >  
+                    {item.name}  
+                  </Text>  
+                </TouchableOpacity>
+              )
+            })}  
           </View>  
   
           <View style={styles.progressContainer}>  
@@ -234,9 +266,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,  
     lineHeight: 20,  
   },  
-  interestsContainer: {  
-    // gap: 12, // Removido porque ya está en interestItem 
-  },  
+  interestsContainer: {},  
   interestItem: {  
     flexDirection: "row",  
     alignItems: "center",  
@@ -252,9 +282,14 @@ const styles = StyleSheet.create({
     borderColor: "#2673f3",  
     backgroundColor: "#f0f7ff",  
   },  
-  interestIcon: {  
-    fontSize: 20,  
-    marginRight: 14,  
+  iconContainer: {  
+    width: 44,  
+    height: 44,  
+    borderRadius: 10,  
+    backgroundColor: '#F3F4F6',  
+    justifyContent: 'center',  
+    alignItems: 'center',  
+    marginRight: 12,  
   },  
   interestText: {  
     fontSize: 15,  

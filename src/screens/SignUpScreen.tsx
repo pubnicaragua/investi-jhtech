@@ -51,13 +51,71 @@ export function SignUpScreen({ navigation }: any) {
       return
     }
 
+    if (password.length < 6) {
+      Alert.alert("Error", "La contraseña debe tener al menos 6 caracteres")
+      return
+    }
+
     setLoading(true)
     try {
-      console.log("SignUp successful - proceeding to onboarding")
-      navigation.navigate("UploadAvatar")
+      // 1. Crear usuario en Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password: password,
+        options: {
+          data: {
+            full_name: fullName.trim(),
+            username: username.trim().toLowerCase(),
+          }
+        }
+      })
+
+      if (authError) throw authError
+      
+      if (!authData.user) {
+        throw new Error("No se pudo crear el usuario")
+      }
+
+      // 2. Crear perfil en la tabla users
+      const { error: profileError } = await supabase
+        .from('users')
+        .insert({
+          id: authData.user.id,
+          email: email.trim().toLowerCase(),
+          full_name: fullName.trim(),
+          nombre: fullName.trim(),
+          username: username.trim().toLowerCase(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+
+      if (profileError) {
+        console.error("Error creating profile:", profileError)
+        // No lanzar error aquí, el usuario ya fue creado en auth
+      }
+
+      // 3. Auto-login después del registro
+      await authSignIn(email.trim().toLowerCase(), password)
+
+      Alert.alert(
+        "¡Cuenta creada!",
+        "Tu cuenta ha sido creada exitosamente. Ahora completa tu perfil.",
+        [{ text: "Continuar", onPress: () => navigation.navigate("UploadAvatar") }]
+      )
+
     } catch (error: any) {
       console.error("SignUp error:", error)
-      Alert.alert("Error", error.message || "Error al crear la cuenta")
+      
+      let errorMessage = "Error al crear la cuenta"
+      if (error.message?.includes("already registered")) {
+        errorMessage = "Este correo ya está registrado"
+      } else if (error.message?.includes("Invalid email")) {
+        errorMessage = "Correo electrónico inválido"
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
+      Alert.alert("Error", errorMessage)
     } finally {
       setLoading(false)
     }

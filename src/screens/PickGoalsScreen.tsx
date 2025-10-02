@@ -3,15 +3,54 @@
 import { useState, useEffect } from "react"
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator } from "react-native"
 import { useTranslation } from "react-i18next"
+import { 
+  Home, 
+  GraduationCap, 
+  DollarSign, 
+  Plane, 
+  Car, 
+  TrendingUp, 
+  Heart, 
+  Rocket, 
+  BookOpen, 
+  PawPrint 
+} from "lucide-react-native"
 import { getCurrentUserId, updateUser, getInvestmentGoals, saveUserGoals } from "../rest/api"
 
 interface InvestmentGoal {
   id: string
   name: string
-  description: string
-  icon: string
+  description?: string
+  icon?: string
   category: string
-  priority: number
+  priority?: number
+}
+
+// ICONOS LUCIDE - Mapeo por categoría
+const GOAL_ICON_COMPONENTS: Record<string, any> = {
+  'real_estate': Home,
+  'education': GraduationCap,
+  'financial_freedom': DollarSign,
+  'travel': Plane,
+  'vehicle': Car,
+  'investment': TrendingUp,
+  'health': Heart,
+  'business': Rocket,
+  'learning': BookOpen,
+  'pets': PawPrint
+}
+
+const GOAL_ICON_COLORS: Record<string, string> = {
+  'real_estate': '#3B82F6',
+  'education': '#8B5CF6',
+  'financial_freedom': '#10B981',
+  'travel': '#06B6D4',
+  'vehicle': '#F59E0B',
+  'investment': '#EF4444',
+  'health': '#EC4899',
+  'business': '#6366F1',
+  'learning': '#14B8A6',
+  'pets': '#F97316'
 }
 
 export function PickGoalsScreen({ navigation }: any) {
@@ -27,16 +66,11 @@ export function PickGoalsScreen({ navigation }: any) {
 
   const loadUserData = async () => {
     try {
-      const [uid, goalsData] = await Promise.all([
-        getCurrentUserId(),
-        getInvestmentGoals()
-      ])
+      const goalsData = await getInvestmentGoals()
       
       if (goalsData) {
         setGoals(goalsData)
       }
-      
-      // Skip loading existing goals for now - let user select fresh
     } catch (error) {
       console.error("Error loading user data:", error)
     } finally {
@@ -47,19 +81,15 @@ export function PickGoalsScreen({ navigation }: any) {
   const toggleGoal = (goalId: string) => {
     setSelectedGoals((prev) => {
       if (prev.includes(goalId)) {
-        // Si ya está seleccionado, lo removemos
         return prev.filter((id) => id !== goalId)
       }
       if (prev.length >= 3) {
-        // Si ya hay 3 seleccionados, no permitir más
         return prev
       }
-      // Agregar nuevo goal al final (manteniendo orden de selección)
       return [...prev, goalId]
     })
   }
 
-  // Función para obtener el número de prioridad (1, 2, 3)
   const getPriorityNumber = (goalId: string): number => {
     return selectedGoals.indexOf(goalId) + 1
   }
@@ -70,9 +100,7 @@ export function PickGoalsScreen({ navigation }: any) {
     try {
       const uid = await getCurrentUserId()
       if (uid) {
-        // Save to new segmentation system
         await saveUserGoals(uid, selectedGoals)
-        // Also update user table for backward compatibility
         await updateUser(uid, { metas: selectedGoals })
         navigation.navigate("PickKnowledge")
       }
@@ -95,7 +123,6 @@ export function PickGoalsScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate("UploadAvatar")}>
           <Text style={styles.backButtonText}>{"<"}</Text>
@@ -103,7 +130,6 @@ export function PickGoalsScreen({ navigation }: any) {
         <View style={styles.headerRight} />
       </View>
 
-      {/* Contenido */}
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
           <Text style={styles.title}>
@@ -114,36 +140,42 @@ export function PickGoalsScreen({ navigation }: any) {
           </Text>
 
           <View style={styles.goalsContainer}>
-            {goals.map((goal) => (
-              <TouchableOpacity
-                key={goal.id}
-                style={[styles.goalItem, selectedGoals.includes(goal.id) && styles.goalItemSelected]}
-                onPress={() => toggleGoal(goal.id)}
-              >
-                <Text style={styles.goalIcon}>{goal.icon}</Text>
-                <Text
-                  style={[
-                    styles.goalText,
-                    selectedGoals.includes(goal.id) && styles.goalTextSelected,
-                  ]}
+            {goals.map((goal) => {
+              const IconComponent = GOAL_ICON_COMPONENTS[goal.category]
+              const iconColor = GOAL_ICON_COLORS[goal.category] || '#2673f3'
+              const isSelected = selectedGoals.includes(goal.id)
+              
+              return (
+                <TouchableOpacity
+                  key={goal.id}
+                  style={[styles.goalItem, isSelected && styles.goalItemSelected]}
+                  onPress={() => toggleGoal(goal.id)}
                 >
-                  {goal.name}
-                </Text>
-                {/* Número de prioridad en la esquina superior derecha */}
-                {selectedGoals.includes(goal.id) && (
-                  <View style={styles.priorityBadge}>
-                    <Text style={styles.priorityNumber}>
-                      {getPriorityNumber(goal.id)}
-                    </Text>
+                  <View style={[styles.iconContainer, isSelected && { backgroundColor: iconColor + '20' }]}>
+                    {IconComponent && <IconComponent size={24} color={isSelected ? iconColor : '#6B7280'} />}
                   </View>
-                )}
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.goalText,
+                      isSelected && styles.goalTextSelected,
+                    ]}
+                  >
+                    {goal.name}
+                  </Text>
+                  {isSelected && (
+                    <View style={[styles.priorityBadge, { backgroundColor: iconColor }]}>
+                      <Text style={styles.priorityNumber}>
+                        {getPriorityNumber(goal.id)}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              )
+            })}
           </View>
         </View>
       </ScrollView>
 
-      {/* Footer */}
       <View style={styles.footer}>
         <TouchableOpacity
           style={[styles.continueButton, selectedGoals.length === 0 && styles.continueButtonDisabled]}
@@ -161,7 +193,6 @@ export function PickGoalsScreen({ navigation }: any) {
   )
 }
 
-// 🎨 Estilos ajustados al 100% Figma
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -214,9 +245,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     lineHeight: 20,
   },
-  goalsContainer: {
-    // gap: 12, // Removido porque ya está en goalItem
-  },
+  goalsContainer: {},
   goalItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -225,17 +254,21 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#D1D5DB", // Color gris más visible como en la imagen
+    borderColor: "#D1D5DB",
     marginBottom: 12,
-    position: 'relative', // Para posicionar el badge
+    position: 'relative',
   },
   goalItemSelected: {
     borderColor: "#2673f3",
     backgroundColor: "#f0f7ff",
   },
-  goalIcon: {
-    fontSize: 22,
-    marginRight: 14,
+  iconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   goalText: {
     fontSize: 15,
