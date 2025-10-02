@@ -20,8 +20,9 @@ const isProduction = process.env.NODE_ENV === 'production';
 config.maxWorkers = 2; // Limitar workers para reducir memoria
 config.resetCache = false; // No resetear cache automáticamente
 
-// Deshabilitar cache de disco para evitar errores de memoria
-config.cacheStores = [];
+// ⚡ OPTIMIZACIÓN: Habilitar cache para builds más rápidos
+// Solo deshabilitar si hay problemas de memoria
+// config.cacheStores = [];
 
 // Transformer optimizado para memoria
 config.transformer = {

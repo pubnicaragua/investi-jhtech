@@ -118,7 +118,6 @@ export function RootStack() {
   const [initialRoute, setInitialRoute] = useState<string | null>(null)  
   const [loading, setLoading] = useState(true)
   const { isAuthenticated, isLoading: authLoading } = useAuth()
-  const navigation = useNavigation<NavigationProp<any>>()
   
   useEffect(() => {  
     determineInitialRoute()  
@@ -129,10 +128,56 @@ export function RootStack() {
       console.log('🚀 Navigation: Determinando ruta inicial...')
       console.log('🔐 Navigation: isAuthenticated:', isAuthenticated)
       
-      // Si ya está autenticado, ir al HomeFeed
+      // Si ya está autenticado, verificar onboarding
       if (isAuthenticated) {
-        console.log('✅ Navigation: Usuario autenticado, yendo a HomeFeed')
-        setInitialRoute("HomeFeed")
+        console.log('✅ Navigation: Usuario autenticado, verificando onboarding...')
+        
+        try {
+          const user = await getCurrentUser()
+          console.log('👤 Navigation: Usuario obtenido:', user?.id)
+          
+          if (user) {
+            // Verificar si completó el onboarding
+            const hasAvatar = user.photo_url || user.avatar_url
+            const hasGoals = user.metas && user.metas.length > 0
+            const hasInterests = user.intereses && user.intereses.length > 0
+            const hasKnowledge = user.nivel_finanzas && user.nivel_finanzas !== "none"
+            
+            console.log('📊 Navigation: Estado del onboarding:', {
+              hasAvatar,
+              hasGoals,
+              hasInterests,
+              hasKnowledge
+            })
+            
+            // Si no completó el onboarding, enviarlo a la primera pantalla pendiente
+            if (!hasAvatar) {
+              console.log('📸 Navigation: Sin avatar, yendo a UploadAvatar')
+              setInitialRoute("UploadAvatar")
+            } else if (!hasKnowledge) {
+              console.log('🎓 Navigation: Sin nivel de conocimiento, yendo a PickKnowledge')
+              setInitialRoute("PickKnowledge")
+            } else if (!hasInterests) {
+              console.log('💡 Navigation: Sin intereses, yendo a PickInterests')
+              setInitialRoute("PickInterests")
+            } else if (!hasGoals) {
+              console.log('🎯 Navigation: Sin metas, yendo a PickGoals')
+              setInitialRoute("PickGoals")
+            } else {
+              // Onboarding completo, ir al HomeFeed
+              console.log('✅ Navigation: Onboarding completo, yendo a HomeFeed')
+              setInitialRoute("HomeFeed")
+            }
+          } else {
+            // Si no se pudo obtener el usuario, ir a UploadAvatar por seguridad
+            console.log('⚠️ Navigation: No se pudo obtener usuario, yendo a UploadAvatar')
+            setInitialRoute("UploadAvatar")
+          }
+        } catch (userError) {
+          console.error('❌ Navigation: Error obteniendo usuario:', userError)
+          // Si hay error, ir a UploadAvatar por seguridad
+          setInitialRoute("UploadAvatar")
+        }
       } else {
         // Verificar si ya se seleccionó un idioma
         const languageSelected = await AsyncStorage.getItem('user_language')
@@ -178,7 +223,6 @@ export function RootStack() {
           headerShown: false,  
           gestureEnabled: true,
           // ⚡ OPTIMIZACIÓN: Animación más rápida y suave
-          animationEnabled: true,
           transitionSpec: {
             open: {
               animation: 'timing',

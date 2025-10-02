@@ -17,6 +17,8 @@
     "test": "jest",
     "reset": "rmdir /s /q node_modules && npm install",
     "clean": "rmdir /s /q .expo .metro node_modules\\.cache",
+    "optimize": "optimize-bundle.bat",
+    "analyze": "npx depcheck",
     "postinstall": "patch-package"
   },
   "dependencies": {
