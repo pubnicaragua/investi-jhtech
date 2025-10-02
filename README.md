@@ -4,59 +4,86 @@ Aplicación móvil de la comunidad Investi construida con React Native y Expo.
 
 ## 🚀 Inicio Rápido
 
-### ⚠️ IMPORTANTE
-**NO usar Expo Go**. Esta app requiere un Development Build debido a módulos nativos.
-
 ### Instalación
 
 ```bash
-# Instalar dependencias
-yarn install
+# Instalar dependencias (usar --legacy-peer-deps por conflictos de versiones)
+npm install --legacy-peer-deps
 
 # Configurar variables de entorno
 cp .env.example .env
 # Editar .env con tus credenciales de Supabase
 ```
 
-### Primera vez: Construir Development Build
+### Desarrollo
 
 ```bash
-# Instalar EAS CLI
+# Iniciar servidor de desarrollo
+npm start
+
+# O con cache limpio
+npx expo start --clear
+```
+
+### Build de Producción
+
+```bash
+# Instalar EAS CLI (si no lo tienes)
 npm install -g eas-cli
 
 # Login
 eas login
 
-# Construir APK de desarrollo
+# Build para Android
+eas build --profile production --platform android
+```
+
+## 🛠️ Comandos Útiles
+
+```bash
+# Limpiar cache y reinstalar
+npm cache clean --force
+rm -rf node_modules package-lock.json
+npm install --legacy-peer-deps
+
+# Iniciar con cache limpio
+npx expo start --clear
+
+# Build de desarrollo
 npm run build:dev
 ```
 
-Instala el APK generado en tu teléfono Android.
+## ⚠️ Notas Importantes
 
-### Desarrollo Diario
+1. **Usar `--legacy-peer-deps`**: Hay conflictos de peer dependencies entre `expo-router` y `@react-navigation/drawer`
+2. **No usar React.lazy()**: No es compatible con React Native + Hermes
+3. **Metro config optimizado**: Ya configurado con `inlineRequires` para mejor performance
 
-```bash
-# Iniciar metro bundler
-npm start
+## 📁 Estructura del Proyecto
 
-# Escanea el QR con tu teléfono
-# La app se abrirá en el Development Build
+```
+investi-jhtech-review/
+├── src/
+│   ├── components/     # Componentes reutilizables
+│   ├── screens/        # Pantallas de la app
+│   ├── contexts/       # React Contexts (Auth, Language)
+│   ├── hooks/          # Custom hooks
+│   ├── rest/           # API client
+│   └── i18n/           # Internacionalización
+├── assets/             # Imágenes y recursos
+├── navigation.tsx      # Configuración de navegación
+└── App.tsx            # Punto de entrada
 ```
 
-## 📚 Documentación
-
-- **[DESARROLLO.md](./DESARROLLO.md)** - Guía completa de desarrollo
-- **[eas.json](./eas.json)** - Configuración de builds
-
-## 🛠️ Stack Tecnológico
+## 🔧 Stack Tecnológico
 
 - **React Native** 0.79.5
 - **Expo** SDK 53
-- **Expo Router** - Navegación basada en archivos
-- **Supabase** - Backend y autenticación
+- **React Navigation** 6.x
+- **Supabase** 2.45.4
+- **i18next** - Internacionalización
+- **Hermes** - Motor JavaScript
 - **NativeWind** - Styling con Tailwind CSS
-- **React Query** - Gestión de estado del servidor
-- **React Hook Form** + **Zod** - Formularios y validación
 
 ## 📦 Scripts Principales
 
@@ -79,14 +106,18 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key
 
 ## 🐛 Troubleshooting
 
-### Error: "PlatformConstants could not be found"
-Estás usando Expo Go. Usa el Development Build.
+### Error de dependencias al instalar
+```bash
+npm install --legacy-peer-deps
+```
 
-### Botones no funcionan
-Reconstruye el Development Build: `npm run build:dev`
+### App no inicia o errores de módulos
+```bash
+npx expo start --clear
+```
 
-### Más ayuda
-Ver [DESARROLLO.md](./DESARROLLO.md) para solución de problemas detallada.
+### Cambios en metro.config.js no se aplican
+Reinicia el servidor de Metro completamente.
 
 ## 📄 Licencia
 

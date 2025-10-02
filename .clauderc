@@ -1,0 +1,21 @@
+{
+  "model": "claude-3-5-sonnet-20241022",
+  "context": {
+    "project": "Investi App - React Native + Expo",
+    "stack": [
+      "React Native 0.79.5",
+      "Expo SDK 53",
+      "Expo Router",
+      "Supabase",
+      "NativeWind (Tailwind)",
+      "React Query",
+      "React Hook Form + Zod"
+    ],
+    "conventions": [
+      "Use TypeScript",
+      "Functional components with hooks",
+      "NativeWind for styling",
+      "Expo Router for navigation"
+    ]
+  }
+}

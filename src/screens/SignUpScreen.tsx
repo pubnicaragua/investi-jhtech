@@ -1,3 +1,5 @@
+"use client"
+
 import { useState } from "react"
 import {
   View,
@@ -9,11 +11,12 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
-  Image,
+  KeyboardAvoidingView,
+  Platform,
+  StatusBar,
 } from "react-native"
 import { useTranslation } from "react-i18next"
 import { Eye, EyeOff } from "lucide-react-native"
-// import { signUpWithEmail } from "../rest/api"
 import { supabase } from "../supabase"
 import { useAuth } from "../contexts/AuthContext"
 
@@ -27,10 +30,12 @@ export function SignUpScreen({ navigation }: any) {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const handleOAuth = async (provider: 'google' | 'apple' | 'facebook' | 'linkedin_oidc') => {
+  const handleOAuth = async (provider: "google" | "apple" | "facebook" | "linkedin_oidc") => {
     try {
       setLoading(true)
-      const redirectTo = `${typeof window !== 'undefined' ? window.location.origin : 'https://investi.app'}/auth/callback`
+      const redirectTo = `${
+        typeof window !== "undefined" ? window.location.origin : "https://investi.app"
+      }/auth/callback`
       const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } })
       if (error) throw error
     } catch (err: any) {
@@ -48,7 +53,6 @@ export function SignUpScreen({ navigation }: any) {
 
     setLoading(true)
     try {
-      // For now, just navigate to upload avatar
       console.log("SignUp successful - proceeding to onboarding")
       navigation.navigate("UploadAvatar")
     } catch (error: any) {
@@ -61,310 +65,364 @@ export function SignUpScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.backButtonText}>{"<"}</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Regístrate</Text>
-        <View style={styles.headerRight} />
-      </View>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.keyboardView}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.backButtonText}>‹</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Regístrate</Text>
+          <View style={styles.headerRight} />
+        </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        {/* Formulario */}
-        <View style={styles.formContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Correo"
-            placeholderTextColor="#999"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Form Container */}
+          <View style={styles.formContainer}>
+            {/* Email Input */}
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.input}
+                placeholder="Correo"
+                placeholderTextColor="#9CA3AF"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!loading}
+              />
+            </View>
 
-          <View style={styles.passwordContainer}>
-            <TextInput
-              style={styles.passwordInput}
-              placeholder="Contraseña"
-              placeholderTextColor="#999"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-            />
-            <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(!showPassword)}>
-              {showPassword ? <EyeOff size={20} color="#999" /> : <Eye size={20} color="#999" />}
+            {/* Password Input */}
+            <View style={styles.inputWrapper}>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="Contraseña"
+                  placeholderTextColor="#9CA3AF"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!loading}
+                />
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => setShowPassword(!showPassword)}
+                  activeOpacity={0.7}
+                >
+                  {showPassword ? (
+                    <EyeOff size={20} color="#9CA3AF" />
+                  ) : (
+                    <Eye size={20} color="#9CA3AF" />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Full Name Input */}
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.input}
+                placeholder="Nombre"
+                placeholderTextColor="#9CA3AF"
+                value={fullName}
+                onChangeText={setFullName}
+                autoCapitalize="words"
+                editable={!loading}
+              />
+            </View>
+
+            {/* Username Input */}
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.input}
+                placeholder="Nombre de usuario"
+                placeholderTextColor="#9CA3AF"
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!loading}
+              />
+            </View>
+
+            {/* Sign Up Button */}
+            <TouchableOpacity
+              style={[styles.signUpButton, loading && styles.signUpButtonDisabled]}
+              onPress={handleSignUp}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.signUpButtonText}>Crear cuenta</Text>
+              )}
             </TouchableOpacity>
           </View>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Nombre"
-            placeholderTextColor="#999"
-            value={fullName}
-            onChangeText={setFullName}
-          />
+          {/* Divider */}
+          <View style={styles.dividerContainer}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>o</Text>
+            <View style={styles.dividerLine} />
+          </View>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Nombre de usuario"
-            placeholderTextColor="#999"
-            value={username}
-            onChangeText={setUsername}
-            autoCapitalize="none"
-          />
+          {/* Social Buttons */}
+          <View style={styles.socialButtons}>
+            {/* LinkedIn */}
+            <TouchableOpacity
+              style={styles.socialButton}
+              onPress={() => handleOAuth("linkedin_oidc")}
+              disabled={loading}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.socialIconContainer, styles.linkedinIconBg]}>
+                <Text style={styles.linkedinIcon}>in</Text>
+              </View>
+              <Text style={styles.socialButtonText}>Regístrate con LinkedIn</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.signUpButton} onPress={handleSignUp} disabled={loading}>
-            {loading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={styles.signUpButtonText}>Crear cuenta</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+            {/* Google */}
+            <TouchableOpacity
+              style={styles.socialButton}
+              onPress={() => handleOAuth("google")}
+              disabled={loading}
+              activeOpacity={0.7}
+            >
+              <View style={styles.socialIconContainer}>
+                <Text style={styles.googleIcon}>G</Text>
+              </View>
+              <Text style={styles.socialButtonText}>Regístrate con Google</Text>
+            </TouchableOpacity>
 
-        {/* Divider */}
-        <View style={styles.dividerContainer}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>o</Text>
-          <View style={styles.dividerLine} />
-        </View>
+            {/* Apple */}
+            <TouchableOpacity
+              style={styles.socialButton}
+              onPress={() => handleOAuth("apple")}
+              disabled={loading}
+              activeOpacity={0.7}
+            >
+              <View style={styles.socialIconContainer}>
+                <Text style={styles.appleIcon}></Text>
+              </View>
+              <Text style={styles.socialButtonText}>Regístrate con Apple</Text>
+            </TouchableOpacity>
 
-        {/* Botones Sociales */}
-        <View style={styles.socialButtons}>
-          <TouchableOpacity style={[styles.socialButton, styles.linkedinButton]} onPress={() => handleOAuth('linkedin_oidc')}>
-            <View style={styles.socialIcon}>
-              <Text style={styles.linkedinIcon}>in</Text>
-            </View>
-            <Text style={styles.linkedinText}>Regístrate con LinkedIn</Text>
-          </TouchableOpacity>
+            {/* Facebook */}
+            <TouchableOpacity
+              style={styles.socialButton}
+              onPress={() => handleOAuth("facebook")}
+              disabled={loading}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.socialIconContainer, styles.facebookIconBg]}>
+                <Text style={styles.facebookIcon}>f</Text>
+              </View>
+              <Text style={styles.socialButtonText}>Regístrate con Facebook</Text>
+            </TouchableOpacity>
+          </View>
 
-          <TouchableOpacity style={[styles.socialButton, styles.googleButton]} onPress={() => handleOAuth('google')}>
-            <View style={styles.socialIcon}>
-              <Text style={styles.googleIcon}>G</Text>
-            </View>
-            <Text style={styles.googleText}>Regístrate con Google</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.socialButton, styles.appleButton]} onPress={() => handleOAuth('apple')}>
-            <View style={styles.socialIcon}>
-              <Text style={styles.appleIcon}>🍎</Text>
-            </View>
-            <Text style={styles.appleText}>Regístrate con Apple</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.socialButton, styles.facebookButton]} onPress={() => handleOAuth('facebook')}>
-            <View style={styles.socialIcon}>
-              <Text style={styles.facebookIcon}>f</Text>
-            </View>
-            <Text style={styles.facebookText}>Regístrate con Facebook</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Terms */}
-        <Text style={styles.termsText}>
-          Al registrarte en Investi, tu aceptas nuestros Términos y{"\n"}
-          Políticas de Privacidad.
-        </Text>
-      </ScrollView>
+          {/* Terms */}
+          <View style={styles.termsContainer}>
+            <Text style={styles.termsText}>
+              Al registrarte en Investi, tu aceptas nuestros Términos y{"\n"}Políticas de Privacidad.
+            </Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   )
-} 
-  
-const styles = StyleSheet.create({ 
-  container: { 
-    flex: 1, 
-    backgroundColor: "#f7f8fa", 
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
   },
-  logoContainer: {
+  keyboardView: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: "row",
     alignItems: "center",
-    marginTop: 40,
-    marginBottom: 40,
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 0,
   },
-  logo: {
-    width: 120,
-    height: 120,
-  }, 
-  header: { 
-    flexDirection: "row", 
-    alignItems: "center", 
-    justifyContent: "space-between", 
-    paddingHorizontal: 20, 
-    paddingTop: 10, 
-    paddingBottom: 20, 
-  }, 
-  backButton: { 
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+  backButton: {
+    width: 44,
+    height: 44,
+    justifyContent: "center",
+    alignItems: "flex-start",
   },
   backButtonText: {
-    fontSize: 24,
-    fontWeight: '400',
-    color: '#111',
-  }, 
-  headerTitle: { 
-    fontSize: 18, 
-    fontWeight: "600", 
-    color: "#111", 
-  }, 
-  headerRight: { 
-    width: 40, 
-  }, 
-  scrollView: { 
-    flex: 1, 
-  }, 
-  content: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 20,
+    fontSize: 34,
+    fontWeight: "300",
+    color: "#111827",
+    marginTop: -6,
   },
-  formContainer: { 
-    paddingTop: 20, 
-  }, 
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#111827",
+    letterSpacing: -0.4,
+  },
+  headerRight: {
+    width: 44,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingTop: 40,
+    paddingBottom: 24,
+  },
+  formContainer: {
+    marginBottom: 32,
+  },
+  inputWrapper: {
+    marginBottom: 12,
+  },
   input: {
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#F3F4F6",
     paddingHorizontal: 16,
-    paddingVertical: 18,
-    borderRadius: 12,
+    paddingVertical: 16,
+    borderRadius: 10,
     fontSize: 16,
-    marginBottom: 16,
-    borderWidth: 0,
-    color: "#333",
-  }, 
+    color: "#111827",
+    fontWeight: "400",
+  },
   passwordContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 12,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 10,
     paddingHorizontal: 16,
-    paddingVertical: 2,
-    marginBottom: 16,
-    borderWidth: 0,
-  }, 
-  passwordInput: { 
-    flex: 1, 
-    fontSize: 16,
+  },
+  passwordInput: {
+    flex: 1,
     paddingVertical: 16,
-    color: "#333",
-  }, 
-  eyeButton: { 
-    padding: 4, 
-  }, 
+    fontSize: 16,
+    color: "#111827",
+    fontWeight: "400",
+  },
+  eyeButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
   signUpButton: {
-    backgroundColor: "#2673f3",
-    paddingVertical: 18,
-    borderRadius: 12,
+    backgroundColor: "#2563EB",
+    paddingVertical: 16,
+    borderRadius: 10,
     alignItems: "center",
-    marginTop: 8,
-    marginBottom: 24,
-  }, 
-  signUpButtonText: { 
-    color: "white", 
-    fontSize: 16, 
-    fontWeight: "600", 
-  }, 
+    marginTop: 20,
+  },
+  signUpButtonDisabled: {
+    opacity: 0.6,
+  },
+  signUpButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+    letterSpacing: -0.3,
+  },
   dividerContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 24,
-  }, 
-  dividerLine: { 
+    marginVertical: 32,
+  },
+  dividerLine: {
     flex: 1,
-    height: 1, 
-    backgroundColor: "#e5e5e5", 
-  }, 
+    height: 1,
+    backgroundColor: "#E5E7EB",
+  },
   dividerText: {
-    fontSize: 14,
-    color: "#999",
     marginHorizontal: 16,
-  },
-  socialButtons: { 
-    gap: 12, 
-    marginBottom: 24, 
-  }, 
-  socialButton: {
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "flex-start",
-    marginBottom: 12,
-    paddingHorizontal: 16,
-    backgroundColor: "#f5f5f5",
-  }, 
-  socialButtonText: { 
-    color: "white", 
-    fontSize: 14, 
-    fontWeight: "500", 
-  }, 
-  linkedinButton: {
-    backgroundColor: "#f5f5f5",
-  }, 
-  googleButton: {
-    backgroundColor: "#f5f5f5",
-  }, 
-  appleButton: { 
-    backgroundColor: "#f5f5f5", 
-  }, 
-  facebookButton: { 
-    backgroundColor: "#f5f5f5", 
-  },
-  socialIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  }, 
-  termsText: { 
-    fontSize: 12, 
-    color: "#666", 
-    textAlign: "center", 
-    lineHeight: 18, 
-    marginTop: 20,
-    marginBottom: 20, 
-  }, 
-  linkedinIcon: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#0A66C2",
-  },
-  linkedinText: {
-    fontSize: 16,
-    color: "#333",
+    fontSize: 14,
+    color: "#6B7280",
     fontWeight: "500",
+  },
+  socialButtons: {
+    gap: 12,
+    marginBottom: 32,
+  },
+  socialButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  socialIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  linkedinIconBg: {
+    backgroundColor: "#0A66C2",
+  },
+  facebookIconBg: {
+    backgroundColor: "#1877F2",
+  },
+  linkedinIcon: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   googleIcon: {
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 20,
+    fontWeight: "700",
     color: "#4285F4",
   },
-  googleText: {
-    fontSize: 16,
-    color: "#333",
-    fontWeight: "500",
-  },
   appleIcon: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#000",
-  },
-  appleText: {
-    fontSize: 16,
-    color: "#333",
-    fontWeight: "500",
+    fontSize: 22,
+    color: "#000000",
   },
   facebookIcon: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#1877F2",
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
-  facebookText: {
-    fontSize: 16,
-    color: "#333",
+  socialButtonText: {
+    flex: 1,
+    fontSize: 15,
     fontWeight: "500",
+    color: "#1F2937",
+    letterSpacing: -0.2,
   },
-  // logoContainer y logo ya están definidos arriba
+  termsContainer: {
+    paddingBottom: 24,
+  },
+  termsText: {
+    fontSize: 12,
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 18,
+    paddingHorizontal: 20,
+  },
 })

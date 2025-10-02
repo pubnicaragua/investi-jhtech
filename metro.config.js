@@ -1,67 +1,52 @@
 const { getDefaultConfig } = require('expo/metro-config');
+const path = require('path');
 
 const config = getDefaultConfig(__dirname);
 
-// Configuración súper optimizada para velocidad
+// Silenciar warnings específicos de paquetes
+const originalWarn = console.warn;
+console.warn = (...args) => {
+  if (args[0]?.includes?.('use-latest-callback') || 
+      args[0]?.includes?.('invalid package.json configuration')) {
+    return; // Ignorar este warning específico
+  }
+  originalWarn(...args);
+};
+
+// Detectar si es producción
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Transformer básico - SIN optimizaciones agresivas que causen problemas
 config.transformer = {
   ...config.transformer,
-  unstable_allowRequireContext: true,
-  // Desactivar minificación en desarrollo
-  minifierPath: require.resolve('metro-minify-terser'),
-  minifierConfig: {
-    ecma: 8,
-    keep_fnames: true,
-    module: true,
-  },
+  getTransformOptions: async () => ({
+    transform: {
+      experimentalImportSupport: false,
+      inlineRequires: false, // DESACTIVADO: Puede causar problemas de módulos
+    },
+  }),
 };
 
-// Resolver optimizado
+// Resolver simplificado
 config.resolver = {
   ...config.resolver,
-  sourceExts: [...config.resolver.sourceExts, 'cjs'],
-  platforms: ['ios', 'android', 'native', 'web'],
-  // Blacklist para evitar módulos problemáticos
-  blockList: [
-    /.*\/__tests__\/.*/,
-    /.*\/test\/.*/,
-    /.*\.test\.(js|jsx|ts|tsx)$/,
-    /.*\.spec\.(js|jsx|ts|tsx)$/,
-  ],
-  // Polyfills para Node modules
-  extraNodeModules: {
-    buffer: require.resolve('buffer'),
-  },
+  sourceExts: ['tsx', 'ts', 'jsx', 'js', 'json', 'mjs', 'cjs'],
+  assetExts: [...(config.resolver.assetExts || [])],
 };
 
-// Configuración de workers para velocidad
-const os = require('os');
-config.maxWorkers = Math.max(1, Math.floor(os.cpus().length * 0.75));
+// Configuración mínima - sin optimizaciones que puedan causar problemas
 
-// Cache agresivo
-config.resetCache = false;
-
-// Servidor optimizado
-config.server = {
-  ...config.server,
-  port: 8081,
-  enhanceMiddleware: (middleware) => {
-    return (req, res, next) => {
-      // Headers de cache para assets
-      if (req.url.includes('.bundle') || req.url.includes('.map')) {
-        res.setHeader('Cache-Control', 'public, max-age=31536000');
-      }
-      return middleware(req, res, next);
-    };
-  },
-};
-
-// Watcher optimizado
-config.watchFolders = [];
-config.watcher = {
-  ...config.watcher,
-  additionalExts: ['cjs'],
-  healthCheck: {
-    enabled: false,
+// Serializer simplificado - SIN custom module IDs
+config.serializer = {
+  ...config.serializer,
+  // Filtrar solo módulos de test
+  processModuleFilter: (module) => {
+    if (module.path.includes('__tests__') || 
+        module.path.includes('test.') ||
+        module.path.includes('.spec.')) {
+      return false;
+    }
+    return true;
   },
 };
 

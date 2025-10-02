@@ -1,531 +1,613 @@
-import { useState, useEffect } from "react"  
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Image, Alert, Modal, FlatList, ActivityIndicator } from "react-native"  
-import { useTranslation } from "react-i18next"  
-import { ArrowLeft, ChevronDown, Camera, Video, Star, FileText, Users, BarChart3, Check, X } from "lucide-react-native"  
-import { createPost, getCurrentUser, getUserCommunities } from "../rest/api"  
-import { useAuthGuard } from "../hooks/useAuthGuard"
-import * as ImagePicker from 'expo-image-picker'  
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  InteractionManager,
+  Keyboard,
+  Platform,
+  Image as RNImage,
+} from 'react-native'
+import { useTranslation } from 'react-i18next'
+import {
+  ArrowLeft,
+  Image as ImageIcon,
+  Video as VideoIcon,
+  Star,
+  BarChart3,
+  Globe,
+  ChevronDown,
+} from 'lucide-react-native'
+import * as ImagePicker from 'expo-image-picker'
+
+import { useAuthGuard } from '../hooks/useAuthGuard'
+import {
+  getCurrentUser,
+  uploadMedia,
+  listCommunitiesPaged,
+  createPostFull,
+  saveDraft,
+  loadDraft,
+  clearDraft,
+} from '../rest/api'
+import { AudiencePicker, AudienceOption } from '../components/pickers/AudiencePicker'
+import { MediaPreview, MediaItem } from '../components/media/MediaPreview'
+import { PollEditor, PollData } from '../components/poll/PollEditor'
+
+type CelebrationType = 'milestone' | 'achievement' | 'success' | 'investment_win' | 'other'
+
+interface PartnershipData {
+  businessType: string
+  investmentAmount: string
+  location: string
+}
+
+const MAX_CONTENT_LENGTH = 2000
+const AUTOSAVE_INTERVAL = 2000 // 2 seconds
+
+export function CreatePostScreen({ navigation }: any) {
+  const { t } = useTranslation()
   
-interface Community {  
-  id: string  
-  name: string  
-  image_url: string  
-}  
-  
-export function CreatePostScreen({ navigation }: any) {  
-  const { t } = useTranslation()  
-  const [content, setContent] = useState("")  
-  const [selectedCommunity, setSelectedCommunity] = useState<Community | null>(null)  
-  const [communities, setCommunities] = useState<Community[]>([])  
-  const [loading, setLoading] = useState(false)  
-  const [loadingData, setLoadingData] = useState(true)  
-  const [showCommunityModal, setShowCommunityModal] = useState(false)  
+  // Auth
+  useAuthGuard()
   const [currentUser, setCurrentUser] = useState<any>(null)
-  const [selectedMedia, setSelectedMedia] = useState<string[]>([])
-  const [postType, setPostType] = useState<'text' | 'celebration' | 'poll' | 'partnership'>('text')
-  const [pollOptions, setPollOptions] = useState<string[]>(['', ''])
-  const [pollDuration, setPollDuration] = useState(24)
-  const [celebrationType, setCelebrationType] = useState<'milestone' | 'achievement' | 'success' | 'investment_win' | 'other'>('achievement')
-  const [partnershipDetails, setPartnershipDetails] = useState({
-    businessType: '',
-    investmentAmount: '',
-    location: '',
-    partnershipType: 'equity' as 'equity' | 'loan' | 'joint_venture' | 'other',
-    requirements: [] as string[],
-    contactPreferences: [] as string[]
+  
+  // Content
+  const [content, setContent] = useState('')
+  const [audience, setAudience] = useState<AudienceOption>({
+    id: 'profile',
+    name: 'Mi Perfil',
+    type: 'profile',
   })
-  const [showPollModal, setShowPollModal] = useState(false)
-  const [showCelebrationModal, setShowCelebrationModal] = useState(false)
-  const [showPartnershipModal, setShowPartnershipModal] = useState(false)  
   
-  useAuthGuard()  
+  // Media
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([])
   
-  useEffect(() => {  
-    loadUserData()  
-  }, [])  
+  // Poll
+  const [pollData, setPollData] = useState<PollData | null>(null)
   
-  const loadUserData = async () => {  
-    try {  
-      setLoadingData(true)  
-      const user = await getCurrentUser()  
-      if (user) {  
-        setCurrentUser(user)  
-        const userCommunities = await getUserCommunities(user.id)  
-          
-        const communitiesList = [  
-          { id: 'public', name: 'Público', image_url: '' },  
-          ...userCommunities  
-        ]  
-          
-        setCommunities(communitiesList)  
-        setSelectedCommunity(communitiesList[0])  
-      }  
-    } catch (error) {  
-      console.error('Error loading user data:', error)  
-      Alert.alert('Error', 'No se pudieron cargar los datos del usuario')  
-    } finally {  
-      setLoadingData(false)  
-    }  
-  }  
+  // Celebration
+  const [celebrationType, setCelebrationType] = useState<CelebrationType | null>(null)
   
-  const handlePublish = async () => {
-    if (!content.trim()) {
-      Alert.alert('Error', 'Por favor escribe algo antes de publicar')
-      return
+  // Partnership
+  const [partnershipData, setPartnershipData] = useState<PartnershipData | null>(null)
+  
+  // UI State
+  const [loading, setLoading] = useState(false)
+  const [loadingData, setLoadingData] = useState(true)
+  const [showAudiencePicker, setShowAudiencePicker] = useState(false)
+  const [showPollEditor, setShowPollEditor] = useState(false)
+  
+  // Refs
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const contentInputRef = useRef<TextInput>(null)
+  
+  // ===== INITIALIZATION =====
+  
+  useEffect(() => {
+    InteractionManager.runAfterInteractions(() => {
+      initializeScreen()
+    })
+    
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current)
+      }
     }
-
-    if (!currentUser) {
-      Alert.alert('Error', 'Usuario no encontrado. Por favor inicia sesión nuevamente.')
-      return
-    }
-
-    setLoading(true)
+  }, [])
+  
+  const initializeScreen = async () => {
     try {
-      let mediaUrls: string[] = []
+      setLoadingData(true)
       
-      // Upload media files if any
-      if (selectedMedia.length > 0) {
-        for (const mediaUri of selectedMedia) {
-          try {
-            // Skip media upload for now to avoid errors
-            console.log('Media upload skipped for stability:', mediaUri)
-          } catch (uploadError) {
-            console.error('Error uploading media:', uploadError)
+      // Load user
+      const user = await getCurrentUser()
+      if (!user) {
+        Alert.alert('Error', 'No se pudo cargar el usuario')
+        navigation.goBack()
+        return
+      }
+      setCurrentUser(user)
+      
+      // Load draft
+      const draft = await loadDraft()
+      if (draft) {
+        Alert.alert(
+          'Borrador encontrado',
+          '¿Deseas restaurar el borrador guardado?',
+          [
+            {
+              text: 'No',
+              onPress: () => clearDraft(),
+              style: 'cancel',
+            },
+            {
+              text: 'Sí',
+              onPress: () => restoreDraft(draft),
+            },
+          ]
+        )
+      }
+    } catch (error) {
+      console.error('Error initializing screen:', error)
+      Alert.alert('Error', 'No se pudo inicializar la pantalla')
+    } finally {
+      setLoadingData(false)
+    }
+  }
+  
+  const restoreDraft = (draft: any) => {
+    if (draft.content) setContent(draft.content)
+    if (draft.audience) setAudience(draft.audience)
+    if (draft.media) setMediaItems(draft.media)
+    if (draft.poll) setPollData(draft.poll)
+    if (draft.celebration) setCelebrationType(draft.celebration)
+    if (draft.partnership) setPartnershipData(draft.partnership)
+  }
+  
+  // ===== AUTOSAVE =====
+  
+  useEffect(() => {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current)
+    }
+    
+    if (content || mediaItems.length > 0 || pollData || celebrationType || partnershipData) {
+      autosaveTimerRef.current = setTimeout(() => {
+        handleAutosave()
+      }, AUTOSAVE_INTERVAL)
+    }
+  }, [content, mediaItems, pollData, celebrationType, partnershipData, audience])
+  
+  const handleAutosave = useCallback(async () => {
+    try {
+      await saveDraft({
+        content,
+        audience,
+        media: mediaItems,
+        poll: pollData,
+        celebration: celebrationType,
+        partnership: partnershipData,
+      })
+    } catch (error) {
+      console.error('Error autosaving:', error)
+    }
+  }, [content, audience, mediaItems, pollData, celebrationType, partnershipData])
+  
+  // ===== MEDIA HANDLING =====
+  
+  const handleAddPhoto = useCallback(async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (status !== 'granted') {
+        Alert.alert('Permisos requeridos', 'Necesitamos acceso a tu galería para agregar fotos')
+        return
+      }
+      
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        quality: 0.8,
+      })
+      
+      if (!result.canceled) {
+        const newItems: MediaItem[] = result.assets.map((asset) => ({
+          id: `${Date.now()}_${Math.random()}`,
+          uri: asset.uri,
+          type: 'image',
+          mimeType: asset.mimeType,
+          size: asset.fileSize,
+        }))
+        setMediaItems((prev) => [...prev, ...newItems])
+      }
+    } catch (error) {
+      console.error('Error picking image:', error)
+      Alert.alert('Error', 'No se pudo seleccionar la imagen')
+    }
+  }, [])
+  
+  const handleAddVideo = useCallback(async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (status !== 'granted') {
+        Alert.alert('Permisos requeridos', 'Necesitamos acceso a tu galería para agregar videos')
+        return
+      }
+      
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+        quality: 0.8,
+      })
+      
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0]
+        const newItem: MediaItem = {
+          id: `${Date.now()}_${Math.random()}`,
+          uri: asset.uri,
+          type: 'video',
+          mimeType: asset.mimeType,
+          size: asset.fileSize,
+        }
+        setMediaItems((prev) => [...prev, newItem])
+      }
+    } catch (error) {
+      console.error('Error picking video:', error)
+      Alert.alert('Error', 'No se pudo seleccionar el video')
+    }
+  }, [])
+  
+  
+  const handleRemoveMedia = useCallback((id: string) => {
+    setMediaItems((prev) => prev.filter((item) => item.id !== id))
+  }, [])
+  
+  const handleRetryUpload = useCallback(async (id: string) => {
+    const item = mediaItems.find((m) => m.id === id)
+    if (!item || !currentUser) return
+    
+    try {
+      setMediaItems((prev) =>
+        prev.map((m) =>
+          m.id === id ? { ...m, uploadProgress: 0, uploadError: undefined } : m
+        )
+      )
+      
+      const uploaded = await uploadMedia(item.uri, item.type, currentUser.id)
+      
+      setMediaItems((prev) =>
+        prev.map((m) =>
+          m.id === id
+            ? { ...m, uri: uploaded.url, uploadProgress: 100, uploadError: undefined }
+            : m
+        )
+      )
+    } catch (error) {
+      console.error('Error retrying upload:', error)
+      setMediaItems((prev) =>
+        prev.map((m) =>
+          m.id === id ? { ...m, uploadError: 'Error al subir' } : m
+        )
+      )
+    }
+  }, [mediaItems, currentUser])
+  
+  // ===== CELEBRATION =====
+  
+  const handleCelebration = useCallback(() => {
+    Alert.alert(
+      'Tipo de celebración',
+      'Selecciona el tipo de celebración',
+      [
+        { text: '🎯 Hito alcanzado', onPress: () => setCelebrationType('milestone') },
+        { text: '🏆 Logro personal', onPress: () => setCelebrationType('achievement') },
+        { text: '✨ Éxito empresarial', onPress: () => setCelebrationType('success') },
+        { text: '💰 Ganancia de inversión', onPress: () => setCelebrationType('investment_win') },
+        { text: '🎉 Otro', onPress: () => setCelebrationType('other') },
+        { text: 'Cancelar', style: 'cancel' },
+      ]
+    )
+  }, [])
+  
+  // ===== PARTNERSHIP =====
+  
+  const handlePartnership = useCallback(() => {
+    Alert.prompt(
+      'Buscar socio',
+      'Tipo de negocio',
+      (businessType) => {
+        if (!businessType) return
+        Alert.prompt(
+          'Buscar socio',
+          'Monto de inversión',
+          (investmentAmount) => {
+            if (!investmentAmount) return
+            Alert.prompt(
+              'Buscar socio',
+              'Ubicación',
+              (location) => {
+                if (!location) return
+                setPartnershipData({ businessType, investmentAmount, location })
+              }
+            )
           }
+        )
+      }
+    )
+  }, [])
+  
+  // ===== PUBLISH =====
+  
+  const canPublish = useMemo(() => {
+    const hasContent = content.trim().length > 0
+    const hasMedia = mediaItems.length > 0
+    const hasPoll = pollData !== null
+    const hasCelebration = celebrationType !== null
+    const hasPartnership = partnershipData !== null
+    
+    return hasContent || hasMedia || hasPoll || hasCelebration || hasPartnership
+  }, [content, mediaItems, pollData, celebrationType, partnershipData])
+  
+  const handlePublish = useCallback(async () => {
+    if (!canPublish) {
+      Alert.alert('Contenido vacío', 'Agrega contenido antes de publicar')
+      return
+    }
+    
+    if (!currentUser) {
+      Alert.alert('Error', 'Usuario no encontrado')
+      return
+    }
+    
+    if (content.length > MAX_CONTENT_LENGTH) {
+      Alert.alert('Contenido muy largo', `Máximo ${MAX_CONTENT_LENGTH} caracteres`)
+      return
+    }
+    
+    setLoading(true)
+    Keyboard.dismiss()
+    
+    try {
+      // Upload media first
+      const uploadedMedia: Array<{ url: string; type: string; mime: string; size: number }> = []
+      
+      for (let i = 0; i < mediaItems.length; i++) {
+        const item = mediaItems[i]
+        try {
+          setMediaItems((prev) =>
+            prev.map((m, idx) =>
+              idx === i ? { ...m, uploadProgress: 0 } : m
+            )
+          )
+          
+          const uploaded = await uploadMedia(item.uri, item.type, currentUser.id)
+          
+          setMediaItems((prev) =>
+            prev.map((m, idx) =>
+              idx === i ? { ...m, uploadProgress: 100 } : m
+            )
+          )
+          
+          uploadedMedia.push({
+            url: uploaded.url,
+            type: item.type,
+            mime: uploaded.mime,
+            size: uploaded.bytes,
+          })
+        } catch (error) {
+          console.error(`Error uploading media ${i}:`, error)
+          setMediaItems((prev) =>
+            prev.map((m, idx) =>
+              idx === i ? { ...m, uploadError: 'Error al subir' } : m
+            )
+          )
+          throw error
         }
       }
-
-      let result
-      const communityId = selectedCommunity?.id !== 'public' ? selectedCommunity?.id : undefined
-
-      // Use basic createPost for better compatibility
-      try {
-        result = await createPost({
-          user_id: currentUser.id,
-          contenido: content.trim(),
-          community_id: communityId
-        })
-      } catch (apiError) {
-        console.error('API Error:', apiError)
-        // Fallback to basic post creation
-        result = await createPost({
-          user_id: currentUser.id,
-          contenido: content.trim()
-        })
-      }
-
-      if (result) {
-        Alert.alert('Éxito', 'Publicación creada correctamente', [
-          { text: 'OK', onPress: () => navigation.goBack() }
-        ])
-      } else {
-        throw new Error('No se recibió respuesta del servidor')
-      }
-    } catch (error: any) {
-      console.error("Error creating post:", error)
       
-      // More specific error messages
-      let errorMessage = 'No se pudo crear la publicación'
+      // Create post
+      const payload: any = {
+        user_id: currentUser.id,
+        content: content.trim(),
+        audience_type: audience.type,
+      }
+      
+      if (audience.type === 'community') {
+        payload.audience_id = audience.id
+      }
+      
+      if (uploadedMedia.length > 0) {
+        payload.media = uploadedMedia
+      }
+      
+      if (pollData) {
+        payload.poll = {
+          options: pollData.options,
+          duration_days: pollData.duration,
+        }
+      }
+      
+      if (celebrationType) {
+        payload.celebration = { type: celebrationType }
+      }
+      
+      if (partnershipData) {
+        payload.partnership = partnershipData
+      }
+      
+      const result = await createPostFull(payload)
+      
+      // Clear draft
+      await clearDraft()
+      
+      // Success
+      Alert.alert('¡Publicado!', 'Tu publicación se ha compartido exitosamente', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ])
+    } catch (error: any) {
+      console.error('Error publishing post:', error)
+      
+      let errorMessage = 'No se pudo publicar el post'
       if (error?.message?.includes('network')) {
         errorMessage = 'Error de conexión. Verifica tu internet.'
       } else if (error?.message?.includes('auth')) {
         errorMessage = 'Error de autenticación. Inicia sesión nuevamente.'
+      } else if (error?.message?.includes('permission')) {
+        errorMessage = 'No tienes permisos para publicar en esta comunidad.'
       }
       
       Alert.alert('Error', errorMessage, [
         { text: 'Reintentar', onPress: () => handlePublish() },
-        { text: 'Cancelar', style: 'cancel' }
+        { text: 'Cancelar', style: 'cancel' },
       ])
     } finally {
       setLoading(false)
     }
-  }  
+  }, [canPublish, currentUser, content, audience, mediaItems, pollData, celebrationType, partnershipData, navigation])
   
-  const handleMediaPicker = async (type: 'photo' | 'video') => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-      if (status !== 'granted') {
-        Alert.alert('Permisos', 'Necesitamos permisos para acceder a tu galería')
-        return
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: type === 'photo' ? ImagePicker.MediaTypeOptions.Images : ImagePicker.MediaTypeOptions.Videos,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-      })
-
-      if (!result.canceled && result.assets[0]) {
-        setSelectedMedia(prev => [...prev, result.assets[0].uri])
-      }
-    } catch (error) {
-      Alert.alert('Error', 'No se pudo seleccionar el archivo')
-    }
+  // ===== AUDIENCE PICKER =====
+  
+  const fetchCommunitiesForPicker = useCallback(
+    async (userId: string, query: string, page: number) => {
+      return await listCommunitiesPaged(userId, query, page)
+    },
+    []
+  )
+  
+  // ===== RENDER HELPERS =====
+  
+  const renderUserInitials = (name: string) => {
+    const words = name.split(' ')
+    const initials = words
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase()
+    return initials
   }
+  
+  const charCount = content.length
+  const charCountColor = charCount > MAX_CONTENT_LENGTH ? '#EF4444' : charCount > MAX_CONTENT_LENGTH * 0.9 ? '#F59E0B' : '#9CA3AF'
+  
+  
 
-  const handlePostTypeChange = (type: 'celebration' | 'poll' | 'partnership') => {
-    setPostType(type)
-    switch (type) {
-      case 'celebration':
-        setContent('🎉 ¡Celebremos! ')
-        setShowCelebrationModal(true)
-        break
-      case 'poll':
-        setContent('📊 Encuesta: ')
-        setShowPollModal(true)
-        break
-      case 'partnership':
-        setContent('🤝 Busco socio para: ')
-        setShowPartnershipModal(true)
-        break
-    }
-  }
-
-  const handleOptionPress = (optionKey: string) => {
-    switch (optionKey) {
-      case 'photo':
-        handleMediaPicker('photo')
-        break
-      case 'video':
-        handleMediaPicker('video')
-        break
-      case 'celebrate':
-        handlePostTypeChange('celebration')
-        break
-      case 'poll':
-        handlePostTypeChange('poll')
-        break
-      case 'partner':
-        handlePostTypeChange('partnership')
-        break
-      case 'document':
-        Alert.alert('Próximamente', 'Funcionalidad de documentos en desarrollo')
-        break
-    }
-  }
-
-  const postOptions = [
-    { key: 'photo', icon: Camera, label: t("createPost.addPhoto"), color: "#666" },
-    { key: 'video', icon: Video, label: t("createPost.addVideo"), color: "#666" },
-    { key: 'celebrate', icon: Star, label: t("createPost.celebrate"), color: "#666" },
-    { key: 'document', icon: FileText, label: t("createPost.addDocument"), color: "#666" },
-    { key: 'partner', icon: Users, label: t("createPost.findPartner"), color: "#666" },
-    { key: 'poll', icon: BarChart3, label: t("createPost.createPoll"), color: "#666" },
-  ]
-  
-  if (loadingData) {  
-    return (  
-      <SafeAreaView style={styles.container}>  
-        <View style={styles.loadingContainer}>  
-          <ActivityIndicator size="large" color="#007AFF" />  
-          <Text style={styles.loadingText}>Cargando...</Text>  
-        </View>  
-      </SafeAreaView>  
-    )  
-  }  
-  
-  return (  
-    <SafeAreaView style={styles.container}>  
-      <View style={styles.header}>  
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>  
-          <ArrowLeft size={24} color="#111" />  
-        </TouchableOpacity>  
-        <Text style={styles.headerTitle}>{t("createPost.title")}</Text>  
-        <TouchableOpacity  
-          style={[styles.publishButton, (!content.trim() || loading) && styles.publishButtonDisabled]}  
-          onPress={handlePublish}  
-          disabled={loading || !content.trim()}  
-        >  
-          {loading ? (  
-            <ActivityIndicator size="small" color="#007AFF" />  
-          ) : (  
-            <Text style={[styles.publishButtonText, { color: content.trim() ? "#007AFF" : "#ccc" }]}>  
-              {t("createPost.publish")}  
-            </Text>  
-          )}  
-        </TouchableOpacity>  
-      </View>  
-  
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>  
-        <View style={styles.userContainer}>  
-          <Image  
-            source={{   
-              uri: currentUser?.avatar_url || currentUser?.photo_url || 'https://i.pravatar.cc/100'   
-            }}  
-            style={styles.avatar}  
-          />  
-          <View style={styles.userInfo}>  
-            <Text style={styles.userName}>  
-              {currentUser?.nombre || currentUser?.username || 'Usuario'}  
-            </Text>  
-            <TouchableOpacity  
-              style={styles.communitySelector}  
-              onPress={() => setShowCommunityModal(true)}  
-            >  
-              <View style={styles.communityIcon} />  
-              <Text style={styles.communityText}>  
-                {selectedCommunity?.name || 'Seleccionar'}  
-              </Text>  
-              <ChevronDown size={16} color="#666" />  
-            </TouchableOpacity>  
-          </View>  
-        </View>  
-  
-        <View style={styles.textContainer}>  
-          <TextInput  
-            style={styles.textInput}  
-            placeholder={t("createPost.placeholder")}  
-            placeholderTextColor="#999"  
-            value={content}  
-            onChangeText={setContent}  
-            multiline  
-            textAlignVertical="top"  
-            maxLength={2000}  
-          />  
-          <Text style={styles.characterCount}>{content.length}/2000</Text>  
-        </View>  
-  
-        <View style={styles.dividerContainer}>  
-          <View style={styles.divider} />  
-        </View>  
-  
-        <View style={styles.optionsContainer}>  
-          {postOptions.map((option, index) => (  
-            <TouchableOpacity  
-              key={index}  
-              style={styles.option}  
-              onPress={() => handleOptionPress(option.key)}  
-            >  
-              <option.icon size={24} color={option.color} />  
-              <Text style={styles.optionText}>{option.label}</Text>  
-            </TouchableOpacity>  
-          ))}  
-        </View>
-
-        {/* Media Preview */}
-        {selectedMedia.length > 0 && (
-          <View style={styles.mediaPreview}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {selectedMedia.map((uri, index) => (
-                <View key={index} style={styles.mediaItem}>
-                  <Image source={{ uri }} style={styles.mediaImage} />
-                  <TouchableOpacity 
-                    style={styles.removeMedia}
-                    onPress={() => setSelectedMedia(prev => prev.filter((_, i) => i !== index))}
-                  >
-                    <X size={16} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
+    // Render
+    if (loadingData) {
+      return (
+        <SafeAreaView style={styles.container}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#3B82F6" />
+            <Text style={styles.loadingText}>Cargando...</Text>
           </View>
-        )}  
-      </ScrollView>  
+        </SafeAreaView>
+      )
+    }
   
-      <Modal  
-        visible={showCommunityModal}  
-        transparent  
-        animationType="slide"  
-        onRequestClose={() => setShowCommunityModal(false)}  
-      >  
-        <View style={styles.modalOverlay}>  
-          <View style={styles.modalContent}>  
-            <View style={styles.modalHeader}>  
-              <Text style={styles.modalTitle}>Seleccionar audiencia</Text>  
-              <TouchableOpacity  
-                onPress={() => setShowCommunityModal(false)}  
-                style={styles.modalCloseIcon}  
-              >  
-                <X size={24} color="#666" />  
-              </TouchableOpacity>  
-            </View>  
-              
-            <FlatList  
-              data={communities}  
-              keyExtractor={(item) => item.id}  
-              renderItem={({ item }) => (  
-                <TouchableOpacity  
-                  style={styles.communityItem}  
-                  onPress={() => {  
-                    setSelectedCommunity(item)  
-                    setShowCommunityModal(false)  
-                  }}  
-                >  
-                  <View style={styles.communityItemIcon} />  
-                  <Text style={styles.communityItemText}>{item.name}</Text>  
-                  {selectedCommunity?.id === item.id && (  
-                    <Check size={20} color="#007AFF" />  
-                  )}  
-                </TouchableOpacity>  
-              )}  
-            />  
-              
-            <TouchableOpacity  
-              style={styles.modalCloseButton}  
-              onPress={() => setShowCommunityModal(false)}  
-            >  
-              <Text style={styles.modalCloseText}>Cancelar</Text>  
-            </TouchableOpacity>  
-          </View>  
-        </View>  
-      </Modal>  
-  
-      <Modal
-        visible={showPollModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowPollModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Crear Encuesta</Text>
-              <TouchableOpacity onPress={() => setShowPollModal(false)}>
-                <X size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            
-            <Text style={styles.modalLabel}>Opciones:</Text>
-            {pollOptions.map((option, index) => (
-              <TextInput
-                key={index}
-                style={styles.modalInput}
-                placeholder={`Opción ${index + 1}`}
-                value={option}
-                onChangeText={(text) => {
-                  const newOptions = [...pollOptions]
-                  newOptions[index] = text
-                  setPollOptions(newOptions)
-                }}
-              />
-            ))}
-            
-            <TouchableOpacity
-              style={styles.addOptionButton}
-              onPress={() => setPollOptions([...pollOptions, ''])}
-            >
-              <Text style={styles.addOptionText}>+ Agregar opción</Text>
-            </TouchableOpacity>
-            
-            <Text style={styles.modalLabel}>Duración (horas):</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="24"
-              value={pollDuration.toString()}
-              onChangeText={(text) => setPollDuration(parseInt(text) || 24)}
-              keyboardType="numeric"
-            />
-            
-            <TouchableOpacity
-              style={styles.modalSaveButton}
-              onPress={() => setShowPollModal(false)}
-            >
-              <Text style={styles.modalSaveText}>Guardar</Text>
-            </TouchableOpacity>
-          </View>
+    return (
+      <SafeAreaView style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <ArrowLeft size={24} color="#111827" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Compartir publicación</Text>
+          <TouchableOpacity
+            style={[styles.publishButton, !canPublish && styles.publishButtonDisabled]}
+            onPress={handlePublish}
+            disabled={!canPublish || loading}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.publishButtonText}>Publicar</Text>
+            )}
+          </TouchableOpacity>
         </View>
-      </Modal>
-
-      <Modal
-        visible={showCelebrationModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowCelebrationModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Tipo de Celebración</Text>
-              <TouchableOpacity onPress={() => setShowCelebrationModal(false)}>
-                <X size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            
-            {['milestone', 'achievement', 'success', 'investment_win', 'other'].map((type) => (
-              <TouchableOpacity
-                key={type}
-                style={[
-                  styles.celebrationOption,
-                  celebrationType === type && styles.celebrationOptionSelected
-                ]}
-                onPress={() => setCelebrationType(type as any)}
-              >
-                <Text style={styles.celebrationOptionText}>
-                  {type === 'milestone' ? '🎯 Hito alcanzado' :
-                   type === 'achievement' ? '🏆 Logro personal' :
-                   type === 'success' ? '✨ Éxito empresarial' :
-                   type === 'investment_win' ? '💰 Ganancia de inversión' : '🎉 Otro'}
+  
+        <ScrollView style={styles.scrollView}>
+          {/* User Header */}
+          <View style={styles.userContainer}>
+            {currentUser?.avatar_url ? (
+              <RNImage source={{ uri: currentUser.avatar_url }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                <Text style={styles.avatarInitials}>
+                  {renderUserInitials(currentUser?.nombre || 'U')}
                 </Text>
-                {celebrationType === type && <Check size={20} color="#007AFF" />}
-              </TouchableOpacity>
-            ))}
-            
-            <TouchableOpacity
-              style={styles.modalSaveButton}
-              onPress={() => setShowCelebrationModal(false)}
-            >
-              <Text style={styles.modalSaveText}>Guardar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        visible={showPartnershipModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowPartnershipModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <ScrollView style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Detalles de Sociedad</Text>
-              <TouchableOpacity onPress={() => setShowPartnershipModal(false)}>
-                <X size={24} color="#666" />
+              </View>
+            )}
+            <View style={styles.userInfo}>
+              <Text style={styles.userName}>
+                {currentUser?.nombre || 'Usuario'}
+              </Text>
+              <TouchableOpacity
+                style={styles.audienceChip}
+                onPress={() => setShowAudiencePicker(true)}
+              >
+                <Globe size={14} color="#3B82F6" />
+                <Text style={styles.audienceText}>{audience.name}</Text>
+                <ChevronDown size={14} color="#6B7280" />
               </TouchableOpacity>
             </View>
-            
-            <Text style={styles.modalLabel}>Tipo de negocio:</Text>
+          </View>
+  
+          {/* Editor */}
+          <View style={styles.editorContainer}>
             <TextInput
-              style={styles.modalInput}
-              placeholder="ej. Tecnología, Restaurante, etc."
-              value={partnershipDetails.businessType}
-              onChangeText={(text) => setPartnershipDetails({...partnershipDetails, businessType: text})}
+              ref={contentInputRef}
+              style={styles.textInput}
+              placeholder="¿Qué estás pensando?"
+              placeholderTextColor="#6B7280"
+              value={content}
+              onChangeText={setContent}
+              multiline
+              maxLength={MAX_CONTENT_LENGTH}
             />
-            
-            <Text style={styles.modalLabel}>Monto de inversión:</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="ej. $50,000 USD"
-              value={partnershipDetails.investmentAmount}
-              onChangeText={(text) => setPartnershipDetails({...partnershipDetails, investmentAmount: text})}
+            <Text style={[styles.charCounter, { color: charCountColor }]}>
+              {charCount}/{MAX_CONTENT_LENGTH}
+            </Text>
+          </View>
+  
+          {/* Media Preview */}
+          {mediaItems.length > 0 && (
+            <MediaPreview
+              items={mediaItems}
+              onRemove={handleRemoveMedia}
+              onRetry={handleRetryUpload}
             />
-            
-            <Text style={styles.modalLabel}>Ubicación:</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="ej. Ciudad de México"
-              value={partnershipDetails.location}
-              onChangeText={(text) => setPartnershipDetails({...partnershipDetails, location: text})}
-            />
-            
-            <TouchableOpacity
-              style={styles.modalSaveButton}
-              onPress={() => setShowPartnershipModal(false)}
-            >
-              <Text style={styles.modalSaveText}>Guardar</Text>
+          )}
+  
+          {/* Actions */}
+          <View style={styles.actionsContainer}>
+            <TouchableOpacity style={styles.actionButton} onPress={handleAddPhoto}>
+              <ImageIcon size={22} color="#374151" />
+              <Text style={styles.actionText}>Agregar una foto</Text>
             </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </Modal>
-
-      <View style={styles.bottomIndicator}>
-        <View style={styles.indicator} />
-      </View>
-    </SafeAreaView>  
-  )  
-}  
+            <TouchableOpacity style={styles.actionButton} onPress={handleAddVideo}>
+              <VideoIcon size={22} color="#374151" />
+              <Text style={styles.actionText}>Agregar un video</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionButton} onPress={handleCelebration}>
+              <Star size={22} color="#374151" />
+              <Text style={styles.actionText}>Celebrar un momento</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionButton} onPress={() => setShowPollEditor(true)}>
+              <BarChart3 size={22} color="#374151" />
+              <Text style={styles.actionText}>Crea una encuesta</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+  
+        {/* Modals */}
+        <AudiencePicker
+          visible={showAudiencePicker}
+          onClose={() => setShowAudiencePicker(false)}
+          onSelect={(selected) => {
+            setAudience(selected)
+            setShowAudiencePicker(false)
+          }}
+          currentUserId={currentUser?.id || ''}
+          selectedAudience={audience}
+          fetchCommunities={fetchCommunitiesForPicker}
+        />
+  
+        <PollEditor
+          visible={showPollEditor}
+          onClose={() => setShowPollEditor(false)}
+          onSave={(poll) => {
+            setPollData(poll)
+            setShowPollEditor(false)
+          }}
+          initialData={pollData || undefined}
+        />
+      </SafeAreaView>
+    )
+  }
   
 const styles = StyleSheet.create({  
   container: {  

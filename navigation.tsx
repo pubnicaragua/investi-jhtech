@@ -65,7 +65,7 @@ const MessagesScreen = () => (
   </View>  
 )  
   
-const Stack = createStackNavigator()  
+const Stack = createStackNavigator()
   
 const prefix = Linking.createURL("/")  
   
@@ -166,7 +166,6 @@ export function RootStack() {
           resizeMode="contain"  
         />  
         <ActivityIndicator size="large" color="#007AFF" />  
-        <Text style={{ marginTop: 10, color: '#666' }}>Cargando aplicación...</Text>  
       </View>  
     )  
   }  
@@ -177,21 +176,30 @@ export function RootStack() {
         initialRouteName={initialRoute}  
         screenOptions={{  
           headerShown: false,  
-          gestureEnabled: true,  
-          cardStyleInterpolator: ({ current, layouts }: any) => {  
-            return {  
-              cardStyle: {  
-                transform: [  
-                  {  
-                    translateX: current.progress.interpolate({  
-                      inputRange: [0, 1],  
-                      outputRange: [layouts.screen.width, 0],  
-                    }),  
-                  },  
-                ],  
-              },  
-            }  
-          },  
+          gestureEnabled: true,
+          // ⚡ OPTIMIZACIÓN: Animación más rápida y suave
+          animationEnabled: true,
+          transitionSpec: {
+            open: {
+              animation: 'timing',
+              config: {
+                duration: 200, // Reducido de 300ms default
+              },
+            },
+            close: {
+              animation: 'timing',
+              config: {
+                duration: 150, // Más rápido al cerrar
+              },
+            },
+          },
+          cardStyleInterpolator: ({ current }: any) => {
+            return {
+              cardStyle: {
+                opacity: current.progress,
+              },
+            }
+          },
         }}  
       >  
         {/* Authentication Flow */}  

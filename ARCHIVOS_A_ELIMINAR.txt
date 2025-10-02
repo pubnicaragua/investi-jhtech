@@ -1,0 +1,98 @@
+========================================
+ARCHIVOS QUE SE VAN A ELIMINAR
+========================================
+
+Scripts .bat antiguos (34 archivos):
+- SOLUCION-DIRECTA.bat
+- SOLUCION-FINAL.bat
+- build-apk-windows.bat
+- build-apk.bat
+- build-fixed.bat
+- build-production-apk.bat
+- clean-all-and-test.bat
+- clear-and-start.bat
+- clear-language-and-test.bat
+- commit-final.bat
+- commit-simple.bat
+- commit-tests.bat
+- dev-fast.bat
+- fix-and-start.bat
+- fix-dependencies.bat
+- fix-metro-eperm.bat
+- fix-turbo-errors.bat
+- rebuild-dev-client.bat
+- restart-app.bat
+- run-comprehensive-tests.bat
+- run-screen-flow-tests.bat
+- run-tests.bat
+- setup-clean.bat
+- setup-dev.bat
+- start-optimized.bat
+- super-fast-start.bat
+- test-all-44-routes.bat
+- test-language-buttons.bat
+- test-language-navigation.bat
+- test-navigation-complete.bat
+- test-web-routes.bat
+- upgrade-to-sdk53.bat
+- use-expo-go-temp.bat
+- yarn-install-fix.bat
+
+Documentación .md antigua (29 archivos):
+- ANALISIS_MODULOS_NATIVOS.md
+- CHANGELOG_DEV_CLIENT.md
+- COMPARACION_PROYECTOS.md
+- CREATE_POST_DOCUMENTATION.md
+- DESARROLLO.md
+- DOCUMENTACION_PANTALLAS.md
+- DOCUMENTACION_PANTALLAS2.md
+- DOCUMENTACION_PANTALLAS_COMPLETA.md
+- DOCUMENTACION_PANTALLAS_REAL.md
+- ENDPOINTS-POR-PANTALLA.md
+- ENDPOINTS_PANTALLAS_COMPLETO.md
+- ENDPOINTS_SPECIFICATION.md
+- FLUJO-APLICACION.md
+- GUIA-PRUEBAS.md
+- GUIA_OPTIMIZACION_IMAGENES.md
+- INSTRUCCIONES_IMPLEMENTACION.md
+- LEEME_PRIMERO.md
+- OPTIMIZACIONES_PERFORMANCE.md
+- OPTIMIZACION_BUNDLE.md
+- OPTIMIZACION_BUNDLE_SIZE.md
+- OPTIMIZACION_METRO.md
+- PASOS-EXACTOS-PARA-PROBAR.md
+- POSTMAN_QUICK_SETUP.md
+- RESUMEN_EJECUTIVO.md
+- RESUMEN_OPTIMIZACIONES.md
+- RUTAS-PARA-PROBAR-WEB.md
+- SOLUCION_ERROR_HERMES.md
+- TODAS-LAS-RUTAS-44-PANTALLAS.md
+- windows-apk-build-guide.md
+
+Scripts .js de testing antiguos (9 archivos):
+- fix-icon-imports.js
+- test-api.js
+- test-auth-flow.js
+- test-supabase-real.js
+- quick-test.js
+- fix-app-errors.js
+- fix-gradle-build.js
+- fix-gradle-version.js
+- fix-lockfile-conflict.js
+
+========================================
+ARCHIVOS QUE SE MANTIENEN:
+========================================
+
+- README.md (actualizado y limpio)
+- build-dev-client.bat (útil para builds)
+- package.json, tsconfig.json, etc. (configuración)
+- src/ (código fuente)
+- assets/ (recursos)
+
+========================================
+TOTAL A ELIMINAR: 72 archivos
+========================================
+
+Para ejecutar la limpieza:
+.\limpiar-archivos-viejos.bat

@@ -1960,6 +1960,71 @@ export async function getPromotionsByCategory(category: string, limit = 10) {
   }
 }
 
+// Get promotions for user
+export async function getPromotions(userId: string, searchQuery?: string) {
+  try {
+    const response = await request("GET", "/promotions", {
+      params: {
+        active: "eq.true",
+        select: "*",
+        order: "created_at.desc",
+        limit: "10"
+      }
+    })
+    return response || []
+  } catch (error: any) {
+    console.error('Error fetching promotions:', error)
+    return []
+  }
+}
+
+// Get suggested communities
+export async function getSuggestedCommunities(userId: string, limit = 5) {
+  try {
+    const response = await request("POST", "/rpc/get_suggested_communities", {
+      body: { user_id_param: userId, limit_param: limit }
+    })
+    return response || []
+  } catch (error: any) {
+    console.error('Error fetching suggested communities:', error)
+    return []
+  }
+}
+
+// Get recent posts
+export async function getRecentPosts(userId: string, filter: string, limit = 10) {
+  try {
+    const response = await request("POST", "/rpc/get_recent_posts", {
+      body: { 
+        user_id_param: userId, 
+        filter_param: filter,
+        limit_param: limit 
+      }
+    })
+    return response || []
+  } catch (error: any) {
+    console.error('Error fetching recent posts:', error)
+    return []
+  }
+}
+
+// Connect with user
+export async function connectWithUser(userId: string, targetUserId: string) {
+  try {
+    const response = await request("POST", "/user_connections", {
+      body: {
+        user_id: userId,
+        target_user_id: targetUserId,
+        status: 'pending'
+      }
+    })
+    return response
+  } catch (error: any) {
+    console.error('Error connecting with user:', error)
+    throw error
+  }
+}
+
 // ESTADÍSTICAS RÁPIDAS
 export async function getUserQuickStatsFixed(userId: string) {
   try {
@@ -2019,6 +2084,295 @@ export async function uploadPostMedia(userId: string, file: any) {
   } catch (error: any) {
     console.error('Error uploading post media:', error)
     throw error
+  }
+}
+
+// ===== CREATE POST SCREEN - NEW ENDPOINTS =====
+
+// Upload media to Supabase Storage
+export async function uploadMedia(
+  fileUri: string,
+  kind: 'image' | 'video',
+  userId: string
+): Promise<{ url: string; mime: string; bytes: number }> {
+  try {
+    const token = await SecureStore.getItemAsync("access_token")
+    if (!token) throw new Error('No auth token')
+
+    // Get file info
+    const fileExt = fileUri.split('.').pop() || 'jpg'
+    const timestamp = Date.now()
+    const random = Math.random().toString(36).substr(2, 9)
+    const folder = kind === 'image' ? 'images' : 'videos'
+    const dateFolder = new Date().toISOString().split('T')[0]
+    const fileName = `${folder}/${userId}/${dateFolder}/${timestamp}_${random}.${fileExt}`
+
+    // Determine mime type
+    let mimeType = 'application/octet-stream'
+    if (kind === 'image') {
+      mimeType = fileExt === 'png' ? 'image/png' : fileExt === 'gif' ? 'image/gif' : 'image/jpeg'
+    } else if (kind === 'video') {
+      mimeType = fileExt === 'mp4' ? 'video/mp4' : 'video/quicktime'
+    }
+
+    // Create form data
+    const formData = new FormData()
+    formData.append('file', {
+      uri: fileUri,
+      type: mimeType,
+      name: fileName.split('/').pop(),
+    } as any)
+
+    // Upload to Supabase Storage
+    const response = await fetch(`${urls.STORAGE_URL}/object/media/${fileName}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'apikey': ANON_KEY,
+      },
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Upload error:', errorText)
+      throw new Error(`Upload failed: ${response.status}`)
+    }
+
+    // Get file size (approximate from URI if possible)
+    let fileSize = 0
+    try {
+      const fileInfo = await fetch(fileUri, { method: 'HEAD' })
+      const contentLength = fileInfo.headers.get('content-length')
+      if (contentLength) fileSize = parseInt(contentLength, 10)
+    } catch (e) {
+      fileSize = 0
+    }
+
+    // Return public URL
+    const publicUrl = `${urls.STORAGE_URL}/object/public/media/${fileName}`
+    
+    return {
+      url: publicUrl,
+      mime: mimeType,
+      bytes: fileSize,
+    }
+  } catch (error: any) {
+    console.error('Error uploading media:', error)
+    throw error
+  }
+}
+
+// List user communities with pagination and search
+export async function listCommunitiesPaged(
+  userId: string,
+  q: string,
+  page: number,
+  pageSize: number = 20
+): Promise<{ items: Array<{ id: string; name: string; image_url: string; member_count?: number }>; hasMore: boolean }> {
+  try {
+    const offset = (page - 1) * pageSize
+    
+    // Build query params
+    let params: any = {
+      select: 'community:communities(id,nombre,icono_url,members:user_communities(count))',
+      user_id: `eq.${userId}`,
+      offset: String(offset),
+      limit: String(pageSize + 1), // Fetch one extra to check hasMore
+      order: 'joined_at.desc',
+    }
+
+    // Add search filter if query provided
+    if (q && q.trim()) {
+      // Note: This requires the community name to be searchable
+      // We'll filter client-side for now
+    }
+
+    const response = await request('GET', '/user_communities', { params })
+    
+    let items = (response || []).map((uc: any) => ({
+      id: uc.community?.id,
+      name: uc.community?.nombre,
+      image_url: uc.community?.icono_url,
+      member_count: uc.community?.members?.[0]?.count || 0,
+    })).filter((c: any) => c.id)
+
+    // Client-side search filter
+    if (q && q.trim()) {
+      const query = q.toLowerCase()
+      items = items.filter((item: any) => 
+        item.name?.toLowerCase().includes(query)
+      )
+    }
+
+    // Check if there are more results
+    const hasMore = items.length > pageSize
+    if (hasMore) {
+      items = items.slice(0, pageSize)
+    }
+
+    return { items, hasMore }
+  } catch (error: any) {
+    console.error('Error listing communities:', error)
+    return { items: [], hasMore: false }
+  }
+}
+
+// Create post with full support (media, poll, celebration, partnership)
+export async function createPostFull(payload: {
+  user_id: string
+  content: string
+  audience_type: 'profile' | 'community'
+  audience_id?: string
+  media?: Array<{ url: string; type: string; mime: string; size: number }>
+  poll?: { options: string[]; duration_days: number }
+  celebration?: { type: string }
+  partnership?: { business_type: string; investment_amount: string; location: string }
+}): Promise<{ id: string }> {
+  try {
+    // Try RPC first (if available)
+    try {
+      const response = await request('POST', '/rpc/create_post_with_children', {
+        body: { payload: JSON.stringify(payload) }
+      })
+      return response
+    } catch (rpcError) {
+      console.log('RPC not available, using fallback')
+    }
+
+    // Fallback: Create post manually
+    const postData: any = {
+      user_id: payload.user_id,
+      contenido: payload.content,
+    }
+
+    if (payload.audience_type === 'community' && payload.audience_id) {
+      postData.community_id = payload.audience_id
+    }
+
+    const post = await createPost(postData)
+    const postId = post?.id || post?.[0]?.id
+
+    if (!postId) throw new Error('Failed to create post')
+
+    // Add media if present
+    if (payload.media && payload.media.length > 0) {
+      for (const media of payload.media) {
+        try {
+          await request('POST', '/post_media', {
+            body: {
+              post_id: postId,
+              media_url: media.url,
+              media_type: media.type,
+              mime_type: media.mime,
+              file_size: media.size,
+            }
+          })
+        } catch (e) {
+          console.error('Error adding media:', e)
+        }
+      }
+    }
+
+    // Add poll if present
+    if (payload.poll) {
+      try {
+        const pollResponse = await request('POST', '/polls', {
+          body: {
+            post_id: postId,
+            duration_hours: payload.poll.duration_days * 24,
+          }
+        })
+        const pollId = pollResponse?.id || pollResponse?.[0]?.id
+
+        if (pollId) {
+          for (let i = 0; i < payload.poll.options.length; i++) {
+            await request('POST', '/poll_options', {
+              body: {
+                poll_id: pollId,
+                option_text: payload.poll.options[i],
+                option_order: i + 1,
+              }
+            })
+          }
+        }
+      } catch (e) {
+        console.error('Error adding poll:', e)
+      }
+    }
+
+    // Add celebration if present
+    if (payload.celebration) {
+      try {
+        await request('POST', '/post_celebrations', {
+          body: {
+            post_id: postId,
+            celebration_type: payload.celebration.type,
+          }
+        })
+      } catch (e) {
+        console.error('Error adding celebration:', e)
+      }
+    }
+
+    // Add partnership if present
+    if (payload.partnership) {
+      try {
+        await request('POST', '/post_partnerships', {
+          body: {
+            post_id: postId,
+            business_type: payload.partnership.business_type,
+            investment_amount: payload.partnership.investment_amount,
+            location: payload.partnership.location,
+          }
+        })
+      } catch (e) {
+        console.error('Error adding partnership:', e)
+      }
+    }
+
+    return { id: postId }
+  } catch (error: any) {
+    console.error('Error creating full post:', error)
+    throw error
+  }
+}
+
+// Draft management (AsyncStorage)
+import AsyncStorage from '@react-native-async-storage/async-storage'
+
+const DRAFT_KEY = 'create_post_draft'
+
+export async function saveDraft(draft: {
+  content: string
+  audience?: any
+  media?: any[]
+  poll?: any
+  celebration?: any
+  partnership?: any
+}): Promise<void> {
+  try {
+    await AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
+  } catch (error) {
+    console.error('Error saving draft:', error)
+  }
+}
+
+export async function loadDraft(): Promise<any | null> {
+  try {
+    const draft = await AsyncStorage.getItem(DRAFT_KEY)
+    return draft ? JSON.parse(draft) : null
+  } catch (error) {
+    console.error('Error loading draft:', error)
+    return null
+  }
+}
+
+export async function clearDraft(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(DRAFT_KEY)
+  } catch (error) {
+    console.error('Error clearing draft:', error)
   }
 }
 
