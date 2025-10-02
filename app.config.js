@@ -8,7 +8,9 @@ export default {
     userInterfaceStyle: 'light',
     updates: {
       enabled: false,
-      fallbackToCacheTimeout: 0
+      fallbackToCacheTimeout: 0,
+      checkAutomatically: 'never',
+      url: undefined
     },
     newArchEnabled: false,
     splash: {
@@ -17,7 +19,11 @@ export default {
       backgroundColor: '#ffffff'
     },
     icon: './assets/investi-logo.png',
-    assetBundlePatterns: ['**/*'],
+    assetBundlePatterns: [
+      'assets/*.png',
+      'assets/*.jpg',
+      'assets/*.jpeg'
+    ],
     scheme: 'investi-community',
     plugins: [
       'expo-localization',

@@ -9,7 +9,6 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  InteractionManager,
   Keyboard,
   Platform,
   Image as RNImage,
@@ -23,8 +22,10 @@ import {
   BarChart3,
   Globe,
   ChevronDown,
+  FileText,
 } from 'lucide-react-native'
 import * as ImagePicker from 'expo-image-picker'
+import * as DocumentPicker from 'expo-document-picker'
 
 import { useAuthGuard } from '../hooks/useAuthGuard'
 import {

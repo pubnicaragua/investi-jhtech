@@ -4,10 +4,12 @@
   "private": true,
   "scripts": {
     "start": "npx expo start --dev-client",
+    "start:memory": "set NODE_OPTIONS=--max-old-space-size=8192 && npx expo start --dev-client --clear",
     "dev": "npx expo start --dev-client --clear",
     "prod": "npx expo start --clear --no-dev --minify",
     "start:fast": "npx expo start --dev-client --clear",
     "android": "npx expo run:android",
+    "android:memory": "set NODE_OPTIONS=--max-old-space-size=8192 && npx expo run:android",
     "ios": "npx expo run:ios",
     "build:dev": "eas build --profile development --platform android",
     "build:preview": "eas build --profile preview --platform android",

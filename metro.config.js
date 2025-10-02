@@ -16,13 +16,26 @@ console.warn = (...args) => {
 // Detectar si es producción
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Transformer básico - SIN optimizaciones agresivas que causen problemas
+// Configuración para reducir uso de memoria - OPTIMIZADO
+config.maxWorkers = 2; // Limitar workers para reducir memoria
+config.resetCache = false; // No resetear cache automáticamente
+
+// Deshabilitar cache de disco para evitar errores de memoria
+config.cacheStores = [];
+
+// Transformer optimizado para memoria
 config.transformer = {
   ...config.transformer,
+  minifierPath: 'metro-minify-terser',
+  minifierConfig: {
+    compress: {
+      drop_console: false,
+    },
+  },
   getTransformOptions: async () => ({
     transform: {
       experimentalImportSupport: false,
-      inlineRequires: false, // DESACTIVADO: Puede causar problemas de módulos
+      inlineRequires: true, // ACTIVADO: Reduce memoria al cargar módulos bajo demanda
     },
   }),
 };
@@ -32,18 +45,32 @@ config.resolver = {
   ...config.resolver,
   sourceExts: ['tsx', 'ts', 'jsx', 'js', 'json', 'mjs', 'cjs'],
   assetExts: [...(config.resolver.assetExts || [])],
+  // Bloquear archivos que no deben ser procesados por Metro
+  blockList: [
+    /.*\.sql$/,
+    /.*\.md$/,
+    /.*\.bat$/,
+    /.*\.txt$/,
+  ],
 };
 
 // Configuración mínima - sin optimizaciones que puedan causar problemas
 
-// Serializer simplificado - SIN custom module IDs
+// Serializer optimizado para memoria
 config.serializer = {
   ...config.serializer,
-  // Filtrar solo módulos de test
+  // Filtrar módulos innecesarios para reducir memoria
   processModuleFilter: (module) => {
+    // Excluir archivos de test
     if (module.path.includes('__tests__') || 
         module.path.includes('test.') ||
-        module.path.includes('.spec.')) {
+        module.path.includes('.spec.') ||
+        module.path.includes('/tests/') ||
+        module.path.includes('\\tests\\')) {
+      return false;
+    }
+    // Excluir archivos grandes de documentación
+    if (module.path.match(/\.(sql|md|txt)$/)) {
       return false;
     }
     return true;
