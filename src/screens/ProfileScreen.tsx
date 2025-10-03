@@ -69,9 +69,7 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
   const [savedPosts, setSavedPosts] = useState<any[]>([])  
   const [recommendedCommunities, setRecommendedCommunities] = useState<Community[]>([])  
     
-  const targetUserId = route?.params?.userId || ''  
-  
-  useAuthGuard()  
+  const targetUserId = route?.params?.userId || ''
   
   useEffect(() => {  
     loadProfile()  
@@ -80,43 +78,70 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
   const loadProfile = async () => {  
     try {  
       setIsLoading(true)  
+      console.log('[ProfileScreen] Starting loadProfile...')  
+      
       const currentUserId = await getCurrentUserId()  
+      console.log('[ProfileScreen] Current user ID:', currentUserId)  
+      
       const userId = targetUserId || currentUserId  
+      console.log('[ProfileScreen] Target user ID:', userId)  
   
       if (!userId) {  
-        console.error("No user ID available")  
+        console.error("[ProfileScreen] No user ID available")  
+        Alert.alert("Error", "No se pudo identificar el usuario")  
         return  
       }  
   
       const userData = await getUserComplete(userId)  
+      console.log('[ProfileScreen] User data received:', userData ? 'Success' : 'Failed')  
+      
       if (userData) {  
         setProfileUser(userData)  
         setIsOwnProfile(userId === currentUserId)  
         setFeed(userData.posts || [])  
+        console.log('[ProfileScreen] Profile set with', userData.posts?.length || 0, 'posts')  
   
         if (userId === currentUserId) {  
-          const [saved, recommended] = await Promise.all([  
-            getSavedPosts(userId),  
-            getRecommendedCommunities(userId)  
-          ])  
-          setSavedPosts(saved)  
-          setRecommendedCommunities(recommended)  
+          console.log('[ProfileScreen] Loading own profile data...')  
+          try {  
+            const [saved, recommended] = await Promise.all([  
+              getSavedPosts(userId),  
+              getRecommendedCommunities(userId)  
+            ])  
+            setSavedPosts(saved || [])  
+            setRecommendedCommunities(recommended || [])  
+            console.log('[ProfileScreen] Saved posts:', saved?.length || 0, 'Recommended:', recommended?.length || 0)  
+          } catch (error) {  
+            console.error('[ProfileScreen] Error loading saved/recommended:', error)  
+            // No bloqueamos la carga del perfil por esto  
+            setSavedPosts([])  
+            setRecommendedCommunities([])  
+          }  
         } else {  
+          console.log('[ProfileScreen] Loading other user profile, communities:', userData.communities?.length || 0)  
           setRecommendedCommunities(userData.communities || [])  
         }  
+      } else {  
+        console.error('[ProfileScreen] getUserComplete returned null')  
+        Alert.alert("Error", "No se pudo cargar el perfil del usuario")  
       }  
-    } catch (error) {  
-      console.error("Error loading profile:", error)  
-      Alert.alert("Error", "No se pudo cargar el perfil")  
+    } catch (error: any) {  
+      console.error("[ProfileScreen] Error loading profile:", error)  
+      console.error("[ProfileScreen] Error details:", JSON.stringify(error, null, 2))  
+      Alert.alert(  
+        "Error",   
+        error?.message || "No se pudo cargar el perfil. Por favor, intenta de nuevo."  
+      )  
     } finally {  
       setIsLoading(false)  
       setRefreshing(false)  
+      console.log('[ProfileScreen] loadProfile finished')  
     }  
-  }  
-  
-  const onRefresh = () => {  
-    setRefreshing(true)  
-    loadProfile()  
+  }
+
+  const onRefresh = () => {
+    setRefreshing(true)
+    loadProfile()
   }  
   
   const handleFollow = async () => {  

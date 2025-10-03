@@ -1,15 +1,15 @@
-import { useState, useEffect, useCallback } from "react"  
+import React, { useState, useEffect, useCallback } from "react"  
 import { useRoute, useNavigation } from "@react-navigation/native"  
 import { useSafeAreaInsets } from 'react-native-safe-area-context'  
 import {  
   ArrowLeft, Users, MessageCircle, Image as ImageIcon,   
   FileText, Search, MoreHorizontal, ThumbsUp,   
-  Share2, Send, User  
+  Share2, Send, User, MessageSquare  
 } from "lucide-react-native"  
 import {  
   View, Text, TouchableOpacity, StyleSheet, ScrollView,   
   Image, ActivityIndicator, RefreshControl, TextInput,  
-  StatusBar, Alert, FlatList  
+  StatusBar, Alert, FlatList, Share  
 } from "react-native"  
 import { useTranslation } from "react-i18next"  
 import { useAuthGuard } from "../hooks/useAuthGuard"  
@@ -20,7 +20,10 @@ import {
   getCommunityChannels,  
   getCommunityPosts,  
   createPost,  
-  searchUsers  
+  searchUsers,
+  likePost,
+  commentPost,
+  isUserMemberOfCommunity
 } from "../rest/api"  
   
 // --- Interfaces ---  
@@ -29,6 +32,7 @@ interface CommunityDetail {
   name: string  
   description: string  
   image_url: string  
+  cover_image_url?: string  
   type: string  
   members_count: number  
   created_at: string  
@@ -107,9 +111,10 @@ export function CommunityDetailScreen() {
         setChannels(communityChannels || [])  
         setCurrentUser(user)  
           
-        // Verificar si el usuario ya está unido  
+        // ✅ Verificar membresía REAL  
         if (user) {  
-          setIsJoined(false) // Implementar verificación real  
+          const isMember = await isUserMemberOfCommunity(user.id, communityId)
+          setIsJoined(isMember)  
         }  
       }  
     } catch (error) {  
@@ -159,10 +164,17 @@ export function CommunityDetailScreen() {
   const handleJoinCommunity = async () => {  
     try {  
       if (currentUser && community) {  
-        await joinCommunity(currentUser.id, community.id)  
-        setIsJoined(true)  
-        Alert.alert('Éxito', 'Te has unido a la comunidad')  
-        loadCommunityData()  
+        const result = await joinCommunity(currentUser.id, community.id)  
+        if (result === null) {
+          // Ya estaba unido
+          Alert.alert('Info', 'Ya eres miembro de esta comunidad')
+          setIsJoined(true)
+        } else {
+          setIsJoined(true)  
+          Alert.alert('Éxito', '¡Te has unido a la comunidad!')
+          // Recargar para actualizar contador de miembros
+          loadCommunityData()  
+        }
       }  
     } catch (error) {  
       console.error('Error joining community:', error)  
@@ -172,6 +184,11 @@ export function CommunityDetailScreen() {
   
   const handleCreatePost = async () => {  
     if (!postContent.trim() || !currentUser || !community) return  
+    
+    if (!isJoined) {
+      Alert.alert('Atención', 'Debes unirte a la comunidad para publicar')
+      return
+    }
       
     try {  
       await createPost({  
@@ -181,11 +198,37 @@ export function CommunityDetailScreen() {
       })  
       setPostContent('')  
       loadCommunityData() // Recargar posts  
-      Alert.alert('Éxito', 'Publicación creada')  
+      Alert.alert('Éxito', '¡Publicación creada!')
     } catch (error) {  
       console.error('Error creating post:', error)  
       Alert.alert('Error', 'No se pudo crear la publicación')  
     }  
+  }
+
+  // ✅ Quick Actions (igual que HomeFeedScreen)
+  const handleQuickAction = (actionType: string) => {
+    if (!isJoined) {
+      Alert.alert('Atención', 'Debes unirte a la comunidad para realizar esta acción')
+      return
+    }
+    ;(navigation as any).navigate('CreatePost', { 
+      type: actionType,
+      communityId: community?.id 
+    })
+  }
+
+  // ✅ Invitar a la comunidad
+  const handleInvite = async () => {
+    if (!community) return
+    try {
+      const shareMessage = `Únete a "${community.name}" en Investi\n\n${community.description}\n\nDescarga la app: https://investiiapp.com`
+      await Share.share({
+        message: shareMessage,
+        title: `Invitación a ${community.name}`
+      })
+    } catch (error) {
+      console.error('Error sharing:', error)
+    }
   }  
   
   const onRefresh = useCallback(() => {  
@@ -255,12 +298,30 @@ export function CommunityDetailScreen() {
           />  
         }  
       >  
+        {/* Community Header con imagen de portada */}
+        <View style={styles.communityHeader}>
+          {/* Imagen de fondo o color azul Investi */}
+          {community.cover_image_url ? (
+            <Image 
+              source={{ uri: community.cover_image_url }}
+              style={styles.coverImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.coverImage, styles.coverImageFallback]} />
+          )}
+          
+          {/* Avatar circular encima */}
+          <View style={styles.avatarContainer}>
+            <Image   
+              source={{ uri: community.image_url || 'https://via.placeholder.com/100x100/2673f3/ffffff?text=C' }}  
+              style={styles.communityAvatar}  
+            />
+          </View>
+        </View>
+
         {/* Community Info */}  
         <View style={styles.communityInfo}>  
-          <Image   
-            source={{ uri: community.image_url || 'https://via.placeholder.com/100x100/2673f3/ffffff?text=C' }}  
-            style={styles.communityImage}  
-          />  
           <Text style={styles.communityName}>{community.name}</Text>  
           <View style={styles.communityMeta}>  
             <Users size={16} color="#666" />  
@@ -279,7 +340,10 @@ export function CommunityDetailScreen() {
                 {isJoined ? 'Unido' : 'Unirse'}  
               </Text>  
             </TouchableOpacity>  
-            <TouchableOpacity style={styles.inviteButton}>  
+            <TouchableOpacity 
+              style={styles.inviteButton}
+              onPress={handleInvite}
+            >  
               <Text style={styles.inviteButtonText}>Invitar</Text>  
             </TouchableOpacity>  
           </View>  
@@ -339,11 +403,12 @@ export function CommunityDetailScreen() {
               />  
               <TextInput  
                 style={styles.postInputCompact}  
-                placeholder="Escribe algo..."  
+                placeholder={isJoined ? "Escribe algo..." : "Únete para publicar..."}  
                 placeholderTextColor="#999"  
                 value={postContent}  
                 onChangeText={setPostContent}  
-                multiline  
+                multiline
+                editable={isJoined}  
               />  
               {postContent.trim() && (  
                 <TouchableOpacity onPress={handleCreatePost} style={styles.postButton}>  
@@ -352,16 +417,34 @@ export function CommunityDetailScreen() {
               )}  
             </View>  
   
-            {/* Acciones rápidas */}  
+            {/* Acciones rápidas - Igual que HomeFeedScreen */}  
             <View style={styles.quickActions}>  
-              <TouchableOpacity style={styles.quickAction}>  
-                <Text style={styles.quickActionText}>🎉 Celebrar un momento</Text>  
+              <TouchableOpacity 
+                style={[styles.quickAction, !isJoined && styles.quickActionDisabled]}
+                onPress={() => handleQuickAction('celebrate')}
+                disabled={!isJoined}
+              >  
+                <Text style={[styles.quickActionText, !isJoined && styles.quickActionTextDisabled]}>
+                  🎉 Celebrar un momento
+                </Text>  
               </TouchableOpacity>  
-              <TouchableOpacity style={styles.quickAction}>  
-                <Text style={styles.quickActionText}>📊 Crear una encuesta</Text>  
+              <TouchableOpacity 
+                style={[styles.quickAction, !isJoined && styles.quickActionDisabled]}
+                onPress={() => handleQuickAction('poll')}
+                disabled={!isJoined}
+              >  
+                <Text style={[styles.quickActionText, !isJoined && styles.quickActionTextDisabled]}>
+                  📊 Crear una encuesta
+                </Text>  
               </TouchableOpacity>  
-              <TouchableOpacity style={styles.quickAction}>  
-                <Text style={styles.quickActionText}>🤝 Buscar un socio</Text>  
+              <TouchableOpacity 
+                style={[styles.quickAction, !isJoined && styles.quickActionDisabled]}
+                onPress={() => handleQuickAction('partner')}
+                disabled={!isJoined}
+              >  
+                <Text style={[styles.quickActionText, !isJoined && styles.quickActionTextDisabled]}>
+                  🤝 Buscar un socio
+                </Text>  
               </TouchableOpacity>  
             </View>  
   
@@ -396,14 +479,33 @@ export function CommunityDetailScreen() {
             {/* Channels - 100% Backend */}  
             {channels.length > 0 ? (  
               channels.map(channel => (  
-                <TouchableOpacity key={channel.id} style={styles.channelItem}>  
+                <TouchableOpacity 
+                  key={channel.id} 
+                  style={styles.channelItem}
+                  onPress={() => {
+                    if (!isJoined) {
+                      Alert.alert('Atención', 'Debes unirte a la comunidad para acceder a los chats')
+                      return
+                    }
+                    ;(navigation as any).navigate('GroupChat', {
+                      channelId: channel.id,
+                      communityId: community?.id,
+                      channelName: channel.name
+                    })
+                  }}
+                >  
                   <View style={styles.channelIcon}>  
-                    <Text style={styles.channelIconText}>txt</Text>  
+                    <MessageSquare size={20} color="#2673f3" />
                   </View>  
                   <View style={styles.channelInfo}>  
                     <Text style={styles.channelName}>{channel.name}</Text>  
                     <Text style={styles.channelDescription}>{channel.description}</Text>  
-                  </View>  
+                  </View>
+                  <View style={styles.channelBadge}>
+                    <View style={styles.unreadBadge}>
+                      <Text style={styles.unreadBadgeText}>•</Text>
+                    </View>
+                  </View>
                 </TouchableOpacity>  
               ))  
             ) : (  
@@ -620,9 +722,42 @@ const styles = StyleSheet.create({
   scrollView: {  
     flex: 1,  
   },  
+  // Community Header con portada
+  communityHeader: {
+    position: "relative",
+    height: 200,
+    backgroundColor: "#fff",
+  },
+  coverImage: {
+    width: "100%",
+    height: 150,
+  },
+  coverImageFallback: {
+    backgroundColor: "#2673f3",
+  },
+  avatarContainer: {
+    position: "absolute",
+    bottom: 0,
+    left: "50%",
+    marginLeft: -50,
+    backgroundColor: "#fff",
+    borderRadius: 50,
+    padding: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  communityAvatar: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+  },
   communityInfo: {  
     backgroundColor: "#fff",  
     padding: 20,  
+    paddingTop: 60,
     alignItems: "center",  
     borderBottomWidth: 1,  
     borderBottomColor: "#e5e5e5",  
@@ -700,7 +835,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,  
     marginRight: 16,  
     gap: 6,  
-  },  
+  },
   activeTab: {  
     borderBottomWidth: 2,  
     borderBottomColor: "#2673f3",  
@@ -709,12 +844,11 @@ const styles = StyleSheet.create({
     fontSize: 14,  
     fontWeight: "500",  
     color: "#666",  
-    whiteSpace: "nowrap",  
   },  
   activeTabText: {  
     color: "#2673f3",  
     fontWeight: "600",  
-  },  
+  },
     
   // Posts Content CORREGIDO  
   postsContent: {  
@@ -767,11 +901,17 @@ const styles = StyleSheet.create({
     alignItems: "center",  
     paddingVertical: 8,  
     paddingHorizontal: 12,  
+  },
+  quickActionDisabled: {
+    opacity: 0.5,
   },  
   quickActionText: {  
     fontSize: 12,  
     color: "#666",  
     textAlign: "center",  
+  },
+  quickActionTextDisabled: {
+    color: "#999",
   },  
     
   postsFilter: {  
@@ -926,22 +1066,34 @@ const styles = StyleSheet.create({
     flex: 1,  
   },  
   channelName: {  
-    fontSize: 15,  
-    fontWeight: "600",  
-    color: "#111",  
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#111",
     marginBottom: 2,  
   },  
   channelDescription: {  
     fontSize: 13,  
     color: "#666",  
-  },  
+  },
+  channelBadge: {
+    marginLeft: 8,
+  },
+  unreadBadge: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#2673f3",
+  },
+  unreadBadgeText: {
+    fontSize: 0,
+  },
     
   // Photos Content  
   photosContent: {  
     backgroundColor: "#fff",  
     padding: 16,  
-  },  
-  photoItem: {  
+  },
+  photoItem: {
     flex: 1,  
     margin: 2,  
     aspectRatio: 1,  

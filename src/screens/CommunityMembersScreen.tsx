@@ -1,5 +1,11 @@
-// src/screens/community/CommunityMembersScreen.tsx
-import React, { useState } from 'react';
+// ============================================================================
+// CommunityMembersScreen.tsx - Miembros de la Comunidad
+// ============================================================================
+// 100% Backend Driven + UI Moderna
+// Accesible desde: CommunityDetailScreen (menú ...)
+// ============================================================================
+
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   View,
   Text,
@@ -9,265 +15,530 @@ import {
   TextInput,
   Image,
   SafeAreaView,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+  ActivityIndicator,
+  RefreshControl,
+  Alert,
+  ScrollView
+} from 'react-native'
+import { ArrowLeft, Search, Shield, Crown, UserPlus, MoreVertical, X } from 'lucide-react-native'
+import { useRoute, useNavigation } from '@react-navigation/native'
+import { getCommunityMembers, removeCommunityMember, updateMemberRole, getCurrentUser } from '../rest/api'
 
-// Datos mock de miembros
-const mockMembers = [
-  {
-    id: '1',
-    name: 'María González',
-    role: 'admin',
-    avatar: 'MG',
-    joinDate: '2023-01-15',
-    lastActive: 'Hace 2 horas',
-  },
-  {
-    id: '2',
-    name: 'Carlos López',
-    role: 'moderator',
-    avatar: 'CL',
-    joinDate: '2023-02-20',
-    lastActive: 'Ayer',
-  },
-  // ... más miembros
-  ...Array.from({ length: 20 }, (_, i) => ({
-    id: String(i + 3),
-    name: `Usuario ${i + 3}`,
-    role: 'member',
-    avatar: `U${i + 3}`,
-    joinDate: '2023-03-' + (i + 1).toString().padStart(2, '0'),
-    lastActive: i % 3 === 0 ? 'En línea' : `Hace ${i + 1} días`,
-  })),
-];
+// ============================================================================
+// INTERFACES
+// ============================================================================
 
-const roleOptions = [
-  { id: 'admin', name: 'Administrador' },
-  { id: 'moderator', name: 'Moderador' },
-  { id: 'member', name: 'Miembro' },
-];
+interface Member {
+  id: string
+  user_id: string
+  community_id: string
+  role: 'admin' | 'moderator' | 'member'
+  joined_at: string
+  user: {
+    id: string
+    nombre: string
+    full_name: string
+    avatar_url: string
+    photo_url: string
+    bio?: string
+  }
+}
 
-export default function CommunityMembersScreen() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedRole, setSelectedRole] = useState('all');
-  const [members, setMembers] = useState(mockMembers);
+// ============================================================================
+// COMPONENTE PRINCIPAL
+// ============================================================================
 
-  const filteredMembers = members.filter((member) => {
-    const matchesSearch = member.name
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
-    const matchesRole =
-      selectedRole === 'all' || member.role === selectedRole;
-    return matchesSearch && matchesRole;
-  });
+export function CommunityMembersScreen() {
+  const navigation = useNavigation()
+  const route = useRoute()
+  const { communityId, communityName } = route.params as { communityId: string; communityName?: string }
 
-  const changeMemberRole = (memberId, newRole) => {
-    setMembers(
-      members.map((member) =>
-        member.id === memberId ? { ...member, role: newRole } : member
+  // Estados
+  const [members, setMembers] = useState<Member[]>([])
+  const [filteredMembers, setFilteredMembers] = useState<Member[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedRole, setSelectedRole] = useState<'all' | 'admin' | 'moderator' | 'member'>('all')
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  // ============================================================================
+  // CARGAR DATOS
+  // ============================================================================
+
+  useEffect(() => {
+    loadMembers()
+  }, [])
+
+  useEffect(() => {
+    filterMembers()
+  }, [members, searchQuery, selectedRole])
+
+  const loadMembers = async () => {
+    try {
+      setLoading(true)
+      const [membersData, user] = await Promise.all([
+        getCommunityMembers(communityId),
+        getCurrentUser()
+      ])
+
+      setMembers(membersData || [])
+      setCurrentUser(user)
+
+      // Verificar si el usuario actual es admin
+      const userMembership = membersData?.find((m: Member) => m.user_id === user?.id)
+      setIsAdmin(userMembership?.role === 'admin')
+
+    } catch (error) {
+      console.error('Error loading members:', error)
+      Alert.alert('Error', 'No se pudieron cargar los miembros')
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }
+
+  const filterMembers = () => {
+    let filtered = members
+
+    // Filtrar por búsqueda
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(member =>
+        (member.user.full_name || member.user.nombre || '')
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase())
       )
-    );
-  };
+    }
 
-  const removeMember = (memberId) => {
-    setMembers(members.filter((member) => member.id !== memberId));
-  };
+    // Filtrar por rol
+    if (selectedRole !== 'all') {
+      filtered = filtered.filter(member => member.role === selectedRole)
+    }
 
-  const renderMemberItem = ({ item }) => (
-    <View style={styles.memberCard}>
-      <View style={styles.avatarContainer}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{item.avatar}</Text>
-        </View>
-        {item.role === 'admin' && (
-          <View style={styles.adminBadge}>
-            <Ionicons name="shield-checkmark" size={12} color="#fff" />
+    setFilteredMembers(filtered)
+  }
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true)
+    loadMembers()
+  }, [])
+
+  // ============================================================================
+  // ACCIONES
+  // ============================================================================
+
+  const handleRemoveMember = async (memberId: string, memberName: string) => {
+    if (!isAdmin) {
+      Alert.alert('Permiso denegado', 'Solo los administradores pueden eliminar miembros')
+      return
+    }
+
+    Alert.alert(
+      'Eliminar miembro',
+      `¿Estás seguro de que deseas eliminar a ${memberName} de la comunidad?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await removeCommunityMember(communityId, memberId)
+              setMembers(prev => prev.filter(m => m.id !== memberId))
+              Alert.alert('Éxito', 'Miembro eliminado de la comunidad')
+            } catch (error) {
+              console.error('Error removing member:', error)
+              Alert.alert('Error', 'No se pudo eliminar el miembro')
+            }
+          }
+        }
+      ]
+    )
+  }
+
+  const handleChangeRole = async (memberId: string, currentRole: string, memberName: string) => {
+    if (!isAdmin) {
+      Alert.alert('Permiso denegado', 'Solo los administradores pueden cambiar roles')
+      return
+    }
+
+    const roles = [
+      { label: 'Miembro', value: 'member' },
+      { label: 'Moderador', value: 'moderator' },
+      { label: 'Administrador', value: 'admin' }
+    ]
+
+    Alert.alert(
+      'Cambiar rol',
+      `Selecciona el nuevo rol para ${memberName}`,
+      [
+        ...roles.map(role => ({
+          text: role.label,
+          onPress: async () => {
+            if (role.value !== currentRole) {
+              try {
+                await updateMemberRole(communityId, memberId, role.value)
+                setMembers(prev =>
+                  prev.map(m =>
+                    m.id === memberId ? { ...m, role: role.value as any } : m
+                  )
+                )
+                Alert.alert('Éxito', `Rol actualizado a ${role.label}`)
+              } catch (error) {
+                console.error('Error updating role:', error)
+                Alert.alert('Error', 'No se pudo actualizar el rol')
+              }
+            }
+          }
+        })),
+        { text: 'Cancelar', style: 'cancel' }
+      ]
+    )
+  }
+
+  // ============================================================================
+  // FORMATEAR TIEMPO
+  // ============================================================================
+
+  const getTimeAgo = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffDays < 1) return 'Hoy'
+    if (diffDays < 7) return `Hace ${diffDays}d`
+    if (diffDays < 30) return `Hace ${Math.floor(diffDays / 7)} semanas`
+    if (diffDays < 365) return `Hace ${Math.floor(diffDays / 30)} meses`
+    
+    return date.toLocaleDateString('es', { month: 'short', year: 'numeric' })
+  }
+
+  // ============================================================================
+  // RENDER ROLE BADGE
+  // ============================================================================
+
+  const getRoleBadge = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return { icon: <Crown size={14} color="#FFD700" />, label: 'Admin', color: '#FFD700' }
+      case 'moderator':
+        return { icon: <Shield size={14} color="#2673f3" />, label: 'Mod', color: '#2673f3' }
+      default:
+        return null
+    }
+  }
+
+  // ============================================================================
+  // RENDER MEMBER ITEM
+  // ============================================================================
+
+  const renderMemberItem = ({ item }: { item: Member }) => {
+    const roleBadge = getRoleBadge(item.role)
+    const memberName = item.user.full_name || item.user.nombre || 'Usuario'
+
+    return (
+      <TouchableOpacity
+        style={styles.memberCard}
+        onPress={() => (navigation as any).navigate('Profile', { userId: item.user_id })}
+        activeOpacity={0.7}
+      >
+        <Image
+          source={{ uri: item.user.avatar_url || item.user.photo_url || 'https://i.pravatar.cc/100' }}
+          style={styles.memberAvatar}
+        />
+        
+        <View style={styles.memberInfo}>
+          <View style={styles.memberNameRow}>
+            <Text style={styles.memberName}>{memberName}</Text>
+            {roleBadge && (
+              <View style={[styles.roleBadge, { borderColor: roleBadge.color }]}>
+                {roleBadge.icon}
+                <Text style={[styles.roleText, { color: roleBadge.color }]}>
+                  {roleBadge.label}
+                </Text>
+              </View>
+            )}
           </View>
-        )}
-      </View>
-      <View style={styles.memberInfo}>
-        <Text style={styles.memberName}>{item.name}</Text>
-        <Text style={styles.memberMeta}>
-          Se unió el {new Date(item.joinDate).toLocaleDateString()} •{' '}
-          {item.lastActive}
-        </Text>
-      </View>
-      <View style={styles.memberActions}>
-        <View style={styles.roleSelector}>
-          <Text style={styles.roleText}>
-            {roleOptions.find((r) => r.id === item.role)?.name}
+          <Text style={styles.memberMeta}>
+            Miembro desde {getTimeAgo(item.joined_at)}
           </Text>
-          <Ionicons name="chevron-down" size={16} color="#666" />
+          {item.user.bio && (
+            <Text style={styles.memberBio} numberOfLines={1}>
+              {item.user.bio}
+            </Text>
+          )}
         </View>
-        <TouchableOpacity
-          style={styles.removeButton}
-          onPress={() => removeMember(item.id)}
-        >
-          <Ionicons name="trash-outline" size={20} color="#f44336" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+
+        {isAdmin && item.user_id !== currentUser?.id && (
+          <TouchableOpacity
+            style={styles.moreButton}
+            onPress={() => {
+              Alert.alert(
+                'Opciones',
+                `Gestionar a ${memberName}`,
+                [
+                  {
+                    text: 'Cambiar rol',
+                    onPress: () => handleChangeRole(item.id, item.role, memberName)
+                  },
+                  {
+                    text: 'Eliminar',
+                    style: 'destructive',
+                    onPress: () => handleRemoveMember(item.id, memberName)
+                  },
+                  { text: 'Cancelar', style: 'cancel' }
+                ]
+              )
+            }}
+          >
+            <MoreVertical size={20} color="#666" />
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+    )
+  }
+
+  // ============================================================================
+  // RENDER LOADING
+  // ============================================================================
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <ArrowLeft size={24} color="#111" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Miembros</Text>
+          <View style={styles.headerRight} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2673f3" />
+          <Text style={styles.loadingText}>Cargando miembros...</Text>
+        </View>
+      </SafeAreaView>
+    )
+  }
+
+  // ============================================================================
+  // RENDER PRINCIPAL
+  // ============================================================================
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <View style={styles.searchContainer}>
-          <Ionicons
-            name="search"
-            size={20}
-            color="#666"
-            style={styles.searchIcon}
-          />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Buscar miembros..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholderTextColor="#999"
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={() => setSearchQuery('')}
-              style={styles.clearButton}
-            >
-              <Ionicons name="close-circle" size={18} color="#999" />
-            </TouchableOpacity>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <ArrowLeft size={24} color="#111" />
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Miembros</Text>
+          {communityName && (
+            <Text style={styles.headerSubtitle}>{communityName}</Text>
           )}
         </View>
+        <View style={styles.headerRight} />
       </View>
 
-      <View style={styles.filterContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterScroll}
-        >
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              selectedRole === 'all' && styles.filterButtonActive,
-            ]}
-            onPress={() => setSelectedRole('all')}
-          >
-            <Text
-              style={[
-                styles.filterButtonText,
-                selectedRole === 'all' && styles.filterButtonTextActive,
-              ]}
-            >
-              Todos
-            </Text>
+      {/* Búsqueda */}
+      <View style={styles.searchContainer}>
+        <Search size={20} color="#999" />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar miembros..."
+          placeholderTextColor="#999"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <X size={20} color="#999" />
           </TouchableOpacity>
-          {roleOptions.map((role) => (
-            <TouchableOpacity
-              key={role.id}
-              style={[
-                styles.filterButton,
-                selectedRole === role.id && styles.filterButtonActive,
-              ]}
-              onPress={() => setSelectedRole(role.id)}
-            >
-              <Text
-                style={[
-                  styles.filterButtonText,
-                  selectedRole === role.id && styles.filterButtonTextActive,
-                ]}
-              >
-                {role.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        )}
       </View>
 
+      {/* Filtros de Rol */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filtersContainer}
+        contentContainerStyle={styles.filtersContent}
+      >
+        <TouchableOpacity
+          style={[styles.filterChip, selectedRole === 'all' && styles.filterChipActive]}
+          onPress={() => setSelectedRole('all')}
+        >
+          <Text style={[styles.filterChipText, selectedRole === 'all' && styles.filterChipTextActive]}>
+            Todos ({members.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterChip, selectedRole === 'admin' && styles.filterChipActive]}
+          onPress={() => setSelectedRole('admin')}
+        >
+          <Crown size={14} color={selectedRole === 'admin' ? '#fff' : '#666'} />
+          <Text style={[styles.filterChipText, selectedRole === 'admin' && styles.filterChipTextActive]}>
+            Admins ({members.filter(m => m.role === 'admin').length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterChip, selectedRole === 'moderator' && styles.filterChipActive]}
+          onPress={() => setSelectedRole('moderator')}
+        >
+          <Shield size={14} color={selectedRole === 'moderator' ? '#fff' : '#666'} />
+          <Text style={[styles.filterChipText, selectedRole === 'moderator' && styles.filterChipTextActive]}>
+            Mods ({members.filter(m => m.role === 'moderator').length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterChip, selectedRole === 'member' && styles.filterChipActive]}
+          onPress={() => setSelectedRole('member')}
+        >
+          <Text style={[styles.filterChipText, selectedRole === 'member' && styles.filterChipTextActive]}>
+            Miembros ({members.filter(m => m.role === 'member').length})
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* Lista de Miembros */}
       <FlatList
         data={filteredMembers}
         keyExtractor={(item) => item.id}
         renderItem={renderMemberItem}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={styles.listContainer}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#2673f3']}
+            tintColor="#2673f3"
+          />
+        }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Ionicons
-              name="people-outline"
-              size={64}
-              color="#ddd"
-              style={styles.emptyIcon}
-            />
-            <Text style={styles.emptyText}>No se encontraron miembros</Text>
-            <Text style={styles.emptySubtext}>
-              Prueba con otro término de búsqueda o ajusta los filtros
+            <Search size={64} color="#e5e5e5" />
+            <Text style={styles.emptyTitle}>No se encontraron miembros</Text>
+            <Text style={styles.emptyDescription}>
+              {searchQuery ? 'Intenta con otro término de búsqueda' : 'No hay miembros en esta comunidad'}
             </Text>
           </View>
         }
       />
 
-      <TouchableOpacity style={styles.inviteButton}>
-        <Ionicons name="person-add" size={20} color="#fff" />
-        <Text style={styles.inviteButtonText}>Invitar Miembros</Text>
-      </TouchableOpacity>
+      {/* Botón Invitar (solo para admins) */}
+      {isAdmin && (
+        <TouchableOpacity
+          style={styles.inviteButton}
+          onPress={() => Alert.alert('Invitar', 'Función de invitación próximamente')}
+        >
+          <UserPlus size={20} color="#fff" />
+          <Text style={styles.inviteButtonText}>Invitar miembros</Text>
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
-  );
+  )
 }
+
+// ============================================================================
+// ESTILOS
+// ============================================================================
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f7f8fa',
   },
   header: {
-    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#e5e5e5',
+  },
+  backButton: {
+    padding: 4,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  headerRight: {
+    width: 28,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#666',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-  },
-  searchIcon: {
-    marginRight: 8,
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e5e5',
   },
   searchInput: {
     flex: 1,
-    height: 40,
-    color: '#333',
-    fontSize: 16,
+    fontSize: 15,
+    color: '#111',
+    padding: 0,
   },
-  clearButton: {
-    padding: 4,
-  },
-  filterContainer: {
-    paddingVertical: 8,
+  filtersContainer: {
     backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#e5e5e5',
   },
-  filterScroll: {
+  filtersContent: {
     paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 8,
   },
-  filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 16,
     backgroundColor: '#f0f0f0',
     marginRight: 8,
   },
-  filterButtonActive: {
+  filterChipActive: {
     backgroundColor: '#2673f3',
   },
-  filterButtonText: {
-    color: '#666',
-    fontSize: 14,
+  filterChipText: {
+    fontSize: 13,
     fontWeight: '500',
+    color: '#666',
   },
-  filterButtonTextActive: {
+  filterChipTextActive: {
     color: '#fff',
   },
-  listContent: {
+  listContainer: {
     padding: 16,
   },
   memberCard: {
@@ -276,122 +547,98 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 12,
-    marginBottom: 12,
+    marginBottom: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 2,
-    elevation: 2,
+    elevation: 1,
   },
-  avatarContainer: {
-    position: 'relative',
-    marginRight: 12,
-  },
-  avatar: {
+  memberAvatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#e0e0e0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#555',
-  },
-  adminBadge: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    backgroundColor: '#4CAF50',
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
+    marginRight: 12,
   },
   memberInfo: {
     flex: 1,
   },
+  memberNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
   memberName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 2,
+    color: '#111',
+  },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  roleText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   memberMeta: {
     fontSize: 12,
-    color: '#888',
+    color: '#666',
+    marginBottom: 2,
   },
-  memberActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  memberBio: {
+    fontSize: 12,
+    color: '#999',
   },
-  roleSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 16,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    marginRight: 8,
-  },
-  roleText: {
-    fontSize: 14,
-    color: '#333',
-    marginRight: 4,
-  },
-  removeButton: {
+  moreButton: {
     padding: 8,
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    paddingVertical: 80,
+    paddingHorizontal: 32,
   },
-  emptyIcon: {
-    marginBottom: 16,
-    opacity: 0.5,
-  },
-  emptyText: {
+  emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#666',
+    color: '#111',
+    marginTop: 16,
     marginBottom: 8,
-    textAlign: 'center',
   },
-  emptySubtext: {
+  emptyDescription: {
     fontSize: 14,
-    color: '#999',
+    color: '#666',
     textAlign: 'center',
-    maxWidth: 300,
   },
   inviteButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
     backgroundColor: '#2673f3',
-    padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
     margin: 16,
-    borderRadius: 8,
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    shadowColor: '#2673f3',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
     elevation: 4,
   },
   inviteButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-    marginLeft: 8,
   },
-});
+})
+
+export default CommunityMembersScreen

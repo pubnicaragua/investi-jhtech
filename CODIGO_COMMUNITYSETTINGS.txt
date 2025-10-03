@@ -16,7 +16,7 @@ import {
   Switch,
   Alert,
   ActivityIndicator,
-  TextInput
+  Platform
 } from 'react-native'
 import { 
   ArrowLeft, 
