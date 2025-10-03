@@ -78,11 +78,15 @@ export function NewMessageScreen({ navigation }: any) {
       const currentUserId = await getCurrentUserId()
       if (!currentUserId) return
       const conv = await startConversationWithUser(currentUserId, userId)
+      // Try to find participant info from loaded users so ChatScreen can show avatar immediately
+      const participantInfo = users.find(u => u.id === userId) || { id: userId }
+
       if (conv && conv.id) {
-        navigation.replace('ChatScreen', { conversationId: conv.id, type: 'direct', participant: { id: userId } })
+        navigation.replace('ChatScreen', { conversationId: conv.id, type: 'direct', participant: { id: participantInfo.id, nombre: participantInfo.nombre, avatar_url: participantInfo.avatar_url } })
       } else if (conv) {
         // If RPC returned full conv
-        navigation.replace('ChatScreen', { conversationId: conv.id || conv, type: 'direct', participant: { id: userId } })
+        const convId = conv.id || conv
+        navigation.replace('ChatScreen', { conversationId: convId, type: 'direct', participant: { id: participantInfo.id, nombre: participantInfo.nombre, avatar_url: participantInfo.avatar_url } })
       }
     } catch (err) {
       console.error('Error starting conversation:', err)

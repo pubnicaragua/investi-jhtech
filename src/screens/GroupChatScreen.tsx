@@ -158,7 +158,7 @@ export function GroupChatScreen() {
           table: 'chat_messages',
           filter: `chat_id=eq.${channelId}`
         },
-        async (payload) => {
+        async (payload : any) => {
           console.log('Nuevo mensaje recibido:', payload)
           
           // Obtener datos del remitente
