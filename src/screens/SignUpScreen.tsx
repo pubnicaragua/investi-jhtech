@@ -16,6 +16,7 @@ import {
   StatusBar,
 } from "react-native"
 import { useTranslation } from "react-i18next"
+import * as Linking from 'expo-linking'
 import { Eye, EyeOff } from "lucide-react-native"
 import { supabase } from "../supabase"
 import { useAuth } from "../contexts/AuthContext"
@@ -33,13 +34,23 @@ export function SignUpScreen({ navigation }: any) {
   const handleOAuth = async (provider: "google" | "apple" | "facebook" | "linkedin_oidc") => {
     try {
       setLoading(true)
-      const redirectTo = `${
-        typeof window !== "undefined" ? window.location.origin : "https://investi.app"
-      }/auth/callback`
-      const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } })
+      const redirectTo = (typeof window !== 'undefined' && window.location && window.location.origin)
+        ? `${window.location.origin}/auth/callback`
+        : Linking.createURL('auth/callback')
+
+      const { data, error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } })
       if (error) throw error
+
+      const url = (data && (data.url || data?.providerUrl || data?.redirectTo)) || null
+      if (url) {
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          window.location.href = url
+        } else {
+          await Linking.openURL(url)
+        }
+      }
     } catch (err: any) {
-      Alert.alert("Error", err.message || "No se pudo continuar con el proveedor seleccionado")
+      Alert.alert("Error", err?.message || "No se pudo continuar con el proveedor seleccionado")
     } finally {
       setLoading(false)
     }

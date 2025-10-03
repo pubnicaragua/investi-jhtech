@@ -42,6 +42,7 @@ import LearningPathsScreen from "./src/screens/LearningPathsScreen"
 import GroupChatScreen from "./src/screens/GroupChatScreen"  
 import SharePostScreen from "./src/screens/SharePostScreen"  
 import SavedPostsScreen from "./src/screens/SavedPostsScreen"
+import { NewMessageScreen } from "./src/screens/NewMessageScreen"
 import { InvestmentKnowledgeScreen } from "./src/screens/InvestmentKnowledgeScreen"
 import { OnboardingCompleteScreen } from "./src/screens/OnboardingCompleteScreen"
 import { PlanificadorFinancieroScreen } from './src/screens/PlanificadorFinancieroScreen';
@@ -368,6 +369,14 @@ export function RootStack() {
             gestureDirection: "horizontal",  
           }}  
         />  
+        <Stack.Screen
+          name="NewMessageScreen"
+          component={NewMessageScreen}
+          options={{
+            presentation: 'modal',
+            gestureDirection: 'vertical',
+          }}
+        />
         <Stack.Screen  
           name="ChatScreen"  
           component={ChatScreen}  

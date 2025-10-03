@@ -12,6 +12,7 @@ import {
   Image,  
   ActivityIndicator,  
   Alert,  
+  Keyboard,
 } from "react-native";  
 import { ArrowLeft, Send } from "lucide-react-native";  
 import {  
@@ -44,6 +45,7 @@ export function ChatScreen({ navigation, route }: any) {
   const [sending, setSending] = useState(false);  
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);  
   const flatListRef = useRef<FlatList>(null);  
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   
   useAuthGuard();  
   
@@ -85,6 +87,22 @@ export function ChatScreen({ navigation, route }: any) {
       supabase.removeChannel(channel);
     };
   }, [conversationId]);  
+
+  // Keyboard listeners to move input bar (works for Android and iOS)
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', (e: any) => {
+      setKeyboardHeight(e.endCoordinates?.height || 0);
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 120);
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
   
   const loadInitialData = async () => {  
     try {  
@@ -164,16 +182,19 @@ export function ChatScreen({ navigation, route }: any) {
 
     try {
       const uid = await getCurrentUserId();
+      const other = participant.id;
       if (!uid) return;
 
       await sendChatMessage({
-        conversation_id: conversationId,
+        chat_id: conversationId,
         user_id: uid,
+        other_user_id: other,
         content: messageText,
-        message_type: 'text'
+        message_type: 'text',
+        media_url : "asdsa",
       });
       
-      // Don't reload messages, let realtime handle it
+      
     } catch (err) {
       console.error("Error sending message:", err);
       Alert.alert("Error", "No se pudo enviar el mensaje");
@@ -262,15 +283,16 @@ export function ChatScreen({ navigation, route }: any) {
         data={messages}  
         renderItem={renderMessage}  
         keyExtractor={(item) => item.id}  
-        contentContainerStyle={styles.messageList}  
+        contentContainerStyle={[styles.messageList, { paddingBottom: 16 + keyboardHeight }]}  
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}  
+        keyboardShouldPersistTaps="handled"
       />  
   
       <KeyboardAvoidingView  
-        behavior={Platform.OS === "ios" ? "padding" : undefined}  
+        behavior={Platform.OS === "ios" ? "padding" : 'height'}  
         keyboardVerticalOffset={80}  
       >  
-        <View style={styles.inputContainer}>  
+        <View style={[styles.inputContainer, { paddingBottom: Platform.OS === 'ios' ? 12 : 12, marginBottom: keyboardHeight }]}>  
           <TextInput  
             value={input}  
             onChangeText={setInput}  

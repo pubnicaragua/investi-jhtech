@@ -249,7 +249,7 @@ export function ChatListScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
           <View style={styles.headerActions}>
-            <TouchableOpacity onPress={() => navigation.navigate('CreatePost')} accessibilityLabel="Nuevo mensaje" style={styles.composeButton}>
+              <TouchableOpacity onPress={() => navigation.navigate('NewMessageScreen')} accessibilityLabel="Nuevo mensaje" style={styles.composeButton}>
               <Edit3 size={16} color="#111" />
             </TouchableOpacity>
             <TouchableOpacity>

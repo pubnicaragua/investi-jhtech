@@ -1592,7 +1592,7 @@ export const getConversationMessages = async (conversationId: string, limit = 50
       .limit(limit)
     
     if (error) throw error
-    return (data || []).reverse() // Reverse to show oldest first
+    return (data || []).reverse() 
   } catch (error) {
     console.error('Error fetching conversation messages:', error)
     return []
@@ -1600,8 +1600,9 @@ export const getConversationMessages = async (conversationId: string, limit = 50
 }
 
 export const sendMessage = async (messageData: {
-  conversation_id: string
   user_id: string
+  chat_id: string,
+  other_user_id: string,
   content: string
   message_type?: 'text' | 'image' | 'file' | 'voice'
   media_url?: string
@@ -1610,10 +1611,11 @@ export const sendMessage = async (messageData: {
     const { data, error } = await supabase
       .from("messages")
       .insert([{
-        conversation_id: messageData.conversation_id,
-        user_id: messageData.user_id,
-        content: messageData.content,
-        message_type: messageData.message_type || 'text',
+        chat_id: messageData.chat_id,
+        sender_id: messageData.user_id,
+        receiver_id: messageData.other_user_id,
+        contenido: messageData.content,
+        message_type: messageData.message_type,
         media_url: messageData.media_url,
         created_at: new Date().toISOString()
       }])
@@ -1625,7 +1627,7 @@ export const sendMessage = async (messageData: {
     await supabase
       .from("conversations")
       .update({ updated_at: new Date().toISOString() })
-      .eq("id", messageData.conversation_id)
+      .eq("id", messageData.chat_id)
     
     return data?.[0]
   } catch (error) {

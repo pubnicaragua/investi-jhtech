@@ -600,7 +600,7 @@ export async function searchUsers(query: string) {
   try {  
     const response = await request("GET", "/users", {  
       params: {  
-        or: `nombre.ilike.%${query}%,username.ilike.%${query}%`,  
+  or: `(nombre.ilike.%${query}%,username.ilike.%${query}%)`,  
         select: "id,nombre,full_name,username,photo_url,avatar_url,role,bio",  
         limit: "20"  
       },  
@@ -975,19 +975,20 @@ export async function getActiveUsers(limit = 10) {
   
 export async function getUserChats(userId: string) {  
   try {  
-    const response = await request("GET", "/chats", {  
-      params: {  
-        or: `user_one_id.eq.${userId},user_two_id.eq.${userId}`,  
-        select: "id,type,last_message,last_message_at,unread_count,community:communities(id,nombre,icono_url),user_one:users!user_one_id(id,nombre,avatar_url),user_two:users!user_two_id(id,nombre,avatar_url)",  
-        order: "last_message_at.desc",  
-      },  
-    })  
+    const response = await request("GET", "/chats", {
+      params: {
+        or: `(user_one_id.eq.${userId},user_two_id.eq.${userId})`,
+        select: "id,type,last_message,last_message_at,community:communities(id,nombre,icono_url),user_one:users!user_one_id(id,nombre,avatar_url),user_two:users!user_two_id(id,nombre,avatar_url)",
+        order: "last_message_at.desc",
+      },
+    })
       
     return (response || []).map((chat: any) => ({  
       ...chat,  
-      user: chat.type === 'direct'   
-        ? (chat.user_one?.id === userId ? chat.user_two : chat.user_one)  
-        : null  
+      unread_count: chat.unread_count || 0,
+      user: chat.type === 'direct'
+        ? (chat.user_one?.id === userId ? chat.user_two : chat.user_one)
+        : null
     }))  
   } catch (error: any) {  
     console.error('Error fetching user chats:', error)  
@@ -1499,14 +1500,15 @@ export async function getUserConversations(userId: string) {
   try {
     const response = await request("GET", "/conversations", {
       params: {
-        or: `participant_one.eq.${userId},participant_two.eq.${userId}`,
-        select: "id,type,last_message,updated_at,unread_count,participant_one:users!participant_one(id,nombre,avatar_url,is_online),participant_two:users!participant_two(id,nombre,avatar_url,is_online)",
+        or: `(participant_one.eq.${userId},participant_two.eq.${userId})`,
+        select: "id,type,last_message,updated_at,participant_one:users!participant_one(id,nombre,avatar_url,is_online),participant_two:users!participant_two(id,nombre,avatar_url,is_online)",
         order: "updated_at.desc"
       }
     })
-    
+
     return (response || []).map((conv: any) => ({
       ...conv,
+      unread_count: conv.unread_count || 0,
       participants: [
         conv.participant_one,
         conv.participant_two
