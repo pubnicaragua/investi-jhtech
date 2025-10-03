@@ -1627,7 +1627,6 @@ export const sendMessage = async (messageData: {
     const chatId = (messageData.chat_id || messageData.conversation_id) as string
 
     const insertPayload: any = {
-      chat_id: chatId,
       conversation_id: chatId,
       sender_id: messageData.user_id,
       receiver_id: messageData.other_user_id,

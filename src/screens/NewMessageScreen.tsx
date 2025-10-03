@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { View, Text, SafeAreaView, FlatList, TouchableOpacity, Image, StyleSheet, ActivityIndicator, TextInput } from 'react-native'
-import { getCurrentUserId, getUserConversations, searchUsers } from '../rest/api'
+import { View, Text, SafeAreaView, FlatList, TouchableOpacity, Image, StyleSheet, ActivityIndicator, TextInput, RefreshControl } from 'react-native'
+import { getCurrentUserId, getUserConversations, searchUsers, getSuggestedPeople } from '../rest/api'
 import { startConversationWithUser } from '../api'
 import { useAuthGuard } from '../hooks/useAuthGuard'
 
@@ -8,6 +8,7 @@ export function NewMessageScreen({ navigation }: any) {
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
+  const [refreshing, setRefreshing] = useState(false)
 
   useAuthGuard()
 
@@ -19,7 +20,6 @@ export function NewMessageScreen({ navigation }: any) {
     try {
       setLoading(true)
       const uid = await getCurrentUserId()
-      // Obtener conversaciones para listar participantes conocidos
       const convs: any[] = await getUserConversations(uid || '')
       const participants: any[] = []
       convs.forEach(c => {
@@ -28,18 +28,42 @@ export function NewMessageScreen({ navigation }: any) {
         })
       })
 
-      if (participants.length === 0) {
-        // Fallback: si no hay conversaciones, listar usuarios activos/recientes usando searchUsers('')
+      try {
+        const recs: any[] = await getSuggestedPeople(uid || '', 12)
+        const normalizedRecs = (recs || []).map((u: any) => ({
+          id: u.id,
+          nombre: u.nombre || u.name || u.full_name || u.username || '',
+          avatar_url: u.avatar_url || u.avatar || u.photo_url || null,
+          username: u.username || null,
+          bio: u.bio || null,
+          intereses: u.intereses || []
+        }))
+
+        const combined = [...participants]
+        normalizedRecs.forEach((r: any) => {
+          if (r.id && r.id !== uid && !combined.find((c: any) => c.id === r.id)) combined.push(r)
+        })
+
+        if (combined.length === 0) {
+          const results: any[] = await searchUsers('')
+          setUsers((results || []).filter(u => u.id !== uid))
+        } else {
+          setUsers(combined)
+        }
+      } catch (e) {
+        console.error('Error fetching suggested people:', e)
         try {
           const results: any[] = await searchUsers('')
           const filtered = (results || []).filter(u => u.id !== uid)
-          setUsers(filtered)
-        } catch (e) {
-          console.error('Error buscando usuarios de fallback:', e)
-          setUsers([])
+          const combined = [...participants]
+          filtered.forEach((r: any) => {
+            if (!combined.find((c: any) => c.id === r.id)) combined.push(r)
+          })
+          setUsers(combined)
+        } catch (e2) {
+          console.error('Fallback search failed:', e2)
+          setUsers(participants)
         }
-      } else {
-        setUsers(participants)
       }
     } catch (err) {
       console.error('Error loading users for new message:', err)
@@ -77,6 +101,18 @@ export function NewMessageScreen({ navigation }: any) {
     )
   }
 
+  // Handler para pull-to-refresh desde la UI
+  const onRefresh = async () => {
+    setRefreshing(true)
+    try {
+      await loadUsers()
+    } catch (e) {
+      console.error('Refresh error:', e)
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
   if (loading) return (
     <SafeAreaView style={styles.container}>
       <ActivityIndicator style={{ marginTop: 40 }} size="large" color="#2673f3" />
@@ -85,27 +121,60 @@ export function NewMessageScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Encabezado con botón para regresar */}
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} accessibilityLabel="Volver">
+          <Text style={styles.backCaret}>{'<'}</Text>
+        </TouchableOpacity>
         <Text style={styles.title}>Nuevo mensaje</Text>
+        <View style={{ width: 36 }} />
       </View>
       <View style={styles.searchContainer}>
         <TextInput placeholder="Buscar" value={query} onChangeText={setQuery} style={styles.search} />
       </View>
-      <FlatList data={users.filter(u => (query ? (u.nombre||u.username||'').toLowerCase().includes(query.toLowerCase()) : true))} keyExtractor={u => u.id} renderItem={renderItem} />
+      <FlatList
+        data={users.filter(u => (query ? (u.nombre||u.username||'').toLowerCase().includes(query.toLowerCase()) : true))}
+        keyExtractor={u => u.id}
+        renderItem={renderItem}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#2673f3']}
+            tintColor="#2673f3"
+          />
+        }
+      />
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  header: { padding: 16, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  title: { fontSize: 18, fontWeight: '600' ,paddingTop: 25, textAlign: 'center'},
+  header: { borderBottomWidth: 1, borderBottomColor: '#eee' },
+  title: { fontSize: 18, fontWeight: '600' , textAlign: 'center'},
   item: { flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: '#f5f5f5' },
   avatar: { width: 44, height: 44, borderRadius: 22, marginRight: 12 },
   name: { fontSize: 16, fontWeight: '600' },
   subtitle: { fontSize: 12, color: '#666' },
   searchContainer: { paddingHorizontal: 16, paddingVertical: 8 },
-  search: { backgroundColor: '#f5f5f5', borderRadius: 8, padding: 8 }
+  search: { backgroundColor: '#f5f5f5', borderRadius: 8, padding: 8 },
+  backButton: {
+    width: 36,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  backCaret: {
+    fontSize: 30,
+    color: '#666',
+    fontWeight: '600',
+    paddingTop: 50,
+  }
+  ,
+  /* FAB styles removed */
 })
+
+
+// Not merging styles to keep TypeScript types intact; use extraStyles directly where needed.
 
 export default NewMessageScreen

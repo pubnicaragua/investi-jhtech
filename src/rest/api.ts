@@ -149,12 +149,21 @@ export async function listCommunities() {
   
 export async function joinCommunity(uid: string, community_id: string) {  
   try {  
+    // intentar crear la relación
     return await request("POST", "/user_communities", {  
       body: { user_id: uid, community_id },  
     })  
   } catch (error: any) {  
-    if (error.code === "23505") return null // Already joined  
-    throw error  
+    // conflicto: ya está unido -> devolver el registro existente
+    if (error.code === "23505") {
+      try {
+        const existing = await request('GET', '/user_communities', { params: { user_id: `eq.${uid}`, community_id: `eq.${community_id}`, select: '*' } })
+        return existing?.[0] || null
+      } catch (e) {
+        return null
+      }
+    }
+    throw error
   }  
 }  
   
@@ -210,6 +219,25 @@ export async function getUserCommunities(userId: string) {
     return []  
   }  
 }  
+
+// Crear comunidad
+export async function createCommunity(data: { nombre: string; descripcion?: string; tipo?: string; icono_url?: string; banner_url?: string; created_by?: string }) {
+  try {
+    const body = {
+      nombre: data.nombre,
+      descripcion: data.descripcion || null,
+      tipo: data.tipo || 'public',
+      icono_url: data.icono_url || null,
+      banner_url: data.banner_url || null,
+      created_by: data.created_by || null,
+    }
+    const response = await request('POST', '/communities', { body })
+    return (response && response[0]) ? response[0] : response
+  } catch (error: any) {
+    console.error('Error creating community:', error)
+    throw error
+  }
+}
   
 // Función para obtener canales de comunidad  
 export async function getCommunityChannels(communityId: string) {  
@@ -1666,6 +1694,70 @@ export async function getConversationMessages(conversationId: string, limit = 50
   } catch (error: any) {
     console.error('Error fetching messages:', error)
     return []
+  }
+}
+
+// ===== MESSAGES_READS HELPERS =====
+
+export async function getMessagesReadsForUser(userId: string) {
+  try {
+  const response = await request('GET', '/message_reads', {
+      params: {
+        user_id: `eq.${userId}`,
+        select: 'conversation_id,user_id,last_read_at'
+      }
+    })
+    return response || []
+  } catch (error: any) {
+    console.error('Error fetching messages_reads:', error)
+    return []
+  }
+}
+
+//Contar mensajes no leídos para una conversación y usuario.
+export async function countUnreadMessagesForConversation(conversationId: string, userId: string) {
+  try {
+  const reads = await request('GET', '/message_reads', {
+      params: { conversation_id: `eq.${conversationId}`, user_id: `eq.${userId}`, select: 'last_read_at' }
+    })
+    const lastReadAt = (reads && reads[0] && reads[0].last_read_at) ? reads[0].last_read_at : null
+
+    if (!lastReadAt) {
+      const allMsgs = await request('GET', '/messages', { params: { conversation_id: `eq.${conversationId}`, select: 'id' } })
+      return (allMsgs || []).length
+    }
+
+    // contar solo mensajes posteriores a last_read_at
+    const unread = await request('GET', '/messages', {
+      params: { conversation_id: `eq.${conversationId}`, created_at: `gt.${lastReadAt}`, select: 'id' }
+    })
+    return (unread || []).length
+  } catch (error: any) {
+    console.error('Error counting unread messages:', error)
+    return 0
+  }
+}
+
+//Marcar una conversación como leída para un usuario 
+export async function markConversationAsRead(conversationId: string, userId: string) {
+  try {
+    // Intentar PATCH (si existe)
+  await request('PATCH', '/message_reads', {
+      params: { conversation_id: `eq.${conversationId}`, user_id: `eq.${userId}` },
+      body: { last_read_at: new Date().toISOString() }
+    })
+    return true
+  } catch (err: any) {
+    // Si no existe la fila o hubo conflicto, intentar crearla
+    try {
+  await request('POST', '/message_reads', {
+        body: { conversation_id: conversationId, user_id: userId, last_read_at: new Date().toISOString() }
+      })
+      return true
+    } catch (err2: any) {
+      console.error('Error marking conversation as read:', err2)
+      return false
+    }
   }
 }
 

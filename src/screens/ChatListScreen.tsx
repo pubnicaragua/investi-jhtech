@@ -20,7 +20,7 @@ import {
   Search,  
   Edit3,  
 } from "lucide-react-native";  
-import { getCurrentUserId, getUserConversations } from "../rest/api";  
+import { getCurrentUserId, getUserConversations, countUnreadMessagesForConversation, markConversationAsRead } from "../rest/api";  
 import { useAuthGuard } from "../hooks/useAuthGuard";  
   
 interface User {  
@@ -58,6 +58,7 @@ export function ChatListScreen({ navigation }: any) {
   const [searchQuery, setSearchQuery] = useState("");  
   const [loading, setLoading] = useState(true);  
   const [refreshing, setRefreshing] = useState(false);  
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
   useAuthGuard();  
   
@@ -72,8 +73,9 @@ export function ChatListScreen({ navigation }: any) {
   const loadData = async () => {
     try {
       setLoading(true);
-      const uid = await getCurrentUserId();
-      if (!uid) return;
+  const uid = await getCurrentUserId();
+  if (!uid) return;
+  setCurrentUserId(uid);
 
       // Load conversations using new API
       const conversations = await getUserConversations(uid);
@@ -82,12 +84,19 @@ export function ChatListScreen({ navigation }: any) {
       const transformedChats = conversations.map((conv: any) => {
         const otherParticipant = conv.participants?.find((p: any) => p.id !== uid);
         const isDirect = conv.type === 'direct';
-        
+        const rawLast = conv.last_message;
+        const lastMessageText = rawLast && typeof rawLast === 'object'
+          ? (rawLast.content || rawLast.contenido || '')
+          : (typeof rawLast === 'string' ? rawLast : '');
+        const lastMessageAt = rawLast && typeof rawLast === 'object'
+          ? (rawLast.created_at || rawLast.createdAt || conv.updated_at)
+          : (conv.last_message_at || conv.updated_at);
+
         return {
           id: conv.id,
           type: isDirect ? 'direct' : 'community',
-          last_message: conv.last_message?.content || 'Sin mensajes aún',
-          last_message_at: conv.last_message?.created_at || conv.updated_at,
+          last_message: lastMessageText || 'Sin mensajes aún',
+          last_message_at: lastMessageAt,
           unread_count: 0, // Will be calculated separately
           ...(isDirect ? {
             user: {
@@ -106,7 +115,60 @@ export function ChatListScreen({ navigation }: any) {
         };
       });
       
-      setChats(transformedChats);
+      // Calcular unread_count real para cada conversación usando la tabla messages_reads   
+      try {
+        const counts = await Promise.all(transformedChats.map((conv: any) =>
+          countUnreadMessagesForConversation(conv.id, uid).catch(() => 0)
+        ));
+
+        const chatsWithCounts = transformedChats.map((c: any, i: number) => ({ ...c, unread_count: counts[i] || 0 }));
+        // Sort by last_message_at descending (most recent first)
+        chatsWithCounts.sort((a: any, b: any) => {
+          const ta = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+          const tb = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+          return tb - ta;
+        });
+        setChats(chatsWithCounts);
+
+        try {
+          let filtered = chatsWithCounts;
+          if (activeFilter === "No leídos") filtered = filtered.filter((chat: any) => chat.unread_count > 0);
+          else if (activeFilter === "Comunidades") filtered = filtered.filter((chat: any) => chat.type === "community");
+          if (searchQuery.trim()) {
+            filtered = filtered.filter((chat: any) => {
+              const name = chat.type === "community" ? chat.community?.nombre : chat.user?.nombre;
+              return name?.toLowerCase().includes(searchQuery.toLowerCase());
+            });
+          }
+          setFilteredChats(filtered);
+        } catch (e) {
+          setFilteredChats(chatsWithCounts);
+        }
+      } catch (err) {
+        // Fallback: si algo falla simplemente asignamos 0 y seguimos
+        console.warn('No se pudieron calcular los contadores de no leídos:', err);
+        
+        transformedChats.sort((a: any, b: any) => {
+          const ta = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+          const tb = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+          return tb - ta;
+        });
+        setChats(transformedChats);
+        try {
+          let filtered = transformedChats;
+          if (activeFilter === "No leídos") filtered = filtered.filter((chat: any) => chat.unread_count > 0);
+          else if (activeFilter === "Comunidades") filtered = filtered.filter((chat: any) => chat.type === "community");
+          if (searchQuery.trim()) {
+            filtered = filtered.filter((chat: any) => {
+              const name = chat.type === "community" ? chat.community?.nombre : chat.user?.nombre;
+              return name?.toLowerCase().includes(searchQuery.toLowerCase());
+            });
+          }
+          setFilteredChats(filtered);
+        } catch (e) {
+          setFilteredChats(transformedChats);
+        }
+      }
       
       // Load online users (mock data for stories)
       const mockUsers = [
@@ -178,17 +240,32 @@ export function ChatListScreen({ navigation }: any) {
     });  
   
     return (  
-      <TouchableOpacity  
-        style={styles.chatItem}  
-        onPress={() =>  
-          navigation.navigate("ChatScreen", {  
-            conversationId: item.id,  
-            type: item.type,  
-            name: name,  
-            participant: item.type === 'direct' ? item.user : null  
-          })  
-        }  
-      >  
+      <TouchableOpacity
+        style={styles.chatItem}
+        onPress={async () => {
+          // Optimista: limpiar badge localmente para mejor UX
+          setChats(prev => prev.map(c => c.id === item.id ? { ...c, unread_count: 0 } : c));
+
+          // Llamada al backend para marcar como leído en messages_reads
+          try {
+            if (currentUserId) await markConversationAsRead(item.id, currentUserId);
+          } catch (err) {
+            console.warn('No se pudo marcar como leído en el backend:', err);
+          }
+
+          // Navegación
+          if (isCommunity) {
+            navigation.navigate('GroupChatScreen', { groupId: item.id, name: name });
+          } else {
+            navigation.navigate('ChatScreen', {
+              conversationId: item.id,
+              type: item.type,
+              name: name,
+              participant: item.type === 'direct' ? item.user : null,
+            });
+          }
+        }}
+      >
         <Image  
           source={{ uri: avatar || "https://i.pravatar.cc/100" }}  
           style={styles.chatAvatar}  

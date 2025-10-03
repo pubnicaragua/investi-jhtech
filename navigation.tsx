@@ -54,6 +54,7 @@ import { NewsDetailScreen } from './src/screens/NewsDetailScreen';
 import { DebugStorageScreen } from './src/screens/DebugStorageScreen';
 
 import { getCurrentUser, getMe } from "./src/rest/api"
+import CreateCommunityScreen from "./src/screens/CreateCommunityScreen"
   
 // Check if we're in development mode  
 const isDevelopment = process.env.NODE_ENV === 'development' || __DEV__  
@@ -416,6 +417,14 @@ export function RootStack() {
         <Stack.Screen
           name="NewMessageScreen"
           component={NewMessageScreen}
+          options={{
+            presentation: 'modal',
+            gestureDirection: 'vertical',
+          }}
+        />
+        <Stack.Screen
+          name="CreateCommunity"
+          component={CreateCommunityScreen}
           options={{
             presentation: 'modal',
             gestureDirection: 'vertical',

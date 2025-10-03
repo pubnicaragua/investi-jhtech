@@ -1,15 +1,21 @@
 // src/screens/community/CreateCommunityScreen.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { createCommunity, joinCommunity, getSuggestedPeople } from '../rest/api';
+import { getCurrentUserId } from '../rest/client';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function CreateCommunityScreen() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
+  // Tipo debe corresponder con el enum community_privacy en la BDD
+  const [type, setType] = useState<'public' | 'private' | 'restricted'>('public');
   const [category, setCategory] = useState('general');
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [suggestedPeople, setSuggestedPeople] = useState<any[]>([]);
   const navigation = useNavigation();
 
   const categories = [
@@ -19,19 +25,45 @@ export default function CreateCommunityScreen() {
     { id: 'technology', name: 'Tecnología' },
   ];
 
+  // Cargar personas sugeridas para invitar
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const uid = await getCurrentUserId();
+        const recs = await getSuggestedPeople(uid || '', 8)
+        setSuggestedPeople(recs || [])
+      } catch (e) {
+        // Silenciar errores de carga de sugeridos
+        console.warn('No se pudieron cargar sugeridos', e)
+      }
+    })()
+  }, [])
+
   const handleCreate = () => {
-    // Lógica para crear la comunidad
-    const newCommunity = {
-      id: Date.now().toString(),
-      name,
-      description,
-      isPrivate,
-      category,
-      members: 1,
-      createdAt: new Date().toISOString(),
-    };
-    console.log('Creando comunidad:', newCommunity);
-    navigation.goBack();
+    // Crear comunidad en backend y unir creador
+    (async () => {
+      try {
+        const uid = await getCurrentUserId();
+        // Enviamos el tipo seleccionado (debe ser compatible con community_privacy)
+        const community = await createCommunity({ nombre: name, descripcion: description, tipo: type, created_by: uid || undefined });
+        if (community && community.id && uid) {
+          // Añadir creador como miembro
+          await joinCommunity(uid, community.id)
+          // Añadir miembros seleccionados (si los hay)
+          for (const memberId of selectedMembers) {
+            if (memberId === uid) continue
+            try {
+              await joinCommunity(memberId, community.id)
+            } catch (e) {
+              console.warn('No se pudo añadir miembro', memberId, e)
+            }
+          }
+        }
+        navigation.goBack();
+      } catch (err) {
+        console.error('Error al crear comunidad:', err);
+      }
+    })();
   };
 
   return (
@@ -93,6 +125,43 @@ export default function CreateCommunityScreen() {
               </Text>
             </TouchableOpacity>
           ))}
+        </View>
+
+        <Text style={styles.label}>Tipo de privacidad</Text>
+        <View style={styles.categoriesContainer}>
+          {[{ id: 'public', name: 'Pública' }, { id: 'private', name: 'Privada' }, { id: 'restricted', name: 'Restringida' }].map((t) => (
+            <TouchableOpacity
+              key={t.id}
+              style={[
+                styles.categoryButton,
+                type === (t.id as any) && styles.categoryButtonActive,
+              ]}
+              onPress={() => setType(t.id as any)}
+            >
+              <Text style={[styles.categoryText, type === (t.id as any) && styles.categoryTextActive]}>{t.name}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.label}>Invitar miembros (sugeridos)</Text>
+        <View style={{ marginBottom: 12 }}>
+          {suggestedPeople.slice(0, 8).map((p) => {
+            const selected = selectedMembers.includes(p.id)
+            return (
+              <TouchableOpacity
+                key={p.id}
+                onPress={() => {
+                  setSelectedMembers((s) => (s.includes(p.id) ? s.filter((x) => x !== p.id) : [...s, p.id]))
+                }}
+                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}
+              >
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#eee', marginRight: 12 }} />
+                <Text style={{ color: '#333' }}>{p.nombre || p.name || 'Usuario'}</Text>
+                <View style={{ flex: 1 }} />
+                <Text style={{ color: selected ? '#2673f3' : '#999' }}>{selected ? 'Añadido' : 'Añadir'}</Text>
+              </TouchableOpacity>
+            )
+          })}
         </View>
 
         <View style={styles.privacyContainer}>
