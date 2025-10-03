@@ -112,7 +112,7 @@ export const PickInterestsScreen = ({ navigation }: any) => {
         await saveUserInterests(uid, selectedInterests, 'beginner')
         console.log("Interests updated successfully")  
           
-        navigation.navigate("PickGoals")  
+        navigation.navigate("PickKnowledge")  
       }  
     } catch (error: any) {  
       console.error("Error updating interests:", error)  
@@ -121,7 +121,7 @@ export const PickInterestsScreen = ({ navigation }: any) => {
         "No se pudieron guardar tus intereses. ¿Deseas continuar de todas formas?",  
         [  
           { text: "Reintentar", onPress: () => handleContinue() },  
-          { text: "Continuar", onPress: () => navigation.navigate("PickGoals") }  
+          { text: "Continuar", onPress: () => navigation.navigate("PickKnowledge") }  
         ]  
       )  
     } finally {  

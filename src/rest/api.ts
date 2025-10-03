@@ -1202,18 +1202,84 @@ export async function getInvestmentGoals() {
   }
 }
 
-export async function saveUserGoals(userId: string, goals: string[], priorityOrder?: number[]) {
+export async function saveUserGoals(userId: string, goalIds: string[]) {
   try {
-    return await request("POST", "/user_goals", {
-      body: {
-        user_id: userId,
-        goals: goals,
-        priority_order: priorityOrder || []
-      }
-    })
+    console.log('📝 saveUserGoals - userId:', userId)
+    console.log('📝 saveUserGoals - goalIds:', goalIds)
+    
+    // Verificar sesión de Supabase
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+    console.log('🔐 Session check:', sessionData?.session ? 'Autenticado' : 'No autenticado')
+    
+    if (sessionError || !sessionData?.session) {
+      console.error('❌ No hay sesión activa:', sessionError)
+      throw new Error('No hay sesión activa. Por favor inicia sesión nuevamente.')
+    }
+    
+    // Primero eliminar metas anteriores del usuario
+    console.log('🗑️ Eliminando metas anteriores...')
+    const { error: deleteError } = await supabase
+      .from('user_goals')
+      .delete()
+      .eq('user_id', userId)
+    
+    if (deleteError) {
+      console.error('⚠️ Error eliminando metas anteriores (puede ser normal si no hay):', deleteError)
+    }
+    
+    // Insertar nuevas metas con prioridad
+    const goalsToInsert = goalIds.map((goalId, index) => ({
+      user_id: userId,
+      goal_id: goalId,
+      priority: index + 1,
+      created_at: new Date().toISOString()
+    }))
+    
+    console.log('📥 Insertando metas:', goalsToInsert)
+    
+    const { data, error } = await supabase
+      .from('user_goals')
+      .insert(goalsToInsert)
+      .select()
+    
+    if (error) {
+      console.error('❌ Error insertando metas:', error)
+      console.error('❌ Error code:', error.code)
+      console.error('❌ Error message:', error.message)
+      console.error('❌ Error details:', error.details)
+      throw error
+    }
+    
+    console.log('✅ Metas insertadas exitosamente:', data)
+    return data
   } catch (error: any) {
-    console.error('Error saving user goals:', error)
+    console.error('❌ Error en saveUserGoals:', error)
     throw error
+  }
+}
+
+export async function getUserGoals(userId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('user_goals')
+      .select(`
+        id,
+        goal_id,
+        priority,
+        goal:goals(id, name, description, icon)
+      `)
+      .eq('user_id', userId)
+      .order('priority', { ascending: true })
+    
+    if (error) {
+      console.error('Error fetching user goals:', error)
+      return []
+    }
+    
+    return data || []
+  } catch (error: any) {
+    console.error('Error fetching user goals:', error)
+    return []
   }
 }
 
@@ -1259,13 +1325,44 @@ export async function getInvestmentInterests() {
 
 export async function saveUserInterests(userId: string, interests: string[], experienceLevel?: string) {
   try {
-    return await request("POST", "/user_interests", {
-      body: {
-        user_id: userId,
-        interests: interests,
-        experience_level: experienceLevel || 'beginner'
-      }
-    })
+    console.log('💾 Guardando intereses:', { userId, interests, experienceLevel })
+    
+    // Primero eliminar intereses anteriores
+    const { error: deleteError } = await supabase
+      .from('user_interests')
+      .delete()
+      .eq('user_id', userId)
+    
+    if (deleteError) {
+      console.log('⚠️ Error eliminando intereses anteriores (puede ser normal):', deleteError)
+    }
+    
+    // Insertar nuevos intereses uno por uno
+    const insertPromises = interests.map(interestId => 
+      supabase
+        .from('user_interests')
+        .insert({
+          user_id: userId,
+          interest_id: interestId,
+          experience_level: experienceLevel || 'beginner'
+        })
+    )
+    
+    const results = await Promise.all(insertPromises)
+    
+    // Verificar si hubo errores
+    const errors = results.filter(r => r.error)
+    if (errors.length > 0) {
+      console.error('❌ Errores al insertar intereses:', errors)
+      throw errors[0].error
+    }
+    
+    console.log('✅ Intereses guardados exitosamente')
+    
+    // Actualizar paso de onboarding
+    await updateUser(userId, { onboarding_step: 'pick_knowledge' })
+    
+    return { success: true }
   } catch (error: any) {
     console.error('Error saving user interests:', error)
     throw error
@@ -1289,17 +1386,52 @@ export async function getKnowledgeLevels() {
 
 export async function saveUserKnowledgeLevel(userId: string, level: string, specificAreas?: string[], learningGoals?: string[]) {
   try {
-    return await request("POST", "/user_knowledge", {
-      body: {
+    // Guardar nivel de conocimiento usando upsert (actualiza si existe, inserta si no)
+    const { error } = await supabase
+      .from('user_knowledge')
+      .upsert({
         user_id: userId,
         level: level,
         specific_areas: specificAreas || [],
         learning_goals: learningGoals || []
-      }
-    })
+      }, {
+        onConflict: 'user_id'
+      })
+    
+    if (error) {
+      console.error('Error upserting user knowledge:', error)
+      throw error
+    }
+    
+    // Actualizar paso de onboarding a completado
+    await updateUser(userId, { onboarding_step: 'completed' })
+    
+    return { success: true }
   } catch (error: any) {
     console.error('Error saving user knowledge level:', error)
     throw error
+  }
+}
+
+// ===== RECOMMENDED COMMUNITIES BY GOALS =====
+
+export async function getRecommendedCommunitiesByGoals(userId: string, limit = 10) {
+  try {
+    const { data, error } = await supabase
+      .rpc('get_recommended_communities_by_goals', {
+        p_user_id: userId,
+        p_limit: limit
+      })
+    
+    if (error) {
+      console.error('Error fetching recommended communities by goals:', error)
+      return []
+    }
+    
+    return data || []
+  } catch (error: any) {
+    console.error('Error fetching recommended communities by goals:', error)
+    return []
   }
 }
 
@@ -1311,7 +1443,7 @@ export async function getCommunityDetailsComplete(communityId: string) {
     const response = await request("GET", "/communities", {
       params: {
         id: `eq.${communityId}`,
-        select: "id,nombre,descripcion,icono_url,cover_image_url,tipo,created_at,members:user_communities(count),posts:posts(count)"
+        select: "id,nombre,descripcion,icono_url,avatar_url,banner_url,tipo,created_at,member_count,members:user_communities(count),posts:posts(count)"
       }
     })
     
@@ -1322,10 +1454,10 @@ export async function getCommunityDetailsComplete(communityId: string) {
       id: community.id,
       name: community.nombre,
       description: community.descripcion,
-      image_url: community.icono_url,
-      cover_image_url: community.cover_image_url,
+      image_url: community.icono_url || community.avatar_url,
+      cover_image_url: community.banner_url || community.icono_url,
       is_public: community.tipo === 'public',
-      member_count: community.members?.[0]?.count || 0,
+      member_count: community.member_count || community.members?.[0]?.count || 0,
       post_count: community.posts?.[0]?.count || 0,
       created_at: community.created_at,
       admin_users: community.admin_users?.map((admin: any) => ({

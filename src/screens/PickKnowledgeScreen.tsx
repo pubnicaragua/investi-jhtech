@@ -58,7 +58,7 @@ export function PickKnowledgeScreen({ navigation }: any) {
         return
       }
       await saveUserKnowledgeLevel(uid, selectedLevel)
-      navigation.navigate("PickInterests")
+      navigation.navigate("CommunityRecommendations")
     } catch (error) {
       console.error("Error saving knowledge level:", error)
     } finally {
