@@ -186,7 +186,7 @@ export function ChatScreen({ navigation, route }: any) {
       if (!uid) return;
 
       await sendChatMessage({
-        chat_id: conversationId,
+        conversation_id: conversationId,
         user_id: uid,
         other_user_id: other,
         content: messageText,

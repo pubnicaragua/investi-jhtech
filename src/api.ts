@@ -528,40 +528,46 @@ export const getMutualConnections = async (userId1: string, userId2: string, lim
   return data || []
 }
 
-// Start conversation with user
 export const startConversationWithUser = async (currentUserId: string, targetUserId: string) => {
-  // Check if conversation already exists
-  const { data: existingConv, error: checkError } = await supabase.rpc('get_direct_conversation', {
-    user_id_1: currentUserId,
-    user_id_2: targetUserId
-  })
-  
-  if (checkError) {
-    // Create new conversation
-    const { data: newConv, error: createError } = await supabase
+  try {
+    const pairFilter = `and(participant_one.eq.${currentUserId},participant_two.eq.${targetUserId}),and(participant_one.eq.${targetUserId},participant_two.eq.${currentUserId})`
+    const { data: convs, error: convError } = await supabase
       .from('conversations')
-      .insert({
-        type: 'direct',
-        created_by: currentUserId
-      })
+      .select('*')
+      .or(pairFilter)
+      .limit(1)
+
+    if (convError) throw convError
+
+    if (convs && convs.length > 0) {
+      return convs[0]
+    }
+
+    const { data: newConvArr, error: createError } = await supabase
+      .from('conversations')
+      .insert([{ type: 'direct', participant_one: currentUserId, participant_two: targetUserId, created_by: currentUserId, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }])
       .select()
-      .single()
-    
+
     if (createError) throw createError
-    
-    // Add participants
-    await supabase
-      .from('conversation_participants')
-      .insert([
-        { conversation_id: newConv.id, user_id: currentUserId, is_active: true },
-        { conversation_id: newConv.id, user_id: targetUserId, is_active: true }
-      ])
-    
+    const newConv = Array.isArray(newConvArr) ? newConvArr[0] : newConvArr
+
+    // Add participants records
+    const participants = [
+      { conversation_id: newConv.id, user_id: currentUserId, is_active: true, joined_at: new Date().toISOString() },
+      { conversation_id: newConv.id, user_id: targetUserId, is_active: true, joined_at: new Date().toISOString() }
+    ]
+
+    /*const { error: participantsError } = await supabase.from('conversation_participants').insert(participants);
+    if (participantsError) {
+      console.warn('Failed to insert conversation_participants after creating conversation', participantsError);
+    }*/
+
     return newConv
+  } catch (error) {
+    console.error('Error in startConversationWithUser:', error)
+    throw error
   }
-  
-  return existingConv
-}  
+}
   
 export const getNewsDetail = async (newsId: string) => {  
   const { data, error } = await supabase  
@@ -1561,7 +1567,7 @@ export const getUserConversations = async (userId: string) => {
         participants:conversation_participants(
           user:users(id, nombre, full_name, photo_url, avatar_url, role)
         ),
-        last_message:messages(content, created_at, user_id)
+        last_message:messages(contenido, created_at, sender_id)
       `)
       .eq("conversation_participants.user_id", userId)
       .order("updated_at", { ascending: false })
@@ -1585,14 +1591,23 @@ export const getConversationMessages = async (conversationId: string, limit = 50
       .from("messages")
       .select(`
         *,
-        user:users(id, nombre, full_name, photo_url, avatar_url, role)
-      `)
+        sender:users!messages_sender_id_fkey(id, nombre, full_name, photo_url, avatar_url, role),
+        receiver:users!messages_receiver_id_fkey(id, nombre, full_name, photo_url, avatar_url, role)
+        `)
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: false })
       .limit(limit)
     
     if (error) throw error
-    return (data || []).reverse() 
+
+    // Normalize DB fields to the UI shape: contenido -> content, sender -> user
+    const normalized = (data || []).map((m: any) => ({
+      ...m,
+      content: m.content || m.contenido || '',
+      user: m.sender || m.user || null
+    }))
+
+    return normalized.reverse()
   } catch (error) {
     console.error('Error fetching conversation messages:', error)
     return []
@@ -1601,33 +1616,46 @@ export const getConversationMessages = async (conversationId: string, limit = 50
 
 export const sendMessage = async (messageData: {
   user_id: string
-  chat_id: string,
+  conversation_id?: string,
+  chat_id?: string,
   other_user_id: string,
   content: string
   message_type?: 'text' | 'image' | 'file' | 'voice'
   media_url?: string
 }) => {
   try {
+    const chatId = (messageData.chat_id || messageData.conversation_id) as string
+
+    const insertPayload: any = {
+      chat_id: chatId,
+      conversation_id: chatId,
+      sender_id: messageData.user_id,
+      receiver_id: messageData.other_user_id,
+      contenido: messageData.content,
+      content: messageData.content,
+      message_type: messageData.message_type,
+      created_at: new Date().toISOString()
+    }
+
+    if (messageData.media_url) insertPayload.media_url = messageData.media_url
+
     const { data, error } = await supabase
       .from("messages")
-      .insert([{
-        chat_id: messageData.chat_id,
-        sender_id: messageData.user_id,
-        receiver_id: messageData.other_user_id,
-        contenido: messageData.content,
-        message_type: messageData.message_type,
-        media_url: messageData.media_url,
-        created_at: new Date().toISOString()
-      }])
+      .insert([insertPayload])
       .select()
     
     if (error) throw error
     
-    // Update conversation's last activity
-    await supabase
-      .from("conversations")
-      .update({ updated_at: new Date().toISOString() })
-      .eq("id", messageData.chat_id)
+    // Update conversation's last activity (use chatId)
+    try {
+      await supabase
+        .from("conversations")
+        .update({ updated_at: new Date().toISOString(), last_message: messageData.content })
+        .eq("id", chatId)
+    } catch (e) {
+      // Non-fatal: log and continue
+      console.warn('Failed updating conversation after message insert', e)
+    }
     
     return data?.[0]
   } catch (error) {
