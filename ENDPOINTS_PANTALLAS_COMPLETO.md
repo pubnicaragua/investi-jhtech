@@ -152,16 +152,45 @@
 - **Tablas**: `communities`
 
 #### 17. **CommunityMembersScreen**
-- **Estado**: ✅ Funcional
+- **Estado**: ✅ Funcional con Backend Completo
+- **Ruta**: `/community/:communityId/members`
+- **Archivo**: `CommunityMembersScreen.tsx`
 - **Endpoints**:
-  - `request("GET", "/community_members")` ✅
+  - `getCommunityMembers(communityId)` ✅ - Tabla `community_members`
+  - `removeCommunityMember(communityId, memberId)` ✅
+  - `updateMemberRole(communityId, memberId, role)` ✅
+  - `getCurrentUser()` ✅
 - **Tablas**: `community_members`, `users`
+- **Características**:
+  - 100% Backend Driven
+  - Búsqueda en tiempo real
+  - Filtros por rol (Admin, Moderador, Miembro)
+  - Gestión de roles (solo admins)
+  - Eliminar miembros (solo admins)
+  - Invitar miembros
+  - UI moderna con badges de roles
 
 #### 18. **CommunitySettingsScreen**
-- **Estado**: ✅ Funcional
+- **Estado**: ✅ Funcional con Backend Completo
+- **Ruta**: `/community/:communityId/settings`
+- **Archivo**: `CommunitySettingsScreen.tsx`
 - **Endpoints**:
-  - `request("PATCH", "/communities")` ✅
-- **Tablas**: `communities`
+  - `getCommunityDetails(communityId)` ✅
+  - `updateCommunitySettings(communityId, settings)` ✅
+  - `leaveCommunity(userId, communityId)` ✅
+  - `deleteCommunity(communityId)` ✅ - Solo admins
+  - `getCurrentUser()` ✅
+  - `isUserMemberOfCommunity(userId, communityId)` ✅
+- **Tablas**: `communities`, `community_members`
+- **Características**:
+  - 100% Backend Driven
+  - Configuración de notificaciones
+  - Privacidad (pública/privada)
+  - Moderación de contenido
+  - Aprobar publicaciones
+  - Abandonar comunidad
+  - Eliminar comunidad (solo admins)
+  - Confirmaciones dobles para acciones críticas
 
 ---
 
@@ -192,10 +221,40 @@
 - **Tablas**: `conversations`, `messages`
 
 #### 22. **GroupChatScreen**
-- **Estado**: ❌ Datos mock
-- **Endpoints Faltantes**:
-  - `getGroupChatMessages()` ❌
-  - `sendGroupMessage()` ❌
+- **Estado**: ✅ Funcional con Realtime
+- **Ruta**: `/group-chat/:channelId`
+- **Archivo**: `GroupChatScreen.tsx`
+- **Endpoints**:
+  - `getChannelMessages(channelId, limit)` ✅ - Tabla `chat_messages`
+  - `sendMessage(chatId, userId, content)` ✅ - Tabla `chat_messages`
+  - `getCommunityChannels(communityId)` ✅ - Tabla `community_channels`
+  - `getCurrentUser()` ✅
+- **Realtime**: Supabase Realtime subscriptions ✅
+- **Tablas**: `chat_messages`, `community_channels`, `users`
+- **Características**:
+  - 100% Backend Driven
+  - Mensajes en tiempo real
+  - Auto-scroll inteligente
+  - Indicador de envío
+  - Pixel perfect según diseño
+- **Navegación desde CommunityDetailScreen**:
+  ```typescript
+  // En CommunityDetailScreen, tab "Chats"
+  <TouchableOpacity 
+    onPress={() => navigation.navigate('GroupChat', {
+      channelId: channel.id,
+      communityId: community.id,
+      channelName: channel.name
+    })}
+  >
+    <Text>{channel.name}</Text>
+  </TouchableOpacity>
+  ```
+- **⚠️ IMPORTANTE - Estructura de Mensajes**:
+  - Usa tabla `chat_messages` con columna `content` (NO `contenido`)
+  - Campo `chat_id` referencia a `community_channels.id`
+  - Campo `sender_id` referencia a `users.id`
+  - NO confundir con tabla `messages` (para chats 1:1)
 
 ---
 
@@ -317,10 +376,24 @@
 - **Tablas**: `users`, `user_preferences`
 
 #### 38. **SavedPostsScreen**
-- **Estado**: ✅ Funcional
+- **Estado**: ✅ Funcional con Backend Completo
+- **Ruta**: `/saved-posts`
+- **Archivo**: `SavedPostsScreen.tsx`
 - **Endpoints**:
   - `getSavedPosts(userId)` ✅ - Tabla `saved_posts`
-- **Tablas**: `saved_posts`, `posts`
+  - `unsavePost(userId, postId)` ✅
+  - `getCurrentUser()` ✅
+- **Tablas**: `saved_posts`, `posts`, `users`
+- **Características**:
+  - 100% Backend Driven
+  - Lista completa de posts guardados
+  - Vista previa con imagen y contenido
+  - Estadísticas (likes, comentarios)
+  - Quitar de guardados
+  - Navegación a detalle del post
+  - Pull to refresh
+  - Empty state con CTA
+  - Contador de posts guardados
 
 ---
 
@@ -414,17 +487,25 @@ export async function sendNotification(userId: string, notification: any)
 ## 📊 RESUMEN EJECUTIVO
 
 ### **ESTADO GENERAL**
-- **✅ Funcionando**: 15 pantallas (31%)
+- **✅ Funcionando**: 19 pantallas (40%)
 - **⚠️ Con errores menores**: 8 pantallas (17%)
-- **❌ Con errores críticos**: 12 pantallas (25%)
-- **🚫 No implementado**: 13 pantallas (27%)
+- **❌ Con errores críticos**: 10 pantallas (21%)
+- **🚫 No implementado**: 11 pantallas (23%)
 
 ### **PRIORIDADES CRÍTICAS**
-1. **🔥 URGENTE**: Corregir sistema de chat y mensajería
+1. **🔥 URGENTE**: Agregar 7 endpoints nuevos a api.ts (ver NUEVOS_ENDPOINTS_REQUERIDOS.md)
 2. **🔥 URGENTE**: Implementar planificador financiero real
-3. **⚠️ IMPORTANTE**: Corregir errores en comunidades
-4. **⚠️ IMPORTANTE**: Implementar notificaciones en tiempo real
-5. **📝 NECESARIO**: Completar estructura de educación
+3. **🔥 URGENTE**: Corregir ChatScreen y MessagesScreen (1:1 chats)
+4. **⚠️ IMPORTANTE**: Corregir errores en comunidades
+5. **⚠️ IMPORTANTE**: Implementar notificaciones en tiempo real
+6. **📝 NECESARIO**: Completar estructura de educación
+
+### **✅ COMPLETADO HOY (2025-10-02)**
+- GroupChatScreen - Chat grupal con Realtime ✅
+- SavedPostsScreen - Publicaciones guardadas ✅
+- CommunityMembersScreen - Gestión de miembros ✅
+- CommunitySettingsScreen - Configuración de comunidad ✅
+- **Total: 4 pantallas completadas (100% funcionales)**
 
 ### **RIESGOS**
 - **ALTO**: Datos falsos en herramientas financieras

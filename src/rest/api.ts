@@ -1,3 +1,57 @@
+/**
+ * ============================================================================
+ * API.TS - CAPA DE ACCESO A DATOS
+ * ============================================================================
+ * 
+ * Este archivo centraliza TODAS las llamadas a la API de Supabase.
+ * 
+ * ⚠️ IMPORTANTE - RELACIONES MÚLTIPLES EN SUPABASE:
+ * ============================================================================
+ * Supabase usa PostgREST que tiene reglas estrictas para relaciones.
+ * 
+ * PROBLEMA COMÚN: Error PGRST201
+ * - Ocurre cuando hay múltiples foreign keys entre dos tablas
+ * - Ejemplo: tabla 'posts' tiene 2 FKs hacia 'users':
+ *   1. posts_user_id_fkey (autor del post)
+ *   2. posts_pinned_by_fkey (usuario que fijó el post)
+ * 
+ * SOLUCIÓN:
+ * - Especificar EXPLÍCITAMENTE qué foreign key usar
+ * - Formato: tabla!nombre_del_foreign_key(campos)
+ * - Ejemplo: users!posts_user_id_fkey(nombre,avatar_url)
+ * 
+ * ALTERNATIVA:
+ * - Hacer queries separadas (posts sin users, luego users por IDs)
+ * - Mapear manualmente los datos
+ * - Ver getUserFeed() como ejemplo
+ * 
+ * ============================================================================
+ * CONVENCIONES DE CÓDIGO:
+ * ============================================================================
+ * - Todas las funciones son async
+ * - Retornan null en caso de error no crítico
+ * - Lanzan error en casos críticos
+ * - Mapean nombres de columnas español → inglés cuando es necesario
+ * - Cada función documenta DÓNDE se usa
+ * 
+ * ============================================================================
+ * HISTORIAL DE CAMBIOS CRÍTICOS:
+ * ============================================================================
+ * 2025-10-02:
+ * - getCommunityPosts(): Agregado users!posts_user_id_fkey para evitar PGRST201
+ * - getUserFeed(): Implementada estrategia de queries separadas
+ * - Documentación exhaustiva agregada a todas las funciones
+ * 
+ * ⚠️ ANTES DE MODIFICAR:
+ * - Lee los comentarios de la función
+ * - Verifica si usa relaciones múltiples
+ * - Prueba en TODAS las pantallas que la usan
+ * - Actualiza la documentación
+ * 
+ * ÚLTIMA ACTUALIZACIÓN: 2025-10-02
+ * ============================================================================
+ */
+
 import {  
   request,  
   authSignIn as clientSignIn,  
@@ -8,10 +62,15 @@ import {
 import * as SecureStore from "expo-secure-store"
 import { supabase } from "../supabase"  
   
-// Agregar la constante ANON_KEY que faltaba  
+/**
+ * ANON_KEY: Clave pública de Supabase para autenticación
+ * Se usa para operaciones de storage y autenticación
+ */
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhb2xpYWt3Zm9jemNhbGxuZWNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2MzA5ODYsImV4cCI6MjA3MDIwNjk4Nn0.zCJoTHcWKZB9vpy5Vn231PNsNSLzmnPvFBKTkNlgG4o"  
   
-// ===== INTERFACES =====  
+// ============================================================================
+// INTERFACES - TIPOS DE DATOS
+// ============================================================================  
 export interface Promotion {  
   id: string  
   title: string  
@@ -74,12 +133,33 @@ export interface News {
   created_at: string  
 }  
   
-// ===== AUTH =====  
+// ============================================================================
+// AUTENTICACIÓN
+// ============================================================================
+
+/**
+ * Re-exportación de funciones de autenticación del cliente
+ * Estas funciones manejan login, registro y logout
+ */
 export const authSignIn = clientSignIn  
 export const authSignUp = clientSignUp  
 export const authSignOut = clientSignOut  
   
-// ===== USERS =====  
+// ============================================================================
+// USUARIOS
+// ============================================================================
+
+/**
+ * Obtiene los datos del usuario actual por su ID
+ * 
+ * @param uid - ID del usuario
+ * @returns Objeto con datos del usuario o null si no existe
+ * 
+ * USADO EN:
+ * - ProfileScreen
+ * - HomeScreen
+ * - Cualquier pantalla que necesite datos del usuario actual
+ */
 export async function getMe(uid: string) {  
   try {  
     const response = await request("GET", "/users", {  
@@ -87,11 +167,22 @@ export async function getMe(uid: string) {
     })  
     return response?.[0] || null  
   } catch (error: any) {  
-    if (error.code === "42P01") return null // Table doesn't exist  
+    if (error.code === "42P01") return null // Tabla no existe  
     throw error  
   }  
 }  
   
+/**
+ * Actualiza los datos de un usuario
+ * 
+ * @param uid - ID del usuario a actualizar
+ * @param data - Objeto con los campos a actualizar
+ * @returns Usuario actualizado o null
+ * 
+ * USADO EN:
+ * - ProfileEditScreen
+ * - SettingsScreen
+ */
 export async function updateUser(uid: string, data: any) {  
   try {  
     return await request("PATCH", "/users", {  
@@ -105,6 +196,17 @@ export async function updateUser(uid: string, data: any) {
   }  
 }  
   
+/**
+ * Obtiene el perfil completo de un usuario con estadísticas
+ * Incluye: posts count, followers count, following count
+ * 
+ * @param userId - ID del usuario
+ * @returns Perfil del usuario con estadísticas o null
+ * 
+ * USADO EN:
+ * - UserProfileScreen
+ * - Cuando se hace clic en un usuario
+ */
 export async function getUserProfile(userId: string) {  
   try {  
     const response = await request("GET", "/users", {  
@@ -120,7 +222,25 @@ export async function getUserProfile(userId: string) {
   }  
 }  
   
-// ===== COMMUNITIES =====  
+// ============================================================================
+// COMUNIDADES
+// ============================================================================
+
+/**
+ * Lista todas las comunidades disponibles
+ * 
+ * @returns Array de comunidades con datos básicos
+ * 
+ * MAPEO DE CAMPOS:
+ * - nombre → name
+ * - descripcion → description
+ * - icono_url → image_url
+ * - tipo → type
+ * 
+ * USADO EN:
+ * - CommunitiesScreen
+ * - HomeScreen (sección de comunidades)
+ */
 export async function listCommunities() {  
   try {  
     const response = await request("GET", "/communities", {  
@@ -147,6 +267,18 @@ export async function listCommunities() {
 
 
   
+/**
+ * Permite a un usuario unirse a una comunidad
+ * 
+ * @param uid - ID del usuario
+ * @param community_id - ID de la comunidad
+ * @returns Relación creada o null si ya está unido
+ * 
+ * NOTA: El error 23505 indica que ya existe la relación (usuario ya unido)
+ * 
+ * USADO EN:
+ * - CommunityDetailScreen (botón "Unirse")
+ */
 export async function joinCommunity(uid: string, community_id: string) {  
   try {  
     // intentar crear la relación
@@ -165,8 +297,51 @@ export async function joinCommunity(uid: string, community_id: string) {
     }
     throw error
   }  
+}
+
+/**
+ * Verifica si un usuario es miembro de una comunidad
+ * 
+ * @param userId - ID del usuario
+ * @param communityId - ID de la comunidad
+ * @returns true si es miembro, false si no
+ * 
+ * USADO EN:
+ * - CommunityDetailScreen (verificar estado del botón "Unirse")
+ */
+export async function isUserMemberOfCommunity(userId: string, communityId: string) {
+  try {
+    const response = await request("GET", "/user_communities", {
+      params: {
+        user_id: `eq.${userId}`,
+        community_id: `eq.${communityId}`,
+        select: "id"
+      }
+    })
+    return response && response.length > 0
+  } catch (error) {
+    console.error('Error checking membership:', error)
+    return false
+  }
 }  
   
+/**
+ * Obtiene los detalles completos de una comunidad específica
+ * Incluye el conteo de miembros
+ * 
+ * @param communityId - ID de la comunidad
+ * @returns Objeto con detalles de la comunidad o null
+ * 
+ * MAPEO DE CAMPOS:
+ * - nombre → name
+ * - descripcion → description
+ * - icono_url → image_url
+ * - tipo → type
+ * - members count → members_count
+ * 
+ * USADO EN:
+ * - CommunityDetailScreen
+ */
 export async function getCommunityDetails(communityId: string) {  
   try {  
     const response = await request("GET", "/communities", {  
@@ -196,7 +371,16 @@ export async function getCommunityDetails(communityId: string) {
   
 
 
-// Función para obtener comunidades del usuario  
+/**
+ * Obtiene las comunidades a las que pertenece un usuario
+ * 
+ * @param userId - ID del usuario
+ * @returns Array de comunidades del usuario
+ * 
+ * USADO EN:
+ * - ProfileScreen
+ * - HomeScreen (mis comunidades)
+ */
 export async function getUserCommunities(userId: string) {  
   try {  
     const response = await request("GET", "/user_communities", {  
@@ -239,7 +423,15 @@ export async function createCommunity(data: { nombre: string; descripcion?: stri
   }
 }
   
-// Función para obtener canales de comunidad  
+/**
+ * Obtiene los canales (chats) de una comunidad
+ * 
+ * @param communityId - ID de la comunidad
+ * @returns Array de canales ordenados por fecha de creación
+ * 
+ * USADO EN:
+ * - CommunityDetailScreen (tab "Chats")
+ */
 export async function getCommunityChannels(communityId: string) {  
   try {  
     const response = await request("GET", "/community_channels", {  
@@ -256,13 +448,42 @@ export async function getCommunityChannels(communityId: string) {
   }  
 }
 
-// Función para obtener posts de una comunidad específica  
+/**
+ * ⚠️ FUNCIÓN CRÍTICA - Obtiene posts de una comunidad
+ * 
+ * @param communityId - ID de la comunidad
+ * @param limit - Número máximo de posts a retornar (default: 20)
+ * @returns Array de posts con datos del autor
+ * 
+ * ⚠️ IMPORTANTE - RELACIONES MÚLTIPLES:
+ * La tabla 'posts' tiene DOS foreign keys hacia 'users':
+ * 1. posts_user_id_fkey (autor del post) ← ESTA ES LA QUE USAMOS
+ * 2. posts_pinned_by_fkey (usuario que fijó el post)
+ * 
+ * Por eso DEBEMOS especificar: users!posts_user_id_fkey(...)
+ * Si no lo especificamos, Supabase retorna error PGRST201
+ * 
+ * MAPEO DE CAMPOS:
+ * - contenido → content
+ * - likes_count → likes
+ * - comment_count → comments
+ * - image_url → image
+ * - users.nombre/full_name/username → author.name
+ * - users.photo_url/avatar_url → author.avatar
+ * 
+ * USADO EN:
+ * - CommunityDetailScreen (tab "Tú" - posts principales)
+ * 
+ * ÚLTIMA MODIFICACIÓN: 2025-10-02 - Corregido error PGRST201
+ */
 export async function getCommunityPosts(communityId: string, limit = 20) {  
   try {  
+    // ⚠️ IMPORTANTE: Especificar la relación correcta usando users!posts_user_id_fkey
+    // Esto evita el error PGRST201 de múltiples relaciones
     const response = await request("GET", "/posts", {  
       params: {  
         community_id: `eq.${communityId}`,  
-        select: "id,contenido,created_at,likes_count,comment_count,user_id,users!inner(nombre,photo_url,role)",  
+        select: "id,contenido,created_at,likes_count,comment_count,user_id,image_url,users!posts_user_id_fkey(id,nombre,full_name,username,photo_url,avatar_url,role)",  
         order: "created_at.desc",  
         limit: String(limit),  
       },  
@@ -275,11 +496,12 @@ export async function getCommunityPosts(communityId: string, limit = 20) {
       likes: post.likes_count || 0,  
       comments: post.comment_count || 0,  
       shares: 0,  
+      image: post.image_url || null,
       author: {  
         id: post.user_id,  
-        name: post.users?.nombre || 'Usuario',  
-        avatar: post.users?.photo_url || 'https://i.pravatar.cc/100',  
-        role: post.users?.role || 'Usuario'  
+        name: post.users?.full_name || post.users?.nombre || post.users?.username || 'Usuario',  
+        avatar: post.users?.avatar_url || post.users?.photo_url || 'https://i.pravatar.cc/100',  
+        role: post.users?.role || 'Financiero'  
       }  
     }))  
   } catch (error: any) {  
@@ -289,6 +511,17 @@ export async function getCommunityPosts(communityId: string, limit = 20) {
 }  
 
   
+/**
+ * Obtiene los mensajes de un canal/chat específico
+ * 
+ * @param chatId - ID del chat/canal
+ * @param limit - Número máximo de mensajes (default: 50)
+ * @returns Array de mensajes ordenados cronológicamente
+ * 
+ * USADO EN:
+ * - ChatScreen
+ * - ChannelScreen
+ */
 export async function getChannelMessages(chatId: string, limit = 50) {  
   try {  
     const response = await request("GET", "/chat_messages", {  
@@ -315,6 +548,19 @@ export async function getChannelMessages(chatId: string, limit = 50) {
   }  
 }
   
+/**
+ * Envía un mensaje a un chat/canal
+ * Actualiza automáticamente el último mensaje del chat
+ * 
+ * @param chatId - ID del chat
+ * @param userId - ID del usuario que envía
+ * @param content - Contenido del mensaje
+ * @returns Mensaje creado
+ * 
+ * USADO EN:
+ * - ChatScreen
+ * - ChannelScreen
+ */
 export async function sendMessage(chatId: string, userId: string, content: string) {  
   try {  
     const response = await request("POST", "/chat_messages", {  
@@ -325,6 +571,7 @@ export async function sendMessage(chatId: string, userId: string, content: strin
       }  
     })  
       
+    // Actualizar el último mensaje del chat
     await request("PATCH", "/chats", {  
       params: { id: `eq.${chatId}` },  
       body: {  
@@ -341,10 +588,33 @@ export async function sendMessage(chatId: string, userId: string, content: strin
 }  
 
 
-// ===== FEED / POSTS =====  
+// ============================================================================
+// FEED / POSTS
+// ============================================================================
+
+/**
+ * ⚠️ FUNCIÓN CRÍTICA - Obtiene el feed de posts del usuario
+ * 
+ * @param uid - ID del usuario
+ * @param limit - Número máximo de posts (default: 20)
+ * @returns Array de posts con datos del autor
+ * 
+ * ESTRATEGIA PARA EVITAR ERROR PGRST201:
+ * 1. Primero obtenemos los posts SIN relaciones
+ * 2. Luego obtenemos los usuarios por separado
+ * 3. Finalmente mapeamos los datos
+ * 
+ * Esto evita el problema de múltiples foreign keys entre posts y users
+ * 
+ * USADO EN:
+ * - HomeScreen (feed principal)
+ * - FeedScreen
+ * 
+ * NOTA: Esta función tiene un fallback por si la query principal falla
+ */
 export async function getUserFeed(uid: string, limit = 20) {  
   try {  
-    // Usar query directa en lugar de RPC que tiene problemas de relaciones
+    // Paso 1: Obtener posts sin relaciones (evita conflictos)
     const response = await request("GET", "/posts", {
       params: {
         select: "id,contenido,created_at,likes_count,comment_count,user_id",
@@ -353,7 +623,7 @@ export async function getUserFeed(uid: string, limit = 20) {
       }
     })
     
-    // Obtener datos de usuarios por separado para evitar conflictos de relaciones
+    // Paso 2: Obtener datos de usuarios por separado
     if (response && response.length > 0) {
       const userIds = [...new Set(response.map((post: any) => post.user_id))]
       const usersResponse = await request("GET", "/users", {
@@ -363,7 +633,7 @@ export async function getUserFeed(uid: string, limit = 20) {
         }
       })
       
-      // Mapear datos de usuarios a los posts
+      // Paso 3: Mapear datos de usuarios a los posts
       return response.map((post: any) => {
         const user = usersResponse?.find((u: any) => u.id === post.user_id)
         return {
@@ -421,6 +691,21 @@ export async function getUserFeed(uid: string, limit = 20) {
   }  
 }  
   
+/**
+ * Crea un nuevo post
+ * 
+ * @param data - Datos del post
+ * @param data.user_id - ID del usuario autor
+ * @param data.community_id - ID de la comunidad (opcional)
+ * @param data.contenido - Contenido del post
+ * @param data.media_url - URLs de medios adjuntos (opcional)
+ * @returns Post creado
+ * 
+ * USADO EN:
+ * - CreatePostScreen
+ * - CommunityDetailScreen
+ * - HomeScreen
+ */
 export async function createPost(data: {  
   user_id: string  
   community_id?: string  
@@ -430,6 +715,19 @@ export async function createPost(data: {
   return await request("POST", "/posts", { body: data })  
 }  
   
+/**
+ * Obtiene los detalles de un post específico
+ * Incluye datos del autor y comentarios
+ * 
+ * @param postId - ID del post
+ * @returns Post con detalles completos o null
+ * 
+ * NOTA: Esta función usa users!inner sin especificar FK
+ * Si da error PGRST201, cambiar a: users!posts_user_id_fkey(...)
+ * 
+ * USADO EN:
+ * - PostDetailScreen
+ */
 export async function getPostDetail(postId: string) {  
   try {  
     const response = await request("GET", "/posts", {  
@@ -444,17 +742,46 @@ export async function getPostDetail(postId: string) {
   }  
 }  
   
+/**
+ * Da like/dislike a un post
+ * 
+ * @param post_id - ID del post
+ * @param user_id - ID del usuario
+ * @param is_like - true para like, false para dislike (default: true)
+ * @returns Like creado o null si ya existía
+ * 
+ * NOTA: El error 23505 indica que el usuario ya dio like
+ * 
+ * USADO EN:
+ * - PostCard component
+ * - PostDetailScreen
+ * - CommunityDetailScreen
+ */
 export async function likePost(post_id: string, user_id: string, is_like = true) {  
   try {  
     return await request("POST", "/post_likes", {  
       body: { post_id, user_id, is_like },  
     })  
   } catch (error: any) {  
-    if (error.code === "23505") return null // Already liked  
+    if (error.code === "23505") return null // Ya dio like  
     return null  
   }  
 }  
   
+/**
+ * Crea un comentario en un post
+ * Soporta comentarios anidados (respuestas)
+ * 
+ * @param post_id - ID del post
+ * @param user_id - ID del usuario
+ * @param contenido - Contenido del comentario
+ * @param parent_id - ID del comentario padre (para respuestas)
+ * @returns Comentario creado
+ * 
+ * USADO EN:
+ * - PostDetailScreen
+ * - CommentSection component
+ */
 export async function commentPost(post_id: string, user_id: string, contenido: string, parent_id?: string) {  
   return await request("POST", "/comments", {  
     body: { post_id, user_id, contenido, parent_id: parent_id || null },  
@@ -794,7 +1121,26 @@ export async function blockUser(user_id: string, blocked_user_id: string) {
   })  
 }  
   
-// ===== HELPERS =====  
+// ============================================================================
+// HELPERS - FUNCIONES AUXILIARES
+// ============================================================================
+
+/**
+ * Obtiene el usuario actualmente autenticado
+ * Decodifica el JWT del token almacenado y obtiene los datos del usuario
+ * 
+ * @returns Usuario actual o null si no está autenticado
+ * 
+ * PROCESO:
+ * 1. Obtiene el token de SecureStore
+ * 2. Decodifica el JWT (payload.sub = user ID)
+ * 3. Llama a getMe() con el ID
+ * 
+ * USADO EN:
+ * - Todas las pantallas que necesitan datos del usuario actual
+ * - useAuthGuard hook
+ * - Navigation guards
+ */
 export async function getCurrentUser() {  
   try {  
     const token = await SecureStore.getItemAsync("access_token")  
@@ -808,6 +1154,15 @@ export async function getCurrentUser() {
   }  
 }  
   
+/**
+ * Obtiene solo el ID del usuario actual (más rápido que getCurrentUser)
+ * 
+ * @returns ID del usuario o null
+ * 
+ * USADO EN:
+ * - Cuando solo necesitas el ID sin todos los datos del usuario
+ * - Operaciones rápidas de autenticación
+ */
 export async function getCurrentUserId(): Promise<string | null> {  
   try {  
     const token = await SecureStore.getItemAsync("access_token")  
@@ -819,7 +1174,20 @@ export async function getCurrentUserId(): Promise<string | null> {
   }  
 }  
   
-// ===== NOTIFICACIONES =====  
+// ============================================================================
+// NOTIFICACIONES
+// ============================================================================
+
+/**
+ * Obtiene las notificaciones de un usuario
+ * 
+ * @param userId - ID del usuario
+ * @returns Array de notificaciones ordenadas por fecha (más recientes primero)
+ * 
+ * USADO EN:
+ * - NotificationsScreen
+ * - Header (badge de notificaciones)
+ */
 export async function getNotifications(userId: string) {  
   const response = await request("GET", "/notifications", {  
     params: {  
@@ -831,6 +1199,15 @@ export async function getNotifications(userId: string) {
   return response || []  
 }  
   
+/**
+ * Marca una notificación como leída
+ * 
+ * @param notificationId - ID de la notificación
+ * @returns Notificación actualizada
+ * 
+ * USADO EN:
+ * - NotificationsScreen (al hacer clic en una notificación)
+ */
 export async function markNotificationAsRead(notificationId: string) {  
   return await request("PATCH", "/notifications", {  
     params: { id: `eq.${notificationId}` },  
@@ -839,7 +1216,9 @@ export async function markNotificationAsRead(notificationId: string) {
   })  
 }  
   
-// ===== FAQ Y GLOSARIO =====  
+// ============================================================================
+// FAQ Y GLOSARIO
+// ============================================================================  
 export async function getFAQs() {  
   const response = await request("GET", "/faqs", {  
     params: {  
@@ -1045,25 +1424,60 @@ export async function getLastMessages(chatIds: string[]) {
 
 export async function getUserComplete(userId: string) {  
   try {  
-    const [userResponse, statsResponse, postsResponse, communitiesResponse] = await Promise.all([  
-      request("GET", "/users", {  
+    console.log('[getUserComplete] Fetching profile for userId:', userId)  
+    
+    // Fetch user data and stats separately with individual error handling  
+    let userResponse, statsResponse, postsResponse, communitiesResponse  
+    
+    try {  
+      userResponse = await request("GET", "/users", {  
         params: {  
           id: `eq.${userId}`,  
           select: "id,nombre,bio,location,avatar_url,banner_url,is_verified,created_at"  
         }  
-      }),  
-      request("GET", "/rpc/get_user_stats", {  
+      })  
+      console.log('[getUserComplete] User data fetched:', userResponse?.[0]?.nombre)  
+    } catch (error: any) {  
+      console.error('[getUserComplete] Error fetching user:', error)  
+      throw error  
+    }  
+    
+    const user = userResponse?.[0]  
+    if (!user) {  
+      console.error('[getUserComplete] User not found for ID:', userId)  
+      return null  
+    }  
+    
+    // Fetch stats with RPC (POST method)  
+    try {  
+      statsResponse = await request("POST", "/rpc/get_user_stats", {  
         body: { user_id: userId }  
-      }),  
-      request("GET", "/posts", {  
+      })  
+      console.log('[getUserComplete] Stats fetched:', statsResponse)  
+    } catch (error: any) {  
+      console.error('[getUserComplete] Error fetching stats, using defaults:', error)  
+      statsResponse = { followers_count: 0, following_count: 0, posts_count: 0 }  
+    }  
+    
+    // Fetch posts  
+    try {  
+      postsResponse = await request("GET", "/posts", {  
         params: {  
           user_id: `eq.${userId}`,  
-          select: "id,contenido,created_at,likes_count,comment_count",  
+          select: "id,contenido,created_at,likes_count,comment_count,user:users!posts_user_id_fkey(id,nombre,avatar_url)",  
           order: "created_at.desc",  
           limit: "10"  
         }  
-      }),  
-      request("GET", "/user_communities", {  
+      })  
+      console.log('[getUserComplete] Posts fetched:', postsResponse?.length || 0)  
+    } catch (error: any) {  
+      console.error('[getUserComplete] Error fetching posts:', error)  
+      postsResponse = []  
+    }  
+    
+    // Fetch communities  
+    try {  
+      communitiesResponse = await request("GET", "/user_communities", {  
         params: {  
           user_id: `eq.${userId}`,  
           status: `eq.active`,
@@ -1072,12 +1486,13 @@ export async function getUserComplete(userId: string) {
           limit: "20"
         }  
       })  
-    ])  
-  
-    const user = userResponse?.[0]  
-    if (!user) return null  
-  
-    return {  
+      console.log('[getUserComplete] Communities fetched:', communitiesResponse?.length || 0)  
+    } catch (error: any) {  
+      console.error('[getUserComplete] Error fetching communities:', error)  
+      communitiesResponse = []  
+    }  
+    
+    const result = {  
       id: user.id,  
       name: user.nombre,  
       bio: user.bio,  
@@ -1086,15 +1501,25 @@ export async function getUserComplete(userId: string) {
       bannerUrl: user.banner_url,  
       isVerified: user.is_verified,  
       stats: {  
-        postsCount: postsResponse?.length || 0,  
+        postsCount: statsResponse?.posts_count || postsResponse?.length || 0,  
         followersCount: statsResponse?.followers_count || 0,  
         followingCount: statsResponse?.following_count || 0  
       },  
       posts: postsResponse || [],  
-      communities: communitiesResponse?.map((uc: any) => uc.community) || []  
+      communities: communitiesResponse?.map((uc: any) => ({  
+        id: uc.community?.id,  
+        name: uc.community?.nombre || uc.community?.name,  
+        imageUrl: uc.community?.avatar_url || uc.community?.icono_url || uc.community?.image_url,  
+        memberCount: uc.community?.member_count || 0,  
+        isMember: true // Ya que viene de user_communities con status active  
+      })) || []  
     }  
+    
+    console.log('[getUserComplete] Profile complete:', result.name, 'with', result.posts.length, 'posts')  
+    return result  
   } catch (error: any) {  
-    console.error('Error fetching complete user profile:', error)  
+    console.error('[getUserComplete] Critical error fetching complete user profile:', error)  
+    console.error('[getUserComplete] Error details:', JSON.stringify(error, null, 2))  
     return null  
   }  
 }  
@@ -1445,6 +1870,33 @@ export async function saveUserKnowledgeLevel(userId: string, level: string, spec
 
 export async function getRecommendedCommunitiesByGoals(userId: string, limit = 10) {
   try {
+    console.log('🎯 Obteniendo comunidades recomendadas para usuario:', userId)
+    
+    // Intentar con v3 (considera nivel de conocimiento)
+    const { data: dataV3, error: errorV3 } = await supabase
+      .rpc('get_recommended_communities_by_goals_v3', {
+        p_user_id: userId,
+        p_limit: limit
+      })
+    
+    if (!errorV3 && dataV3 && dataV3.length > 0) {
+      console.log('✅ Comunidades obtenidas con algoritmo v3:', dataV3.length)
+      return dataV3
+    }
+    
+    // Fallback a v2
+    const { data: dataV2, error: errorV2 } = await supabase
+      .rpc('get_recommended_communities_by_goals_v2', {
+        p_user_id: userId,
+        p_limit: limit
+      })
+    
+    if (!errorV2 && dataV2 && dataV2.length > 0) {
+      console.log('✅ Comunidades obtenidas con algoritmo v2:', dataV2.length)
+      return dataV2
+    }
+    
+    console.log('⚠️ Intentando con función original (v1)...')
     const { data, error } = await supabase
       .rpc('get_recommended_communities_by_goals', {
         p_user_id: userId,
@@ -1452,13 +1904,14 @@ export async function getRecommendedCommunitiesByGoals(userId: string, limit = 1
       })
     
     if (error) {
-      console.error('Error fetching recommended communities by goals:', error)
+      console.error('❌ Error con función v1:', error)
       return []
     }
     
+    console.log('✅ Comunidades obtenidas con algoritmo v1:', data?.length || 0)
     return data || []
   } catch (error: any) {
-    console.error('Error fetching recommended communities by goals:', error)
+    console.error('❌ Error fetching recommended communities by goals:', error)
     return []
   }
 }
@@ -1471,7 +1924,7 @@ export async function getCommunityDetailsComplete(communityId: string) {
     const response = await request("GET", "/communities", {
       params: {
         id: `eq.${communityId}`,
-        select: "id,nombre,descripcion,icono_url,avatar_url,banner_url,tipo,created_at,member_count,members:user_communities(count),posts:posts(count)"
+        select: "id,nombre,name,descripcion,icono_url,image_url,tipo,created_at,member_count,members:user_communities(count),posts:posts(count)"
       }
     })
     
@@ -1480,10 +1933,10 @@ export async function getCommunityDetailsComplete(communityId: string) {
     const community = response[0]
     return {
       id: community.id,
-      name: community.nombre,
+      name: community.nombre || community.name,
       description: community.descripcion,
-      image_url: community.icono_url || community.avatar_url,
-      cover_image_url: community.banner_url || community.icono_url,
+      image_url: community.icono_url || community.image_url,
+      cover_image_url: community.image_url || community.icono_url,
       is_public: community.tipo === 'public',
       member_count: community.member_count || community.members?.[0]?.count || 0,
       post_count: community.posts?.[0]?.count || 0,
@@ -1509,39 +1962,34 @@ export async function getCommunityDetailsComplete(communityId: string) {
 // Get suggested people for user
 export async function getSuggestedPeople(userId: string, limit = 10) {
   try {
-    const response = await request("POST", "/rpc/get_suggested_people", {
-      body: {
+    // Intentar con v2 primero (filtra mejor)
+    const { data: dataV2, error: errorV2 } = await supabase
+      .rpc('get_suggested_people_v2', {
         p_user_id: userId,
         p_limit: limit
-      }
-    })
-    return response || []
-  } catch (rpcError: any) {
-    console.log("RPC failed, using fallback for suggested people:", rpcError)
-    // Fallback: get users with similar interests
-    try {
-      const fallbackResponse = await request("GET", "/users", {
-        params: {
-          select: "id,nombre,avatar_url,bio,role,intereses",
-          limit: String(limit),
-          order: "created_at.desc"
-        }
       })
-      
-      return (fallbackResponse || []).map((user: any) => ({
-        id: user.id,
-        name: user.nombre,
-        avatar_url: user.avatar_url,
-        profession: user.bio || 'Inversor',
-        expertise_areas: user.intereses || [],
-        mutual_connections: Math.floor(Math.random() * 5),
-        compatibility_score: Math.floor(Math.random() * 40) + 60,
-        reason: 'similar_interests'
-      }))
-    } catch (fallbackError: any) {
-      console.error('Fallback also failed:', fallbackError)
+    
+    if (!errorV2 && dataV2 && dataV2.length > 0) {
+      console.log('✅ Personas sugeridas con algoritmo v2:', dataV2.length)
+      return dataV2
+    }
+    
+    // Fallback a función original
+    const { data, error } = await supabase
+      .rpc('get_suggested_people', {
+        p_user_id: userId,
+        p_limit: limit
+      })
+    
+    if (error) {
+      console.error('Error fetching suggested people:', error)
       return []
     }
+    
+    return data || []
+  } catch (error: any) {
+    console.error('Error fetching suggested people:', error)
+    return []
   }
 }
 
