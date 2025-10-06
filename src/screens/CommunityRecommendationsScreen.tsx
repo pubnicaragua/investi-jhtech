@@ -251,30 +251,67 @@ export function CommunityRecommendationsScreen({ navigation, route }: any) {
 
   const handleJoin = async (community: Community) => {
     try {
+      console.log('🔵 [handleJoin] INICIO - Intentando unirse a comunidad:', {
+        communityId: community.id,
+        communityName: community.name
+      })
+
       const user = await getCurrentUser()
+      console.log('🔵 [handleJoin] Usuario obtenido:', {
+        userId: user?.id,
+        userName: user?.name || user?.username
+      })
+
       if (user?.id) {
         // Mostrar animación de puerta
         setJoiningCommunity(community)
         setShowDoorAnimation(true)
         playDoorAnimation()
 
-        // Unirse a la comunidad
-        await joinCommunity(user.id, community.id)
-        setJoined((prev) => [...prev, community.id])
+        console.log('🔵 [handleJoin] Llamando a joinCommunity API...')
+        
+        // ✅ Unirse a la comunidad y VALIDAR resultado
+        const result = await joinCommunity(user.id, community.id)
+        
+        console.log('🔵 [handleJoin] Resultado de joinCommunity:', {
+          result: result,
+          resultType: typeof result,
+          isNull: result === null,
+          isUndefined: result === undefined,
+          isFalsy: !result
+        })
+        
+        // ✅ Verificar que realmente se guardó
+        if (result) {
+          console.log('✅ [handleJoin] Usuario unido exitosamente a la comunidad:', community.id)
+          setJoined((prev) => [...prev, community.id])
 
-        // Cerrar animación y navegar después de 3.5 segundos
-        setTimeout(() => {
+          // Cerrar animación y navegar después de 3.5 segundos
+          setTimeout(() => {
+            setShowDoorAnimation(false)
+            setJoiningCommunity(null)
+            
+            // Navegar a detalle
+            setTimeout(() => {
+              console.log('🔵 [handleJoin] Navegando a CommunityDetail...')
+              navigation.navigate('CommunityDetail', { communityId: community.id })
+            }, 300)
+          }, 3500)
+        } else {
+          // ❌ Error: no se pudo unir
+          console.error('❌ [handleJoin] Error: No se pudo unir a la comunidad - resultado es falsy:', result)
           setShowDoorAnimation(false)
           setJoiningCommunity(null)
-          
-          // Navegar a detalle
-          setTimeout(() => {
-            navigation.navigate('CommunityDetail', { communityId: community.id })
-          }, 300)
-        }, 3500)
+        }
+      } else {
+        console.error('❌ [handleJoin] Error: No hay usuario logueado')
       }
     } catch (error) {
-      console.error('Error joining community:', error)
+      console.error('❌ [handleJoin] EXCEPCIÓN capturada:', {
+        error: error,
+        message: error?.message,
+        stack: error?.stack
+      })
       setShowDoorAnimation(false)
       setJoiningCommunity(null)
     }

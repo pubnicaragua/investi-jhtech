@@ -52,9 +52,15 @@ import { VideoPlayerScreen } from './src/screens/VideoPlayerScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
 import { NewsDetailScreen } from './src/screens/NewsDetailScreen';
 import { DebugStorageScreen } from './src/screens/DebugStorageScreen';
+import EditProfileScreen from './src/screens/EditProfileScreen';
+import FollowersScreen from './src/screens/FollowersScreen';
+import FollowingScreen from './src/screens/FollowingScreen';
 
 import { getCurrentUser, getMe } from "./src/rest/api"
 import CreateCommunityScreen from "./src/screens/CreateCommunityScreen"
+import CommunitySettingsScreen from "./src/screens/CommunitySettingsScreen"
+import CommunityMembersScreen from "./src/screens/CommunityMembersScreen"
+import EditCommunityScreen from "./src/screens/EditCommunityScreen"
   
 // Check if we're in development mode  
 const isDevelopment = process.env.NODE_ENV === 'development' || __DEV__  
@@ -88,6 +94,9 @@ const linking: LinkingOptions<any> = {
       CreatePost: "/create-post",  
       PostDetail: "/post/:postId",  
       Profile: "/profile/:userId?",  
+      EditProfile: "/profile/edit",
+      Followers: "/profile/:userId/followers",
+      Following: "/profile/:userId/following",
       Communities: "/communities",  
       Settings: "/settings",  
       MarketInfo: "/market-info",  
@@ -103,13 +112,16 @@ const linking: LinkingOptions<any> = {
       News: "/news",  
       NewsDetail: "/news/:newsId",  
       DevMenu: "/dev-menu",  
-      Payment: "/payment",  
       CourseDetail: "/course/:courseId",  
       LearningPaths: "/learning-paths",  
       GroupChat: "/group-chat/:groupId",  
       SharePost: "/share-post",  
       SavedPosts: "/saved-posts",  
       CommunityDetail: "/community/:communityId",
+      CommunitySettings: "/community/:communityId/settings",
+      CommunityMembers: "/community/:communityId/members",
+      EditCommunity: "/community/:communityId/edit",
+      CreateCommunity: "/create-community",
       PlanificadorFinanciero: "/planificador-financiero",
       CazaHormigas: "/caza-hormigas",
     },  
@@ -139,32 +151,37 @@ export function RootStack() {
           console.log('👤 Navigation: Usuario obtenido:', user?.id)
           
           if (user) {
-            // Verificar si completó el onboarding
-            const hasAvatar = user.photo_url || user.avatar_url
-            const hasGoals = user.metas && user.metas.length > 0
-            const hasInterests = user.intereses && user.intereses.length > 0
+            // Verificar si completó el onboarding (orden correcto del flujo)
+            const hasAvatar = !!(user.photo_url || user.avatar_url)
+            const hasGoals = Array.isArray(user.metas) && user.metas.length > 0
+            const hasInterests = Array.isArray(user.intereses) && user.intereses.length > 0
             const hasKnowledge = user.nivel_finanzas && user.nivel_finanzas !== "none"
             
             console.log('📊 Navigation: Estado del onboarding:', {
               hasAvatar,
+              photo_url: user.photo_url,
+              avatar_url: user.avatar_url,
               hasGoals,
+              metas: user.metas,
               hasInterests,
-              hasKnowledge
+              intereses: user.intereses,
+              hasKnowledge,
+              nivel_finanzas: user.nivel_finanzas
             })
             
-            // Si no completó el onboarding, enviarlo a la primera pantalla pendiente
+            // Flujo correcto del onboarding: Avatar → Goals → Interests → Knowledge → HomeFeed
             if (!hasAvatar) {
               console.log('📸 Navigation: Sin avatar, yendo a UploadAvatar')
               setInitialRoute("UploadAvatar")
-            } else if (!hasKnowledge) {
-              console.log('🎓 Navigation: Sin nivel de conocimiento, yendo a PickKnowledge')
-              setInitialRoute("PickKnowledge")
-            } else if (!hasInterests) {
-              console.log('💡 Navigation: Sin intereses, yendo a PickInterests')
-              setInitialRoute("PickInterests")
             } else if (!hasGoals) {
               console.log('🎯 Navigation: Sin metas, yendo a PickGoals')
               setInitialRoute("PickGoals")
+            } else if (!hasInterests) {
+              console.log('💡 Navigation: Sin intereses, yendo a PickInterests')
+              setInitialRoute("PickInterests")
+            } else if (!hasKnowledge) {
+              console.log('🎓 Navigation: Sin nivel de conocimiento, yendo a PickKnowledge')
+              setInitialRoute("PickKnowledge")
             } else {
               // Onboarding completo, ir al HomeFeed
               console.log('✅ Navigation: Onboarding completo, yendo a HomeFeed')
@@ -177,6 +194,7 @@ export function RootStack() {
           }
         } catch (userError) {
           console.error('❌ Navigation: Error obteniendo usuario:', userError)
+          console.error('❌ Navigation: Error details:', JSON.stringify(userError, null, 2))
           // Si hay error, ir a UploadAvatar por seguridad
           setInitialRoute("UploadAvatar")
         }
@@ -356,8 +374,38 @@ export function RootStack() {
           options={{ headerShown: false }}  
         />  
         <Stack.Screen  
+          name="CommunitySettings"  
+          component={CommunitySettingsScreen}  
+          options={{ headerShown: false }}  
+        />  
+        <Stack.Screen  
+          name="CommunityMembers"  
+          component={CommunityMembersScreen}  
+          options={{ headerShown: false }}  
+        />  
+        <Stack.Screen  
+          name="EditCommunity"  
+          component={EditCommunityScreen}  
+          options={{ headerShown: false }}  
+        />  
+        <Stack.Screen  
           name="Profile"  
           component={ProfileScreen}  
+        />  
+        <Stack.Screen  
+          name="EditProfile"  
+          component={EditProfileScreen}  
+          options={{ headerShown: false }}  
+        />  
+        <Stack.Screen  
+          name="Followers"  
+          component={FollowersScreen}  
+          options={{ headerShown: false }}  
+        />  
+        <Stack.Screen  
+          name="Following"  
+          component={FollowingScreen}  
+          options={{ headerShown: false }}  
         />  
         <Stack.Screen  
           name="Settings"  

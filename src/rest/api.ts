@@ -209,13 +209,48 @@ export async function updateUser(uid: string, data: any) {
  */
 export async function getUserProfile(userId: string) {  
   try {  
+    // Paso 1: Obtener datos básicos del usuario
     const response = await request("GET", "/users", {  
       params: {  
         id: `eq.${userId}`,  
-        select: "*,posts:posts(count),followers:user_followers!following_id(count),following:user_followers!follower_id(count)"  
+        select: "*"  
       },  
-    })  
-    return response?.[0] || null  
+    })
+    
+    if (!response || response.length === 0) return null
+    
+    const user = response[0]
+    
+    // Paso 2: Contar posts del usuario (especificando FK correcto)
+    const postsResponse = await request("GET", "/posts", {
+      params: {
+        user_id: `eq.${userId}`,
+        select: "id"
+      }
+    })
+    
+    // Paso 3: Contar followers
+    const followersResponse = await request("GET", "/user_followers", {
+      params: {
+        following_id: `eq.${userId}`,
+        select: "follower_id"
+      }
+    })
+    
+    // Paso 4: Contar following
+    const followingResponse = await request("GET", "/user_followers", {
+      params: {
+        follower_id: `eq.${userId}`,
+        select: "following_id"
+      }
+    })
+    
+    return {
+      ...user,
+      posts: postsResponse?.length || 0,
+      followers: followersResponse?.length || 0,
+      following: followingResponse?.length || 0
+    }
   } catch (error: any) {  
     console.error('Error fetching user profile:', error)  
     return null  
@@ -280,21 +315,56 @@ export async function listCommunities() {
  * - CommunityDetailScreen (botón "Unirse")
  */
 export async function joinCommunity(uid: string, community_id: string) {  
+  console.log('🟢 [joinCommunity API] INICIO:', { uid, community_id })
+  
   try {  
-    // intentar crear la relación
-    return await request("POST", "/user_communities", {  
-      body: { user_id: uid, community_id },  
-    })  
+    console.log('🟢 [joinCommunity API] Intentando POST a /user_communities...')
+    
+    // ✅ IMPORTANTE: Agregar header Prefer para que Supabase devuelva el registro creado
+    const result = await request("POST", "/user_communities", {  
+      body: { user_id: uid, community_id },
+      headers: { 'Prefer': 'return=representation' }
+    })
+    
+    console.log('🟢 [joinCommunity API] POST exitoso, resultado:', {
+      result: result,
+      resultType: typeof result,
+      isArray: Array.isArray(result),
+      length: Array.isArray(result) ? result.length : 'N/A'
+    })
+    
+    // ✅ Supabase devuelve un array, tomamos el primer elemento
+    return Array.isArray(result) ? result[0] : result
   } catch (error: any) {  
+    console.log('🟠 [joinCommunity API] Error capturado:', {
+      error: error,
+      errorCode: error?.code,
+      errorMessage: error?.message,
+      errorDetails: error?.details
+    })
+    
     // conflicto: ya está unido -> devolver el registro existente
     if (error.code === "23505") {
+      console.log('🟠 [joinCommunity API] Código 23505 - Usuario ya unido, buscando registro existente...')
+      
       try {
-        const existing = await request('GET', '/user_communities', { params: { user_id: `eq.${uid}`, community_id: `eq.${community_id}`, select: '*' } })
-        return existing?.[0] || null
+        const existing = await request('GET', '/user_communities', { 
+          params: { 
+            user_id: `eq.${uid}`, 
+            community_id: `eq.${community_id}`, 
+            select: '*' 
+          } 
+        })
+        
+        console.log('🟠 [joinCommunity API] Registro existente encontrado:', existing)
+        return existing?.[0] || { id: 'existing', user_id: uid, community_id }
       } catch (e) {
-        return null
+        console.error('❌ [joinCommunity API] Error al buscar registro existente:', e)
+        return { id: 'existing', user_id: uid, community_id }
       }
     }
+    
+    console.error('❌ [joinCommunity API] Error no manejado, lanzando excepción:', error)
     throw error
   }  
 }
@@ -322,6 +392,29 @@ export async function isUserMemberOfCommunity(userId: string, communityId: strin
   } catch (error) {
     console.error('Error checking membership:', error)
     return false
+  }
+}
+
+/**
+ * Obtiene el rol del usuario en una comunidad
+ * 
+ * @param userId - ID del usuario
+ * @param communityId - ID de la comunidad
+ * @returns 'admin' | 'moderator' | 'member' | null
+ */
+export async function getUserCommunityRole(userId: string, communityId: string): Promise<string | null> {
+  try {
+    const response = await request("GET", "/user_communities", {
+      params: {
+        user_id: `eq.${userId}`,
+        community_id: `eq.${communityId}`,
+        select: "role"
+      }
+    })
+    return response?.[0]?.role || null
+  } catch (error) {
+    console.error('Error getting user role:', error)
+    return null
   }
 }  
   
@@ -617,77 +710,96 @@ export async function getUserFeed(uid: string, limit = 20) {
     // Paso 1: Obtener posts sin relaciones (evita conflictos)
     const response = await request("GET", "/posts", {
       params: {
-        select: "id,contenido,created_at,likes_count,comment_count,user_id",
+        select: "id,contenido,created_at,likes_count,comment_count,user_id,media_url,shares_count",
         order: "created_at.desc",
         limit: limit.toString()
       }
     })
     
+    if (!response || response.length === 0) return []
+    
     // Paso 2: Obtener datos de usuarios por separado
-    if (response && response.length > 0) {
-      const userIds = [...new Set(response.map((post: any) => post.user_id))]
-      const usersResponse = await request("GET", "/users", {
+    const userIds = [...new Set(response.map((post: any) => post.user_id).filter(Boolean))]
+    
+    let usersResponse = []
+    if (userIds.length > 0) {
+      usersResponse = await request("GET", "/users", {
         params: {
           select: "id,nombre,full_name,username,photo_url,avatar_url,role",
           id: `in.(${userIds.join(',')})`
         }
       })
-      
-      // Paso 3: Mapear datos de usuarios a los posts
-      return response.map((post: any) => {
-        const user = usersResponse?.find((u: any) => u.id === post.user_id)
-        return {
-          id: post.id,
-          user_data: {
-            name: user?.full_name || user?.nombre || user?.username || 'Usuario',
-            avatar: user?.avatar_url || user?.photo_url || 'https://i.pravatar.cc/100?img=1',
-            role: user?.role || 'Usuario'
-          },
-          content: post.contenido,
-          image: null,
-          post_time: new Date(post.created_at).toLocaleTimeString(),
-          likes: post.likes_count || 0,
-          comments: post.comment_count || 0,
-          shares: 0,
-          created_at: post.created_at,
-          user_id: post.user_id
+    }
+    
+    // Paso 3: Obtener likes del usuario actual
+    const postIds = response.map((p: any) => p.id).filter(Boolean)
+    let likedPostIds = new Set()
+    let savedPostIds = new Set()
+    
+    if (postIds.length > 0) {
+      const likesResponse = await request("GET", "/post_likes", {
+        params: {
+          select: "post_id",
+          user_id: `eq.${uid}`,
+          post_id: `in.(${postIds.join(',')})`
         }
       })
+      likedPostIds = new Set(likesResponse?.map((l: any) => l.post_id) || [])
+      
+      // Paso 4: Obtener posts guardados del usuario
+      const savedResponse = await request("GET", "/saved_posts", {
+        params: {
+          select: "post_id",
+          user_id: `eq.${uid}`,
+          post_id: `in.(${postIds.join(',')})`
+        }
+      })
+      savedPostIds = new Set(savedResponse?.map((s: any) => s.post_id) || [])
     }
-    return response || []  
-  } catch (rpcError: any) {  
-    console.log("RPC failed, trying simple query:", rpcError)  
-    // Fallback: consulta muy simple  
-    try {  
-      const directResponse = await request("GET", "/posts", {  
-        params: {  
-          select: "id,contenido,created_at,user_id",  
-          order: "created_at.desc",  
-          limit: String(limit),  
-        },  
-      })  
-        
-      // Transformar los datos al formato esperado por el frontend  
-      return (directResponse || []).map((post: any) => ({  
-        id: post.id,  
-        user_data: {  
-          name: post.users?.full_name || post.users?.nombre || 'Usuario',  
-          avatar: post.users?.avatar_url || post.users?.photo_url || 'https://i.pravatar.cc/100?img=1',  
-          role: post.users?.role || 'Usuario'  
-        },  
-        content: post.contenido,  
-        image: null,  
-        post_time: new Date(post.created_at).toLocaleTimeString(),  
-        likes: post.likes_count || 0,  
-        comments: post.comment_count || 0,  
-        shares: 0,  
-        created_at: post.created_at,  
-        user_id: post.user_id  
-      }))  
-    } catch (directError: any) {  
-      console.error("Direct query also failed:", directError)  
-      return []  
-    }  
+    
+    // Paso 5: Calcular tiempo relativo
+    const getTimeAgo = (dateString: string) => {
+      const now = new Date()
+      const past = new Date(dateString)
+      const diffMs = now.getTime() - past.getTime()
+      const diffMins = Math.floor(diffMs / 60000)
+      const diffHours = Math.floor(diffMs / 3600000)
+      const diffDays = Math.floor(diffMs / 86400000)
+      
+      if (diffMins < 1) return 'Ahora'
+      if (diffMins < 60) return `${diffMins}m`
+      if (diffHours < 24) return `${diffHours}h`
+      if (diffDays < 7) return `${diffDays}d`
+      return past.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+    }
+    
+    // Paso 6: Mapear datos completos
+    return response.map((post: any) => {
+      const user = usersResponse?.find((u: any) => u.id === post.user_id)
+      const mediaUrls = post.media_url || []
+      const firstImage = Array.isArray(mediaUrls) && mediaUrls.length > 0 ? mediaUrls[0] : null
+      
+      return {
+        id: post.id,
+        user_id: post.user_id,
+        user_name: user?.full_name || user?.nombre || user?.username || 'Usuario',
+        user_avatar: user?.avatar_url || user?.photo_url || 'https://ui-avatars.com/api/?name=User&background=3B82F6&color=fff',
+        user_role: user?.role || 'Usuario',
+        content: post.contenido || '',
+        image: firstImage,
+        time_ago: getTimeAgo(post.created_at),
+        likes: post.likes_count || 0,
+        comments: post.comment_count || 0,
+        shares: post.shares_count || 0,
+        is_liked: likedPostIds.has(post.id),
+        is_saved: savedPostIds.has(post.id),
+        is_following: false, // TODO: Implementar lógica de seguimiento
+        created_at: post.created_at
+      }
+    })
+  } catch (error: any) {  
+    console.error("getUserFeed error:", error)  
+    return []  
   }  
 }  
   
@@ -730,14 +842,70 @@ export async function createPost(data: {
  */
 export async function getPostDetail(postId: string) {  
   try {  
+    // Paso 1: Obtener el post sin relaciones
     const response = await request("GET", "/posts", {  
       params: {  
         id: `eq.${postId}`,  
-        select: "id,contenido,created_at,likes_count,comment_count,user_id,users!inner(nombre,full_name,username,photo_url,avatar_url,role),comments(*)",  
+        select: "id,contenido,created_at,likes_count,comment_count,user_id,media_url",  
       },  
-    })  
-    return response?.[0] || null  
+    })
+    
+    if (!response || response.length === 0) return null
+    
+    const post = response[0]
+    
+    // Paso 2: Obtener datos del usuario
+    const userResponse = await request("GET", "/users", {
+      params: {
+        id: `eq.${post.user_id}`,
+        select: "id,nombre,full_name,username,photo_url,avatar_url,role"
+      }
+    })
+    
+    // Paso 3: Obtener comentarios con sus autores
+    const commentsResponse = await request("GET", "/comments", {
+      params: {
+        post_id: `eq.${postId}`,
+        select: "id,contenido,created_at,user_id",
+        order: "created_at.asc"
+      }
+    })
+    
+    // Paso 4: Obtener usuarios de los comentarios
+    let commentsWithUsers = []
+    if (commentsResponse && commentsResponse.length > 0) {
+      const commentUserIds = [...new Set(commentsResponse.map((c: any) => c.user_id))]
+      const commentUsersResponse = await request("GET", "/users", {
+        params: {
+          id: `in.(${commentUserIds.join(',')})`,
+          select: "id,nombre,full_name,username,photo_url,avatar_url"
+        }
+      })
+      
+      commentsWithUsers = commentsResponse.map((comment: any) => {
+        const user = commentUsersResponse?.find((u: any) => u.id === comment.user_id)
+        return {
+          ...comment,
+          author: {
+            username: user?.username || user?.full_name || user?.nombre || 'Usuario',
+            photo_url: user?.photo_url || user?.avatar_url || 'https://ui-avatars.com/api/?name=User'
+          }
+        }
+      })
+    }
+    
+    const user = userResponse?.[0]
+    return {
+      ...post,
+      author: {
+        username: user?.username || user?.full_name || user?.nombre || 'Usuario',
+        photo_url: user?.photo_url || user?.avatar_url || 'https://ui-avatars.com/api/?name=User',
+        role: user?.role || 'Usuario'
+      },
+      comments: commentsWithUsers
+    }
   } catch (error) {  
+    console.error('getPostDetail error:', error)
     return null  
   }  
 }  
@@ -1424,82 +1592,94 @@ export async function getLastMessages(chatIds: string[]) {
 
 export async function getUserComplete(userId: string) {  
   try {  
-    console.log('[getUserComplete] Fetching profile for userId:', userId)  
+    console.log('🔍 [getUserComplete] Fetching profile for userId:', userId)  
     
     // Fetch user data and stats separately with individual error handling  
     let userResponse, statsResponse, postsResponse, communitiesResponse  
     
     try {  
+      console.log('📡 [getUserComplete] Requesting user data from /users...')
       userResponse = await request("GET", "/users", {  
         params: {  
-          id: `eq.${userId}`,  
-          select: "id,nombre,bio,location,avatar_url,banner_url,is_verified,created_at"  
+          id: `eq.${userId}` ,  
+          select: "id,nombre,bio,location,avatar_url,banner_url,is_verified,fecha_registro,full_name,username,photo_url,pais,role"  
         }  
       })  
-      console.log('[getUserComplete] User data fetched:', userResponse?.[0]?.nombre)  
+      console.log('✅ [getUserComplete] User data fetched:', userResponse?.[0]?.nombre || userResponse?.[0]?.username)  
+      console.log('📊 [getUserComplete] User data:', JSON.stringify(userResponse?.[0], null, 2))
     } catch (error: any) {  
-      console.error('[getUserComplete] Error fetching user:', error)  
+      console.error('❌ [getUserComplete] Error fetching user:', error)  
+      console.error('❌ [getUserComplete] Error code:', error?.code)
+      console.error('❌ [getUserComplete] Error message:', error?.message)
+      console.error('❌ [getUserComplete] Error details:', error?.details)
       throw error  
     }  
     
     const user = userResponse?.[0]  
     if (!user) {  
-      console.error('[getUserComplete] User not found for ID:', userId)  
+      console.error('❌ [getUserComplete] User not found for ID:', userId)  
       return null  
     }  
     
     // Fetch stats with RPC (POST method)  
     try {  
+      console.log('📡 [getUserComplete] Requesting user stats...')
       statsResponse = await request("POST", "/rpc/get_user_stats", {  
         body: { user_id: userId }  
       })  
-      console.log('[getUserComplete] Stats fetched:', statsResponse)  
+      console.log('✅ [getUserComplete] Stats fetched:', statsResponse)  
     } catch (error: any) {  
-      console.error('[getUserComplete] Error fetching stats, using defaults:', error)  
+      console.error('⚠️ [getUserComplete] Error fetching stats, using defaults:', error?.message)  
       statsResponse = { followers_count: 0, following_count: 0, posts_count: 0 }  
     }  
     
     // Fetch posts  
     try {  
+      console.log('📡 [getUserComplete] Requesting user posts...')
       postsResponse = await request("GET", "/posts", {  
         params: {  
-          user_id: `eq.${userId}`,  
+          user_id: `eq.${userId}` ,  
           select: "id,contenido,created_at,likes_count,comment_count,user:users!posts_user_id_fkey(id,nombre,avatar_url)",  
           order: "created_at.desc",  
           limit: "10"  
         }  
       })  
-      console.log('[getUserComplete] Posts fetched:', postsResponse?.length || 0)  
+      console.log('✅ [getUserComplete] Posts fetched:', postsResponse?.length || 0)  
     } catch (error: any) {  
-      console.error('[getUserComplete] Error fetching posts:', error)  
+      console.error('⚠️ [getUserComplete] Error fetching posts:', error?.message)  
       postsResponse = []  
     }  
     
     // Fetch communities  
     try {  
+      console.log('📡 [getUserComplete] Requesting user communities...')
       communitiesResponse = await request("GET", "/user_communities", {  
         params: {  
-          user_id: `eq.${userId}`,  
-          status: `eq.active`,
-          select: "role,status,joined_at,community:communities(id,nombre,name,descripcion,avatar_url,icono_url,image_url,member_count,type,category,is_verified)",
+          user_id: `eq.${userId}` ,  
+          status: `eq.active` ,
+          select: "role,status,joined_at,community:communities(id,nombre,name,descripcion,icono_url,image_url,member_count,type,category,is_verified)",
           order: "joined_at.desc",
           limit: "20"
         }  
       })  
-      console.log('[getUserComplete] Communities fetched:', communitiesResponse?.length || 0)  
+      console.log('✅ [getUserComplete] Communities fetched:', communitiesResponse?.length || 0)  
     } catch (error: any) {  
-      console.error('[getUserComplete] Error fetching communities:', error)  
+      console.error('⚠️ [getUserComplete] Error fetching communities:', error?.message)  
       communitiesResponse = []  
     }  
     
     const result = {  
       id: user.id,  
-      name: user.nombre,  
+      name: user.nombre || user.full_name || user.username,  
       bio: user.bio,  
       location: user.location,  
-      avatarUrl: user.avatar_url,  
+      avatarUrl: user.avatar_url || user.photo_url,  
       bannerUrl: user.banner_url,  
-      isVerified: user.is_verified,  
+      isVerified: user.is_verified,
+      country: user.pais,
+      role: user.role,
+      username: user.username,
+      learningTag: user.role === 'principiante' ? 'Aprendiendo de inversiones' : undefined,
       stats: {  
         postsCount: statsResponse?.posts_count || postsResponse?.length || 0,  
         followersCount: statsResponse?.followers_count || 0,  
@@ -1509,17 +1689,17 @@ export async function getUserComplete(userId: string) {
       communities: communitiesResponse?.map((uc: any) => ({  
         id: uc.community?.id,  
         name: uc.community?.nombre || uc.community?.name,  
-        imageUrl: uc.community?.avatar_url || uc.community?.icono_url || uc.community?.image_url,  
+        imageUrl: uc.community?.icono_url || uc.community?.image_url,  
         memberCount: uc.community?.member_count || 0,  
         isMember: true // Ya que viene de user_communities con status active  
       })) || []  
     }  
     
-    console.log('[getUserComplete] Profile complete:', result.name, 'with', result.posts.length, 'posts')  
+    console.log('✅ [getUserComplete] Profile complete:', result.name, 'with', result.posts.length, 'posts and', result.communities.length, 'communities')  
     return result  
   } catch (error: any) {  
-    console.error('[getUserComplete] Critical error fetching complete user profile:', error)  
-    console.error('[getUserComplete] Error details:', JSON.stringify(error, null, 2))  
+    console.error('❌ [getUserComplete] Critical error fetching complete user profile:', error)  
+    console.error('❌ [getUserComplete] Error details:', JSON.stringify(error, null, 2))  
     return null  
   }  
 }  
@@ -1573,7 +1753,7 @@ export async function getSavedPosts(userId: string) {
     const response = await request("GET", "/saved_posts", {  
       params: {  
         user_id: `eq.${userId}`,  
-        select: "post:posts(id,contenido,created_at,likes_count,comment_count,user:users(id,nombre,avatar_url))",  
+        select: "post:posts(id,contenido,created_at,likes_count,comment_count,user:users!posts_user_id_fkey(id,nombre,avatar_url))",  
         order: "created_at.desc"  
       }  
     })  
@@ -1989,6 +2169,38 @@ export async function getSuggestedPeople(userId: string, limit = 10) {
     return data || []
   } catch (error: any) {
     console.error('Error fetching suggested people:', error)
+    return []
+  }
+}
+
+/**
+ * Obtiene personas que comparten intereses con el usuario
+ * 
+ * @param userId - ID del usuario
+ * @param limit - Número máximo de resultados (default: 10)
+ * @returns Array de personas con intereses compartidos y score de coincidencia
+ * 
+ * USADO EN:
+ * - PromotionsScreen (sección de personas sugeridas)
+ * - CommunityRecommendationsScreen
+ */
+export async function getPeopleByInterests(userId: string, limit = 10) {
+  try {
+    const { data, error } = await supabase
+      .rpc('get_people_by_shared_interests', {
+        p_user_id: userId,
+        p_limit: limit
+      })
+    
+    if (error) {
+      console.error('Error fetching people by interests:', error)
+      return []
+    }
+    
+    console.log('✅ Personas por intereses compartidos:', data?.length || 0)
+    return data || []
+  } catch (error: any) {
+    console.error('Error fetching people by interests:', error)
     return []
   }
 }

@@ -12,6 +12,15 @@ let supabase: any = {
   auth: {
     signIn: () => Promise.resolve({ error: 'Supabase not properly initialized' }),
     signOut: () => Promise.resolve({ error: 'Supabase not properly initialized' }),
+    signInWithPassword: () => Promise.resolve({ data: null, error: { message: 'Supabase not properly initialized' } }),
+    getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+    onAuthStateChange: () => ({
+      data: {
+        subscription: {
+          unsubscribe: () => {},
+        },
+      },
+    }),
   },
   from: () => ({
     select: () => ({

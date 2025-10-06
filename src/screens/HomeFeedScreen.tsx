@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import {
   View,
   Text,
@@ -11,9 +11,9 @@ import {
   ActivityIndicator,
   FlatList,
   Share,
-  Alert,
   StatusBar,
   Platform,
+  AppState,
 } from "react-native"
 import { useTranslation } from "react-i18next"
 import {
@@ -23,43 +23,35 @@ import {
   PartyPopper,
   BarChart2,
   Handshake,
-  ThumbsUp,
-  MessageCircle,
-  Share2,
-  Send,
   Edit3,
   Home,
   TrendingUp,
-  Plus,
+  PlusCircle,
   Newspaper,
   BookOpen,
   MoreHorizontal,
   Bookmark,
 } from "lucide-react-native"
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 
 import { Sidebar } from "../components/Sidebar"
 import { NotificationsModal } from "../components/NotificationsModal"
 import { 
   getUserFeed, 
-  likePost, 
-  unlikePost,
-  globalSearch,
+  likePost,
   savePost,
-  unsavePost,
   getNotifications,
-  getConversations,
+  getUserConversations,
   getUserProfile,
   followUser,
   unfollowUser,
   sharePost,
-  getQuickActions,
 } from "../rest/api"
 import { getCurrentUserId } from "../rest/client"
 import { EmptyState } from "../components/EmptyState"
 import { useAuthGuard } from "../hooks/useAuthGuard"
 import { useOnboardingGuard } from "../hooks/useOnboardingGuard"
 
-// Quick Actions por defecto si el backend falla
 const DEFAULT_QUICK_ACTIONS = [
   { key: "celebrate", label: "Celebrar un momento", icon: "party", color: "#FF6B6B" },
   { key: "poll", label: "Crea una encuesta", icon: "chart", color: "#4ECDC4" },
@@ -82,16 +74,26 @@ export function HomeFeedScreen({ navigation }: any) {
   const [currentRoute, setCurrentRoute] = useState("HomeFeed")
   const [unreadCount, setUnreadCount] = useState(0)
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0)
-  const [quickActions, setQuickActions] = useState<any[]>(DEFAULT_QUICK_ACTIONS)
+  const [quickActions] = useState<any[]>(DEFAULT_QUICK_ACTIONS)
 
   useAuthGuard()
   const { loading: onboardingLoading } = useOnboardingGuard()
 
   useEffect(() => {
     initializeScreen()
+    
+    const subscription = AppState.addEventListener('change', handleAppStateChange)
+    return () => subscription.remove()
   }, [])
 
+  const handleAppStateChange = (nextAppState: string) => {
+    if (nextAppState === 'active' && userId) {
+      loadFeed(userId)
+    }
+  }
+
   const initializeScreen = async () => {
+    console.log('🔷 [HomeFeed] INICIO')
     const uid = await getCurrentUserId()
     setUserId(uid)
     
@@ -101,7 +103,6 @@ export function HomeFeedScreen({ navigation }: any) {
         loadFeed(uid),
         loadNotifications(uid),
         loadConversations(uid),
-        loadQuickActions(),
       ])
     }
   }
@@ -109,11 +110,15 @@ export function HomeFeedScreen({ navigation }: any) {
   const loadUserProfile = async (uid: string) => {
     try {
       const profile = await getUserProfile(uid)
-      setUserProfile(profile)
+      const avatarUrl = profile?.avatar_url || profile?.photo_url
+      
+      setUserProfile({
+        ...profile,
+        avatar: avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.full_name || profile?.username || 'User')}&background=3B82F6&color=fff&size=128`
+      })
     } catch (err) {
-      console.error("Error loading user profile:", err)
-      // Fallback avatar si falla
-      setUserProfile({ avatar: "https://ui-avatars.com/api/?name=User&background=3B82F6&color=fff" })
+      console.error("Error loading profile:", err)
+      setUserProfile({ avatar: "https://ui-avatars.com/api/?name=User&background=3B82F6&color=fff&size=128" })
     }
   }
 
@@ -121,13 +126,14 @@ export function HomeFeedScreen({ navigation }: any) {
     setError(null)
     try {
       const currentUid = uid || userId
+      
       if (currentUid) {
         const data = await getUserFeed(currentUid)
         setPosts(data || [])
         
-        const liked = new Set(data?.filter((p: any) => p.is_liked).map((p: any) => p.id))
-        const saved = new Set(data?.filter((p: any) => p.is_saved).map((p: any) => p.id))
-        const followed = new Set(data?.filter((p: any) => p.is_following).map((p: any) => p.user_id))
+        const liked = new Set(data?.filter((p: any) => p.is_liked).map((p: any) => p.id) || [])
+        const saved = new Set(data?.filter((p: any) => p.is_saved).map((p: any) => p.id) || [])
+        const followed = new Set(data?.filter((p: any) => p.is_following).map((p: any) => p.user_id) || [])
         
         setLikedPosts(liked)
         setSavedPosts(saved)
@@ -153,7 +159,7 @@ export function HomeFeedScreen({ navigation }: any) {
 
   const loadConversations = async (uid: string) => {
     try {
-      const data = await getConversations(uid)
+      const data = await getUserConversations(uid)
       const unread = data?.filter((c: any) => c.unread_count > 0).length || 0
       setUnreadMessagesCount(unread)
     } catch (err) {
@@ -161,27 +167,9 @@ export function HomeFeedScreen({ navigation }: any) {
     }
   }
 
-  const loadQuickActions = async () => {
-    try {
-      const actions = await getQuickActions()
-      if (actions && actions.length > 0) {
-        setQuickActions(actions)
-      }
-    } catch (err) {
-      console.error("Error loading quick actions:", err)
-      // Mantener las acciones por defecto
-    }
-  }
-
-  const handleSearch = async () => {
-    if (!searchQuery.trim() || !userId) return
-    
-    try {
-      // Por ahora, navegar a Promotions cuando se busca
-      navigation.navigate("Promotions", { query: searchQuery })
-    } catch (err) {
-      console.error("Search error:", err)
-    }
+  const handleSearch = () => {
+    if (!searchQuery.trim()) return
+    navigation.navigate("Promotions", { query: searchQuery })
   }
 
   const handleLike = async (postId: string) => {
@@ -197,17 +185,12 @@ export function HomeFeedScreen({ navigation }: any) {
           return newSet
         })
         setPosts(prev => prev.map(post => 
-          post.id === postId 
-            ? { ...post, likes: Math.max((post.likes || 0) - 1, 0) }
-            : post
+          post.id === postId ? { ...post, likes: Math.max((post.likes || 0) - 1, 0) } : post
         ))
-        await unlikePost(postId, userId)
       } else {
         setLikedPosts(prev => new Set(prev).add(postId))
         setPosts(prev => prev.map(post => 
-          post.id === postId 
-            ? { ...post, likes: (post.likes || 0) + 1 }
-            : post
+          post.id === postId ? { ...post, likes: (post.likes || 0) + 1 } : post
         ))
         await likePost(postId, userId)
       }
@@ -228,10 +211,9 @@ export function HomeFeedScreen({ navigation }: any) {
           newSet.delete(postId)
           return newSet
         })
-        await unsavePost(postId, userId)
       } else {
         setSavedPosts(prev => new Set(prev).add(postId))
-        await savePost(postId, userId)
+        await savePost(postId, userId, { source: 'home_feed' })
       }
     } catch (err) {
       console.error("Error saving post:", err)
@@ -248,9 +230,7 @@ export function HomeFeedScreen({ navigation }: any) {
       })
       
       setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { ...post, shares: (post.shares || 0) + 1 }
-          : post
+        post.id === postId ? { ...post, shares: (post.shares || 0) + 1 } : post
       ))
       
       await sharePost(postId, userId)
@@ -309,7 +289,6 @@ export function HomeFeedScreen({ navigation }: any) {
 
   const renderPost = ({ item }: any) => (
     <View style={styles.postCard}>
-      {/* Shared Header */}
       {item.shared_by && (
         <View style={styles.sharedHeader}>
           <Image source={{ uri: item.shared_by_avatar }} style={styles.sharedAvatar} />
@@ -322,65 +301,73 @@ export function HomeFeedScreen({ navigation }: any) {
         </View>
       )}
 
-      {/* Post Header */}
       <View style={styles.postHeader}>
         <TouchableOpacity 
           onPress={() => navigation.navigate("Profile", { userId: item.user_id })}
           activeOpacity={0.7}
         >
-          <Image 
-            source={{ uri: item.user_avatar }} 
-            style={styles.avatar} 
-          />
+          {item.user_avatar ? (
+            <Image source={{ uri: item.user_avatar }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarPlaceholder]}>
+              <Text style={styles.avatarPlaceholderTextLarge}>
+                {item.user_name?.charAt(0)?.toUpperCase() || 'U'}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
         
         <View style={styles.postHeaderCenter}>
-          <TouchableOpacity 
-            onPress={() => navigation.navigate("Profile", { userId: item.user_id })}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.postUser}>{item.user_name}</Text>
-          </TouchableOpacity>
+          <View style={styles.postHeaderTop}>
+            <TouchableOpacity 
+              onPress={() => navigation.navigate("Profile", { userId: item.user_id })}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.postUser}>{item.user_name}</Text>
+            </TouchableOpacity>
+            
+            {!followedUsers.has(item.user_id) && item.user_id !== userId && (
+              <TouchableOpacity 
+                onPress={() => handleFollow(item.user_id)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.followText}>+ Seguir</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          
           <View style={styles.postMeta}>
             <Text style={styles.postRole}>{item.user_role}</Text>
             <Text style={styles.postMetaSeparator}> · </Text>
             <Text style={styles.postTime}>{item.time_ago}</Text>
-            <Text style={styles.postMetaSeparator}> · </Text>
-            <Text style={styles.globeIcon}>🌐</Text>
+            {!item.shared_by && (
+              <>
+                <Text style={styles.postMetaSeparator}> · </Text>
+                <Text style={styles.globeIcon}>🌐</Text>
+              </>
+            )}
           </View>
-        </View>
-
-        <View style={styles.postHeaderRight}>
-          {!followedUsers.has(item.user_id) && item.user_id !== userId && (
-            <TouchableOpacity 
-              onPress={() => handleFollow(item.user_id)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.followText}>+ Seguir</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity style={styles.moreButton} activeOpacity={0.7}>
-            <MoreHorizontal size={20} color="#6B7280" strokeWidth={2} />
+          
+          <TouchableOpacity 
+            style={styles.saveButtonInline}
+            onPress={() => handleSave(item.id)}
+            activeOpacity={0.7}
+          >
+            <Bookmark 
+              size={14} 
+              color="#6B7280"
+              strokeWidth={2}
+              fill={savedPosts.has(item.id) ? "#6B7280" : "none"}
+            />
+            <Text style={styles.saveText}>Guardar publicación</Text>
           </TouchableOpacity>
         </View>
+
+        <TouchableOpacity style={styles.moreButton} activeOpacity={0.7}>
+          <MoreHorizontal size={20} color="#6B7280" strokeWidth={2} />
+        </TouchableOpacity>
       </View>
 
-      {/* Save Button - SIEMPRE VISIBLE */}
-      <TouchableOpacity 
-        style={styles.saveButton}
-        onPress={() => handleSave(item.id)}
-        activeOpacity={0.7}
-      >
-        <Bookmark 
-          size={14} 
-          color="#6B7280"
-          strokeWidth={2}
-          fill={savedPosts.has(item.id) ? "#6B7280" : "none"}
-        />
-        <Text style={styles.saveText}>Guardar publicación</Text>
-      </TouchableOpacity>
-
-      {/* Content */}
       <TouchableOpacity 
         onPress={() => navigation.navigate("PostDetail", { postId: item.id })}
         activeOpacity={0.9}
@@ -393,7 +380,6 @@ export function HomeFeedScreen({ navigation }: any) {
         </Text>
       </TouchableOpacity>
 
-      {/* Image */}
       {item.image && (
         <TouchableOpacity 
           onPress={() => navigation.navigate("PostDetail", { postId: item.id })}
@@ -403,11 +389,10 @@ export function HomeFeedScreen({ navigation }: any) {
         </TouchableOpacity>
       )}
 
-      {/* Stats */}
       <View style={styles.postStats}>
         <View style={styles.postStatsLeft}>
           <View style={styles.likeIcon}>
-            <ThumbsUp size={10} color="#FFFFFF" strokeWidth={2.5} />
+            <Ionicons name="thumbs-up" size={10} color="#FFFFFF" />
           </View>
           <Text style={styles.statText}>{item.likes || 0}</Text>
         </View>
@@ -418,18 +403,16 @@ export function HomeFeedScreen({ navigation }: any) {
         </View>
       </View>
 
-      {/* Actions */}
       <View style={styles.postActions}>
         <TouchableOpacity 
           style={styles.actionBtn}
           onPress={() => handleLike(item.id)}
           activeOpacity={0.6}
         >
-          <ThumbsUp 
-            size={20} 
-            color={likedPosts.has(item.id) ? "#3B82F6" : "#6B7280"} 
-            fill={likedPosts.has(item.id) ? "#3B82F6" : "none"}
-            strokeWidth={2}
+          <Ionicons 
+            name={likedPosts.has(item.id) ? "thumbs-up" : "thumbs-up-outline"}
+            size={26} 
+            color={likedPosts.has(item.id) ? "#3B82F6" : "#4B5563"} 
           />
           <Text style={[styles.actionText, likedPosts.has(item.id) && styles.actionTextActive]}>
             Recomendar
@@ -441,7 +424,7 @@ export function HomeFeedScreen({ navigation }: any) {
           onPress={() => handleComment(item.id)}
           activeOpacity={0.6}
         >
-          <MessageCircle size={20} color="#6B7280" strokeWidth={2} />
+          <Ionicons name="chatbubble-outline" size={26} color="#4B5563" />
           <Text style={styles.actionText}>Comentar</Text>
         </TouchableOpacity>
           
@@ -450,7 +433,7 @@ export function HomeFeedScreen({ navigation }: any) {
           onPress={() => handleShare(item.id, item.content)}
           activeOpacity={0.6}
         >
-          <Share2 size={20} color="#6B7280" strokeWidth={2} />
+          <Ionicons name="arrow-redo-outline" size={26} color="#4B5563" />
           <Text style={styles.actionText}>Compartir</Text>
         </TouchableOpacity>
           
@@ -459,7 +442,7 @@ export function HomeFeedScreen({ navigation }: any) {
           onPress={() => handleSendMessage(item.id, item.user_id)}
           activeOpacity={0.6}
         >
-          <Send size={20} color="#6B7280" strokeWidth={2} />
+          <Ionicons name="paper-plane-outline" size={26} color="#4B5563" />
           <Text style={styles.actionText}>Enviar</Text>
         </TouchableOpacity>
       </View>
@@ -468,12 +451,14 @@ export function HomeFeedScreen({ navigation }: any) {
 
   if (onboardingLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
-        </View>
-      </SafeAreaView>
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#3B82F6" />
+          </View>
+        </SafeAreaView>
+      </View>
     )
   }
 
@@ -490,17 +475,19 @@ export function HomeFeedScreen({ navigation }: any) {
         navigation={navigation} 
       />
 
-      <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
           <TouchableOpacity 
             onPress={() => setIsSidebarOpen(true)}
             activeOpacity={0.7}
           >
-            <Image 
-              source={{ uri: userProfile?.avatar }} 
-              style={styles.headerAvatar} 
-            />
+            {userProfile?.avatar ? (
+              <Image source={{ uri: userProfile.avatar }} style={styles.headerAvatar} />
+            ) : (
+              <View style={[styles.headerAvatar, styles.avatarPlaceholder]}>
+                <Text style={styles.avatarPlaceholderText}>U</Text>
+              </View>
+            )}
           </TouchableOpacity>
 
           <View style={styles.searchContainer}>
@@ -543,7 +530,6 @@ export function HomeFeedScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
-        {/* Quick Actions - SIEMPRE VISIBLE */}
         <View style={styles.quickActionsContainer}>
           <ScrollView 
             horizontal 
@@ -569,12 +555,14 @@ export function HomeFeedScreen({ navigation }: any) {
           </ScrollView>
         </View>
 
-        {/* Write Post */}
         <View style={styles.writePostContainer}>
-          <Image 
-            source={{ uri: userProfile?.avatar }} 
-            style={styles.writeAvatar} 
-          />
+          {userProfile?.avatar ? (
+            <Image source={{ uri: userProfile.avatar }} style={styles.writeAvatar} />
+          ) : (
+            <View style={[styles.writeAvatar, styles.avatarPlaceholder]}>
+              <Text style={styles.avatarPlaceholderText}>U</Text>
+            </View>
+          )}
           <TouchableOpacity 
             style={styles.writeBox} 
             onPress={() => navigation.navigate("CreatePost")}
@@ -585,7 +573,6 @@ export function HomeFeedScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
-        {/* Feed */}
         <View style={styles.feedContainer}>
           {loading ? (
             <View style={styles.loadingContainer}>
@@ -609,67 +596,62 @@ export function HomeFeedScreen({ navigation }: any) {
             />
           )}
         </View>
-
-        {/* Bottom Navigation */}
-        <View style={styles.bottomNav}>
-          <TouchableOpacity 
-            style={styles.navItem} 
-            onPress={() => handleNavigation("HomeFeed")}
-            activeOpacity={0.7}
-          >
-            <Home 
-              size={24} 
-              color={currentRoute === "HomeFeed" ? "#3B82F6" : "#6B7280"} 
-              fill={currentRoute === "HomeFeed" ? "#3B82F6" : "none"}
-              strokeWidth={2}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.navItem} 
-            onPress={() => handleNavigation("MarketInfo")}
-            activeOpacity={0.7}
-          >
-            <TrendingUp 
-              size={24} 
-              color={currentRoute === "MarketInfo" ? "#3B82F6" : "#6B7280"} 
-              strokeWidth={2}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.fabButton} 
-            onPress={() => handleNavigation("CreatePost")}
-            activeOpacity={0.8}
-          >
-            <Plus size={28} color="#FFFFFF" strokeWidth={3} />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.navItem} 
-            onPress={() => handleNavigation("News")}
-            activeOpacity={0.7}
-          >
-            <Newspaper 
-              size={24} 
-              color={currentRoute === "News" ? "#3B82F6" : "#6B7280"} 
-              strokeWidth={2}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.navItem} 
-            onPress={() => handleNavigation("Educacion")}
-            activeOpacity={0.7}
-          >
-            <BookOpen 
-              size={24} 
-              color={currentRoute === "Educacion" ? "#3B82F6" : "#6B7280"} 
-              strokeWidth={2}
-            />
-          </TouchableOpacity>
-        </View>
       </SafeAreaView>
+
+      <View style={styles.bottomNavigation}>
+        <TouchableOpacity 
+          style={styles.navItem} 
+          onPress={() => handleNavigation("HomeFeed")} 
+        >
+          <Ionicons 
+            name={currentRoute === "HomeFeed" ? "home" : "home-outline"}
+            size={26} 
+            color={currentRoute === "HomeFeed" ? "#2673f3" : "#9CA3AF"} 
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.navItem} 
+          onPress={() => handleNavigation("MarketInfo")} 
+        >
+          <Ionicons 
+            name={currentRoute === "MarketInfo" ? "trending-up" : "trending-up-outline"}
+            size={26} 
+            color={currentRoute === "MarketInfo" ? "#2673f3" : "#9CA3AF"} 
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.fabContainer} 
+          onPress={() => handleNavigation("CreatePost")} 
+        >
+          <View style={styles.fabButton}>
+            <Ionicons name="add" size={28} color="#FFFFFF" />
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.navItem} 
+          onPress={() => handleNavigation("News")} 
+        >
+          <Ionicons 
+            name={currentRoute === "News" ? "newspaper" : "newspaper-outline"}
+            size={26} 
+            color={currentRoute === "News" ? "#2673f3" : "#9CA3AF"} 
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.navItem} 
+          onPress={() => handleNavigation("Educacion")} 
+        >
+          <Ionicons 
+            name={currentRoute === "Educacion" ? "school" : "school-outline"}
+            size={26} 
+            color={currentRoute === "Educacion" ? "#2673f3" : "#9CA3AF"} 
+          />
+        </TouchableOpacity>
+      </View>
     </View>
   )
 }
@@ -683,8 +665,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
-  
-  // Header
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -697,6 +677,22 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+  },
+  avatarPlaceholder: {
+    backgroundColor: '#3B82F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarPlaceholderText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  avatarPlaceholderTextLarge: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
   },
   searchContainer: {
     flex: 1,
@@ -737,8 +733,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
   },
-  
-  // Quick Actions
   quickActionsContainer: {
     backgroundColor: "#FFFFFF",
     paddingVertical: 12,
@@ -772,8 +766,6 @@ const styles = StyleSheet.create({
     color: "#374151",
     fontWeight: "500",
   },
-  
-  // Write Post
   writePostContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -788,6 +780,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+    backgroundColor: '#F3F4F6',
   },
   writeBox: {
     flex: 1,
@@ -806,16 +799,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     flex: 1,
   },
-  
-  // Feed
   feedContainer: {
     flex: 1,
   },
   feedContent: {
     paddingBottom: 90,
   },
-  
-  // Post Card
   postCard: {
     backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
@@ -827,6 +816,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
+    paddingTop: 4,
     marginBottom: 12,
     gap: 8,
   },
@@ -834,6 +824,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
+    backgroundColor: '#F3F4F6',
   },
   sharedText: {
     flex: 1,
@@ -851,27 +842,33 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     paddingHorizontal: 16,
-    marginBottom: 10,
+    marginBottom: 12,
     gap: 10,
   },
   avatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
+    backgroundColor: '#F3F4F6',
   },
   postHeaderCenter: {
     flex: 1,
-    justifyContent: "center",
+  },
+  postHeaderTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 2,
   },
   postUser: {
     fontWeight: "600",
     fontSize: 15,
     color: "#111827",
-    marginBottom: 2,
   },
   postMeta: {
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: 6,
   },
   postRole: {
     fontSize: 12,
@@ -888,10 +885,15 @@ const styles = StyleSheet.create({
   globeIcon: {
     fontSize: 11,
   },
-  postHeaderRight: {
+  saveButtonInline: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
+  },
+  saveText: {
+    fontSize: 12,
+    color: "#6B7280",
+    fontWeight: "500",
   },
   followText: {
     color: "#3B82F6",
@@ -900,19 +902,6 @@ const styles = StyleSheet.create({
   },
   moreButton: {
     padding: 4,
-  },
-  saveButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    marginBottom: 8,
-    gap: 6,
-  },
-  saveText: {
-    fontSize: 12,
-    color: "#6B7280",
-    fontWeight: "500",
   },
   postContent: {
     fontSize: 14,
@@ -930,7 +919,6 @@ const styles = StyleSheet.create({
     height: 300,
     marginBottom: 12,
     backgroundColor: "#F3F4F6",
-    borderRadius: 8,
   },
   postStats: {
     flexDirection: "row",
@@ -975,60 +963,58 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   actionBtn: {
     flexDirection: "column",
     alignItems: "center",
-    paddingVertical: 4,
-    gap: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    gap: 6,
   },
   actionText: {
-    fontSize: 11,
-    color: "#6B7280",
+    fontSize: 13,
+    color: "#4B5563",
     fontWeight: "500",
   },
   actionTextActive: {
     color: "#3B82F6",
     fontWeight: "600",
   },
-  
-  // Bottom Navigation
-  bottomNav: {
+  bottomNavigation: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-    paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 10,
+    paddingVertical: 12,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 12,
   },
   navItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    padding: 12,
+  },
+  fabContainer: {
+    marginTop: -16,
+    padding: 8,
   },
   fabButton: {
     width: 56,
     height: 56,
-    borderRadius: 28,
-    backgroundColor: '#3B82F6',
+    borderRadius: 12,
+    backgroundColor: '#2673f3',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: -28,
-    shadowColor: '#3B82F6',
+    shadowColor: '#2673f3',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 12,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  
   loadingContainer: {
     flex: 1,
     justifyContent: "center",

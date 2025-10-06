@@ -130,7 +130,6 @@ const requestMetrics: RequestMetrics[] = []
 export function getRequestMetrics(): RequestMetrics[] {  
   return [...requestMetrics]  
 }  
-  
 export function clearRequestMetrics() {  
   requestMetrics.length = 0  
 }  
@@ -160,6 +159,8 @@ export async function request(
     timeout = 30000   
   } = options  
   
+  console.log('🔷 [request] INICIO:', { method, path, body, params })
+  
   try {  
     let url = `${urls.REST_URL}${path}`  
     if (params) {  
@@ -174,6 +175,8 @@ export async function request(
       }  
     }  
   
+    console.log('🔷 [request] URL:', url)
+  
     const requestHeaders: Record<string, string> = {  
       apikey: ANON_KEY,  
       ...headers,  
@@ -182,6 +185,7 @@ export async function request(
     const token = await getValidAccessToken()  
     if (token) {  
       requestHeaders["Authorization"] = `Bearer ${token}`  
+      console.log('🔷 [request] Token agregado')
     }  
   
     if (!binary) {  
@@ -191,6 +195,7 @@ export async function request(
     const controller = new AbortController()  
     const timeoutId = setTimeout(() => controller.abort(), timeout)  
   
+    console.log('🔷 [request] Enviando fetch...')
     const response = await fetch(url, {  
       method,  
       headers: requestHeaders,  
@@ -198,10 +203,11 @@ export async function request(
       signal: controller.signal,  
     })  
   
+    console.log('🔷 [request] Respuesta:', { status: response.status, ok: response.ok })
     clearTimeout(timeoutId)  
   
     if (!response.ok && response.status === 401 && retryOnAuth) {  
-      console.log("Auth error, attempting token refresh and retry...")  
+      console.log("🔷 [request] Auth error, refreshing token...")  
       const newToken = await refreshAccessToken()  
       if (newToken) {  
         requestHeaders["Authorization"] = `Bearer ${newToken}`  
@@ -230,6 +236,7 @@ export async function request(
         errorData = { message: response.statusText }  
       }  
       status = response.status  
+      console.error('❌ [request] Error response:', errorData)
       throw {  
         code: errorData.code || response.status,  
         message: errorData.message || "Request failed",  
@@ -240,11 +247,14 @@ export async function request(
   
     status = 200  
     try {  
-      return await response.json()  
+      const result = await response.json()
+      console.log('✅ [request] Success:', result)
+      return result  
     } catch {  
       return null  
     }  
   } catch (error: any) {  
+    console.error('❌ [request] Exception:', error)
     if (error.name === 'AbortError') {  
       throw {  
         code: 'TIMEOUT',  

@@ -13,22 +13,16 @@
       },
       "env": {
         "NODE_ENV": "development",
-        "RN_NEW_ARCH_ENABLED": "0",
         "EXPO_USE_TURBO_MODULES": "false",
         "EXPO_USE_FABRIC": "false",
         "REACT_NATIVE_NEW_ARCH_ENABLED": "false"
       }
     },
     "preview": {
-      "developmentClient": false,
       "distribution": "internal",
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease"
-      },
-      "env": {
-        "NODE_ENV": "production",
-        "GRADLE_OPTS": "-Xmx4096m -XX:MaxMetaspaceSize=512m"
       }
     },
     "production": {

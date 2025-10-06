@@ -26,55 +26,80 @@ const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
 
   // Check for existing session on mount
   useEffect(() => {
-    // Set up auth state listener
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth event:', event);
-      if (session) {
-        await setSession(session);
-        await setUser(session.user as unknown as User);
-        setIsAuthenticated(true);
-        // Store the session in AsyncStorage
-        await storage.setItem('access_token', session.access_token);
-        if (session.refresh_token) {
-          await storage.setItem('refresh_token', session.refresh_token);
-        }
-      } else {
-        await setSession(null);
-        setUser(null);
-        setIsAuthenticated(false);
-        await storage.removeItem('access_token');
-        await storage.removeItem('refresh_token');
-      }
-      setIsLoading(false);
-    });
+    let mounted = true;
+    let unsubscribe: (() => void) | null = null;
 
-    // Check for existing session
-    const checkSession = async () => {
+    const setupAuth = async () => {
       try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        if (currentSession) {
-          setSession(currentSession);
-          setUser(currentSession.user as unknown as User);
+        console.log('[AuthProvider] Setting up auth listener');
+        
+        // Set up auth state listener
+        const { data: authData } = supabase.auth.onAuthStateChange(
+          async (event: any, session: any) => {
+            if (!mounted) return;
+            
+            console.log('[AuthProvider] Auth event:', event);
+            try {
+              if (session) {
+                setSession(session);
+                setUser(session.user as unknown as User);
+                setIsAuthenticated(true);
+                await storage.setItem('access_token', session.access_token);
+                await storage.setItem('@auth_token', session.access_token);
+                if (session.refresh_token) {
+                  await storage.setItem('refresh_token', session.refresh_token);
+                }
+              } else {
+                setSession(null);
+                setUser(null);
+                setIsAuthenticated(false);
+                await storage.removeItem('access_token');
+                await storage.removeItem('refresh_token');
+                await storage.removeItem('@auth_token');
+              }
+            } catch (error) {
+              console.error('[AuthProvider] Error in auth state change:', error);
+            }
+          }
+        );
+
+        // Store the unsubscribe function
+        if (authData?.subscription?.unsubscribe) {
+          unsubscribe = () => authData.subscription.unsubscribe();
+        }
+
+        // Check for existing session
+        console.log('[AuthProvider] Checking existing session');
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (mounted && sessionData?.session) {
+          setSession(sessionData.session);
+          setUser(sessionData.session.user as unknown as User);
           setIsAuthenticated(true);
         }
       } catch (error) {
-        console.error('Error checking session:', error);
-      } finally {
-        setIsLoading(false);
+        console.error('[AuthProvider] Error in setupAuth:', error);
       }
     };
 
-    checkSession();
+    setupAuth().catch(console.error);
 
     // Cleanup
     return () => {
-      authListener?.subscription.unsubscribe();
+      console.log('[AuthProvider] Cleaning up');
+      mounted = false;
+      try {
+        if (unsubscribe) {
+          unsubscribe();
+        }
+      } catch (error) {
+        console.error('[AuthProvider] Error during cleanup:', error);
+      }
     };
   }, []);
 
@@ -87,6 +112,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) throw error;
+      
+      // Save auth token for navigation
+      if (data?.session?.access_token) {
+        await storage.setItem('@auth_token', data.session.access_token);
+      }
       
       // El listener de onAuthStateChange manejará el resto
       return data;
@@ -110,6 +140,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
+      // Clear auth token
+      await storage.removeItem('@auth_token');
+      
       // El listener de onAuthStateChange manejará la limpieza
     } catch (error) {
       console.error('Error signing out:', error);
@@ -129,7 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signOut,
         updateUser,
       }}>
-      {!isLoading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

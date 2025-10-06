@@ -12,7 +12,6 @@ export default {
       checkAutomatically: 'never',
       url: undefined
     },
-    newArchEnabled: false,
     splash: {
       image: './assets/investi-logo.png',
       resizeMode: 'contain',

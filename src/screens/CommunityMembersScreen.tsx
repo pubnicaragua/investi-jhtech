@@ -21,7 +21,8 @@ import {
   ScrollView
 } from 'react-native'
 import { ArrowLeft, Search, Shield, Crown, UserPlus, MoreVertical, X } from 'lucide-react-native'
-import { useRoute, useNavigation } from '@react-navigation/native'
+import { useRoute, useNavigation, NavigationProp } from '@react-navigation/native'
+import type { RootStackParamList } from '../types/navigation'
 import { getCommunityMembers, removeCommunityMember, updateMemberRole, getCurrentUser } from '../rest/api'
 
 // ============================================================================
@@ -49,7 +50,7 @@ interface Member {
 // ============================================================================
 
 export function CommunityMembersScreen() {
-  const navigation = useNavigation()
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>()
   const route = useRoute()
   const { communityId, communityName } = route.params as { communityId: string; communityName?: string }
 
@@ -241,7 +242,7 @@ export function CommunityMembersScreen() {
     return (
       <TouchableOpacity
         style={styles.memberCard}
-        onPress={() => (navigation as any).navigate('Profile', { userId: item.user_id })}
+        onPress={() => navigation.navigate('Profile', { userId: item.user_id })}
         activeOpacity={0.7}
       >
         <Image

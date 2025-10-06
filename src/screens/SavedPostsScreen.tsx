@@ -19,7 +19,8 @@ import {
   Alert
 } from 'react-native'
 import { ArrowLeft, Bookmark, Clock, Eye, MessageCircle, ThumbsUp, Share2, Trash2 } from 'lucide-react-native'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigation, NavigationProp } from '@react-navigation/native'
+import type { RootStackParamList } from '../types/navigation'
 import { getSavedPosts, unsavePost, getCurrentUser } from '../rest/api'
 
 // ============================================================================
@@ -52,7 +53,7 @@ interface SavedPost {
 // ============================================================================
 
 export function SavedPostsScreen() {
-  const navigation = useNavigation()
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>()
   
   // Estados
   const [savedPosts, setSavedPosts] = useState<SavedPost[]>([])
@@ -123,7 +124,7 @@ export function SavedPostsScreen() {
   }
 
   const handlePostPress = (postId: string) => {
-    ;(navigation as any).navigate('PostDetail', { postId })
+    navigation.navigate('PostDetail', { postId })
   }
 
   // ============================================================================
@@ -294,7 +295,7 @@ export function SavedPostsScreen() {
             </Text>
             <TouchableOpacity
               style={styles.exploreButton}
-              onPress={() => (navigation as any).navigate('Home')}
+              onPress={() => navigation.navigate('HomeFeed')}
             >
               <Text style={styles.exploreButtonText}>Explorar publicaciones</Text>
             </TouchableOpacity>

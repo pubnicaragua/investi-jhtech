@@ -41,6 +41,9 @@ export type RootStackParamList = {
   
   // Profile & Settings
   Profile: { userId?: string };
+  EditProfile: undefined;
+  Followers: { userId: string };
+  Following: { userId: string };
   Settings: undefined;
   LanguageSelection: undefined;
   SavedPosts: undefined;
@@ -64,6 +67,17 @@ export type RootStackParamList = {
   ChatScreen: { chatId?: string };
   GroupChat: { groupId: string };
   Messages: undefined;
+  NewMessageScreen: undefined;
+  SharePost: { postId: string; content: string };
+  
+  // Media
+  VideoPlayer: { videoId: string };
+  
+  // Notifications
+  Notifications: undefined;
+  
+  // Debug
+  DebugStorage: undefined;
   
   // News & Promotions
   News: undefined;
