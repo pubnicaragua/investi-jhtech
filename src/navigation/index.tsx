@@ -10,6 +10,8 @@ import { CommunityRecommendationsScreen } from '../screens/CommunityRecommendati
 import { WelcomeScreen } from '../screens/WelcomeScreen';
 import { SignInScreen } from '../screens/SignInScreen';
 import { SignUpScreen } from '../screens/SignUpScreen';
+import { useAuth } from '../contexts/AuthContext';
+import { ActivityIndicator, View } from 'react-native';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -23,70 +25,48 @@ const OnboardingScreenWrapper: React.FC<{ route: any }> = ({ route }) => {
 
 export function RootStack() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [isOnboarded, setIsOnboarded] = useState<boolean | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isCheckingOnboarding, setIsCheckingOnboarding] = useState<boolean>(true);
 
-  // Check authentication and onboarding status
+  // Check onboarding status when authenticated
   useEffect(() => {
-    const checkAuthAndStatus = async () => {
+    const checkOnboardingStatus = async () => {
       try {
-        // Check if user is authenticated (you might want to implement actual auth check)
-        const token = await AsyncStorage.getItem('@auth_token');
-        setIsAuthenticated(!!token);
-
-        if (token) {
-          const [onboarded] = await Promise.all([
-            AsyncStorage.getItem(ONBOARDING_COMPLETE_KEY),
-          ]);
+        if (isAuthenticated) {
+          const onboarded = await AsyncStorage.getItem(ONBOARDING_COMPLETE_KEY);
           setIsOnboarded(onboarded === 'true');
+        } else {
+          setIsOnboarded(null);
         }
       } catch (error) {
-        console.error('Error checking auth and status:', error);
+        console.error('[RootStack] Error checking onboarding:', error);
+        setIsOnboarded(null);
       } finally {
-        setIsLoading(false);
+        setIsCheckingOnboarding(false);
       }
     };
 
-    checkAuthAndStatus();
-  }, []);
+    checkOnboardingStatus();
+  }, [isAuthenticated]);
 
   const handleOnboardingComplete = async () => {
     try {
+      console.log('[RootStack] Onboarding completed');
       await AsyncStorage.setItem(ONBOARDING_COMPLETE_KEY, 'true');
       setIsOnboarded(true);
     } catch (error) {
-      console.error('Error saving onboarding status:', error);
+      console.error('[RootStack] Error saving onboarding status:', error);
     }
   };
 
-  const handleSignIn = async () => {
-    // Implement your sign-in logic here
-    // For now, just set authenticated to true
-    setIsAuthenticated(true);
-    // Check if onboarding is needed
-    const onboarded = await AsyncStorage.getItem(ONBOARDING_COMPLETE_KEY);
-    setIsOnboarded(onboarded === 'true');
-  };
-
-  const handleSignUp = async () => {
-    // Set authenticated but not onboarded
-    setIsAuthenticated(true);
-    setIsOnboarded(false);
-  };
-
-  const handleSignOut = async () => {
-    try {
-      await AsyncStorage.removeItem('@auth_token');
-      setIsAuthenticated(false);
-      setIsOnboarded(null);
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
-
-  if (isLoading) {
-    return null; // Or a loading spinner
+  // Show loading while checking auth or onboarding
+  if (authLoading || isCheckingOnboarding) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <ActivityIndicator size="large" color="#2673f3" />
+      </View>
+    );
   }
 
   return (
@@ -104,48 +84,29 @@ export function RootStack() {
       }
     >
       {/* Auth Flow */}
-      <Stack.Screen name="Welcome">
-        {() => (
-          <WelcomeScreen 
-            onSignIn={() => navigation.navigate('SignIn', {
-              onSignInSuccess: handleSignIn,
-              onBack: () => navigation.goBack()
-            })}
-            onSignUp={() => navigation.navigate('SignUp', {
-              onSignUpSuccess: handleSignUp,
-              onBack: () => navigation.goBack()
-            })}
-          />
-        )}
-      </Stack.Screen>
+      <Stack.Screen 
+        name="Welcome"
+        component={WelcomeScreen}
+        options={{
+          headerShown: false
+        }}
+      />
       
       <Stack.Screen 
         name="SignIn"
+        component={SignInScreen}
         options={{
           headerShown: false
         }}
-      >
-        {() => (
-          <SignInScreen 
-            onSignInSuccess={handleSignIn}
-            onBack={() => navigation.goBack()}
-          />
-        )}
-      </Stack.Screen>
+      />
       
       <Stack.Screen 
         name="SignUp"
+        component={SignUpScreen}
         options={{
           headerShown: false
         }}
-      >
-        {() => (
-          <SignUpScreen 
-            onSignUpSuccess={handleSignUp}
-            onBack={() => navigation.goBack()}
-          />
-        )}
-      </Stack.Screen>
+      />
 
       {/* Onboarding Flow */}
       {isAuthenticated && !isOnboarded && (

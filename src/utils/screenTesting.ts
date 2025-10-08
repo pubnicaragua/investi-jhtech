@@ -133,7 +133,7 @@ const SCREEN_COMPONENTS: Record<string, React.ComponentType<any>> = {
 
 export const TESTING_CONFIG = {
   ENABLED: false,
-  SCREEN: 'CommunitiesListScreen',
+  SCREEN: 'HomeFeedScreen',
   // Only include screens that actually exist in the codebase
   SAFE_SCREENS: [
     'SignInScreen',

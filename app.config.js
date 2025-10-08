@@ -44,6 +44,10 @@ export default {
       },
       jsEngine: 'hermes'
     },
+    web: {
+      bundler: 'metro',
+      favicon: './assets/investi-logo.png'
+    },
     extra: {
       supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
       supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,

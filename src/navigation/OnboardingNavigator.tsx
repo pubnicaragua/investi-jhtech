@@ -1,8 +1,8 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { InvestmentGoalsScreen } from '../screens/InvestmentGoalsScreen';
+import { PickGoalsScreen } from '../screens/PickGoalsScreen';
 import { InvestmentKnowledgeScreen } from '../screens/InvestmentKnowledgeScreen';
-import { InvestmentInterestsScreen } from '../screens/InvestmentInterestsScreen';
+import { PickInterestsScreen } from '../screens/PickInterestsScreen';
 import { OnboardingCompleteScreen } from '../screens/OnboardingCompleteScreen';
 import { CommunityRecommendationsScreen } from '../screens/CommunityRecommendationsScreen';
 import type { OnboardingStackParamList } from '../types/navigation';
@@ -31,7 +31,7 @@ export function OnboardingNavigator({ onComplete }: OnboardingNavigatorProps) {
       />
       <Stack.Screen 
         name="InvestmentGoals" 
-        component={InvestmentGoalsScreen} 
+        component={PickGoalsScreen} 
         options={{
           gestureEnabled: false,
         }}
@@ -45,7 +45,7 @@ export function OnboardingNavigator({ onComplete }: OnboardingNavigatorProps) {
       />
       <Stack.Screen 
         name="InvestmentInterests" 
-        component={InvestmentInterestsScreen} 
+        component={PickInterestsScreen} 
         options={{
           gestureEnabled: true,
         }}

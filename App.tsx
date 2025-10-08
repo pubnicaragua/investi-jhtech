@@ -1,7 +1,7 @@
 import { I18nextProvider } from "react-i18next"  
 import { SafeAreaProvider } from 'react-native-safe-area-context'  
 import { NavigationContainer } from '@react-navigation/native';
-import { RootStack } from "./navigation"
+import { RootStack } from "./src/navigation"
 import * as Linking from "expo-linking"  
 import i18n from "./src/i18n/i18n"
 import { AuthProvider } from "./src/contexts/AuthContext"
@@ -10,8 +10,8 @@ import { TESTING_CONFIG, TestingScreen } from "./src/utils/screenTesting"
 
 const prefix = Linking.createURL("/")  
 
-const linking = {  
-  prefixes: [prefix],  
+const linking = {
+  prefixes: [prefix],
   config: {  
     screens: {  
       Welcome: "/welcome",  
