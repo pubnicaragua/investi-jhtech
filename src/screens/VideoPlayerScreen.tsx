@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react'
 import {
   View,
@@ -9,15 +10,17 @@ import {
   Dimensions,
   ScrollView,
   Image,
-  Alert
+  Alert,
+  ActivityIndicator,
+  TextInput
 } from 'react-native'
-import { 
-  ArrowLeft, 
-  Play, 
-  Pause, 
-  Volume2, 
-  VolumeX, 
-  Maximize, 
+import {
+  ArrowLeft,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Maximize,
   MoreVertical,
   ThumbsUp,
   MessageCircle,
@@ -27,10 +30,26 @@ import {
   SkipBack,
   SkipForward,
   Bookmark,
-  BookmarkCheck
+  BookmarkCheck,
+  Send
 } from 'lucide-react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { useAuthGuard } from '../hooks/useAuthGuard'
+import {
+  getVideoDetails,
+  getVideoProgress,
+  updateVideoProgress,
+  likeVideo,
+  unlikeVideo,
+  isVideoLiked,
+  bookmarkVideo,
+  unbookmarkVideo,
+  isVideoBookmarked,
+  getNextVideo,
+  addVideoComment,
+  getVideoComments,
+  getCurrentUserId
+} from '../api'
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window')
 
@@ -72,7 +91,7 @@ interface VideoPlayerScreenProps {
 export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
   const navigation = useNavigation()
   const videoId = route?.params?.videoId || '1'
-  
+
   useAuthGuard()
 
   // Estados del reproductor
@@ -86,50 +105,97 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
   const [isLiked, setIsLiked] = useState(false)
   const [isBookmarked, setIsBookmarked] = useState(false)
 
-  // Datos del video (mock data profesional)
-  const [videoData] = useState<VideoData>({
-    id: videoId,
-    title: 'Fundamentos de Inversión en Bolsa de Valores',
-    description: 'En este video aprenderás los conceptos básicos para invertir en la bolsa de valores, incluyendo análisis técnico, fundamental y gestión de riesgo. Perfecto para principiantes que quieren dar sus primeros pasos en el mundo de las inversiones.',
-    duration: '15:42',
-    instructor: {
-      name: 'Dr. Carlos Mendoza',
-      avatar: 'https://i.pravatar.cc/100?img=3',
-      title: 'Especialista en Mercados Financieros'
-    },
-    course: {
-      name: 'Inversión para Principiantes',
-      progress: 65
-    },
-    videoUrl: 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4',
-    thumbnail: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&h=450&fit=crop',
-    likes: 1247,
-    comments: 89,
-    isLiked: false,
-    isBookmarked: false,
-    nextVideo: {
-      id: '2',
-      title: 'Análisis Técnico: Patrones de Velas',
-      thumbnail: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=400&h=225&fit=crop'
-    }
-  })
+  // Estados de API
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [videoData, setVideoData] = useState<VideoData | null>(null)
+  const [comments, setComments] = useState<any[]>([])
+  const [newComment, setNewComment] = useState('')
+  const [userId, setUserId] = useState<string | null>(null)
+  const [courseProgress, setCourseProgress] = useState(0)
+  const [showComments, setShowComments] = useState(false)
 
-  // Simular progreso del video
+  // Cargar datos del video al montar el componente
+  useEffect(() => {
+    const loadVideoData = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+
+        // Obtener ID del usuario actual
+        const currentUserId = await getCurrentUserId()
+        setUserId(currentUserId)
+
+        // Cargar detalles del video
+        const videoDetails = await getVideoDetails(videoId)
+        setVideoData(videoDetails)
+
+        // Cargar progreso del video
+        const progress = await getVideoProgress(videoId, currentUserId)
+        setCurrentTime(progress.currentTime || 0)
+        setDuration(progress.duration || 300)
+
+        // Verificar si el video está liked
+        const liked = await isVideoLiked(videoId, currentUserId)
+        setIsLiked(liked)
+
+        // Verificar si el video está bookmarked
+        const bookmarked = await isVideoBookmarked(videoId, currentUserId)
+        setIsBookmarked(bookmarked)
+
+        // Cargar comentarios
+        const videoComments = await getVideoComments(videoId)
+        setComments(videoComments)
+
+        // Cargar progreso del curso
+        setCourseProgress(videoDetails.course.progress)
+
+      } catch (err) {
+        console.error('Error loading video data:', err)
+        setError('Error al cargar los datos del video')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadVideoData()
+  }, [videoId])
+
+  // Simular progreso del video y actualizar en la API
   useEffect(() => {
     let interval: NodeJS.Timeout
-    if (isPlaying) {
-      interval = setInterval(() => {
+    if (isPlaying && userId) {
+      interval = setInterval(async () => {
         setCurrentTime(prev => {
-          if (prev >= duration) {
+          const newTime = prev + 1
+          if (newTime >= duration) {
             setIsPlaying(false)
+            // Actualizar progreso cuando se complete el video
+            updateVideoProgress(userId, videoId, {
+              progress_seconds: duration,
+              total_seconds: duration,
+              progress_percentage: 100,
+              completed: true,
+              watch_time_seconds: duration
+            })
             return duration
           }
-          return prev + 1
+          // Actualizar progreso cada 10 segundos
+          if (newTime % 10 === 0) {
+            updateVideoProgress(userId, videoId, {
+              progress_seconds: newTime,
+              total_seconds: duration,
+              progress_percentage: Math.round((newTime / duration) * 100),
+              completed: false,
+              watch_time_seconds: newTime
+            })
+          }
+          return newTime
         })
       }, 1000)
     }
     return () => clearInterval(interval)
-  }, [isPlaying, duration])
+  }, [isPlaying, duration, videoId, userId])
 
   // Ocultar controles automáticamente
   useEffect(() => {
@@ -161,14 +227,44 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
     setShowControls(true)
   }
 
-  const handleLike = () => {
-    setIsLiked(!isLiked)
-    Alert.alert('¡Gracias!', isLiked ? 'Has quitado tu like' : 'Te gusta este video')
+  const handleLike = async () => {
+    if (!userId || !videoData) return
+
+    try {
+      if (isLiked) {
+        await unlikeVideo(userId, videoId)
+        setIsLiked(false)
+        setVideoData(prev => prev ? { ...prev, likes: Math.max(0, prev.likes - 1) } : null)
+        Alert.alert('¡Gracias!', 'Has quitado tu like')
+      } else {
+        await likeVideo(userId, videoId)
+        setIsLiked(true)
+        setVideoData(prev => prev ? { ...prev, likes: prev.likes + 1 } : null)
+        Alert.alert('¡Gracias!', 'Te gusta este video')
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error)
+      Alert.alert('Error', 'No se pudo actualizar el like')
+    }
   }
 
-  const handleBookmark = () => {
-    setIsBookmarked(!isBookmarked)
-    Alert.alert('Guardado', isBookmarked ? 'Eliminado de favoritos' : 'Agregado a favoritos')
+  const handleBookmark = async () => {
+    if (!userId || !videoData) return
+
+    try {
+      if (isBookmarked) {
+        await unbookmarkVideo(userId, videoId)
+        setIsBookmarked(false)
+        Alert.alert('Guardado', 'Eliminado de favoritos')
+      } else {
+        await bookmarkVideo(userId, videoId)
+        setIsBookmarked(true)
+        Alert.alert('Guardado', 'Agregado a favoritos')
+      }
+    } catch (error) {
+      console.error('Error toggling bookmark:', error)
+      Alert.alert('Error', 'No se pudo actualizar el marcador')
+    }
   }
 
   const handleShare = () => {
@@ -181,10 +277,34 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
 
   const progressPercentage = (currentTime / duration) * 100
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2673f3" />
+          <Text style={styles.loadingText}>Cargando video...</Text>
+        </View>
+      </SafeAreaView>
+    )
+  }
+
+  if (error || !videoData) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error || 'Error al cargar el video'}</Text>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <ArrowLeft size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    )
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" translucent />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -200,12 +320,12 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
       </View>
 
       {/* Video Player */}
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.videoContainer}
         onPress={() => setShowControls(!showControls)}
         activeOpacity={1}
       >
-        <Image 
+        <Image
           source={{ uri: videoData.thumbnail }}
           style={styles.videoThumbnail}
           resizeMode="cover"
@@ -295,7 +415,7 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => Alert.alert('Comentarios', 'Función de comentarios')} style={styles.actionButton}>
+            <TouchableOpacity onPress={() => setShowComments(!showComments)} style={styles.actionButton}>
               <MessageCircle size={20} color="#666" />
               <Text style={styles.actionText}>Comentar</Text>
             </TouchableOpacity>
@@ -305,7 +425,7 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
               <Text style={styles.actionText}>Compartir</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={handleBookmark}
               style={[styles.actionButton, isBookmarked && styles.actionButtonActive]}
             >
@@ -347,6 +467,71 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
           <Text style={styles.description}>{videoData.description}</Text>
         </View>
 
+        {/* Comments Section */}
+        {showComments && (
+          <View style={styles.commentsCard}>
+            <Text style={styles.sectionTitle}>Comentarios ({comments.length})</Text>
+
+            {/* Add Comment Input */}
+            <View style={styles.addCommentContainer}>
+              <TextInput
+                style={styles.commentInput}
+                placeholder="Escribe un comentario..."
+                value={newComment}
+                onChangeText={setNewComment}
+                multiline
+                maxLength={500}
+              />
+              <TouchableOpacity
+                onPress={async () => {
+                  if (!userId || !newComment.trim()) return
+
+                  try {
+                    await addVideoComment(userId, videoId, newComment.trim())
+                    setNewComment('')
+                    // Reload comments
+                    const updatedComments = await getVideoComments(videoId)
+                    setComments(updatedComments)
+                    // Update comment count
+                    setVideoData(prev => prev ? { ...prev, comments: prev.comments + 1 } : null)
+                    Alert.alert('Comentario agregado', 'Tu comentario ha sido publicado')
+                  } catch (error) {
+                    console.error('Error adding comment:', error)
+                    Alert.alert('Error', 'No se pudo agregar el comentario')
+                  }
+                }}
+                style={[styles.sendButton, !newComment.trim() && styles.sendButtonDisabled]}
+                disabled={!newComment.trim()}
+              >
+                <Send size={16} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Comments List */}
+            {comments.length > 0 ? (
+              <View style={styles.commentsList}>
+                {comments.map((comment) => (
+                  <View key={comment.id} style={styles.commentItem}>
+                    <Image
+                      source={{ uri: comment.userAvatar || 'https://via.placeholder.com/32' }}
+                      style={styles.commentAvatar}
+                    />
+                    <View style={styles.commentContent}>
+                      <View style={styles.commentHeader}>
+                        <Text style={styles.commentAuthor}>{comment.userName}</Text>
+                        <Text style={styles.commentTime}>{comment.createdAt}</Text>
+                      </View>
+                      <Text style={styles.commentText}>{comment.content}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.noCommentsText}>Sé el primero en comentar</Text>
+            )}
+          </View>
+        )}
+
         {/* Next Video */}
         {videoData.nextVideo && (
           <View style={styles.nextVideoCard}>
@@ -381,6 +566,30 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
+  },
+  loadingText: {
+    color: '#fff',
+    fontSize: 16,
+    marginTop: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
+    padding: 20,
+  },
+  errorText: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
   },
   header: {
     flexDirection: 'row',
@@ -632,6 +841,80 @@ const styles = StyleSheet.create({
   nextVideoDuration: {
     fontSize: 12,
     color: '#666',
+  },
+  commentsCard: {
+    padding: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  addCommentContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginBottom: 16,
+    gap: 12,
+  },
+  commentInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    maxHeight: 80,
+    backgroundColor: '#f8f9fa',
+  },
+  sendButton: {
+    backgroundColor: '#2673f3',
+    padding: 10,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  commentsList: {
+    gap: 16,
+  },
+  commentItem: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  commentAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  commentContent: {
+    flex: 1,
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  commentAuthor: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111',
+  },
+  commentTime: {
+    fontSize: 12,
+    color: '#666',
+  },
+  commentText: {
+    fontSize: 14,
+    color: '#444',
+    lineHeight: 20,
+  },
+  noCommentsText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 })
 

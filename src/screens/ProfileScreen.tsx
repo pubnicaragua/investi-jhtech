@@ -28,7 +28,7 @@ import {
   MessageCircle,
   Send,
 } from "lucide-react-native"  
-import { getUserComplete, followUser, unfollowUser, getCurrentUserId } from "../rest/api"  
+import { getUserComplete, followUser, unfollowUser, getCurrentUserId, getSuggestedPeople, connectWithUser, dismissPersonSuggestion } from "../api"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -51,25 +51,23 @@ interface Community {
   isMember: boolean;  
 }  
   
-interface ProfileUser {  
-  id: string;  
-  name: string;  
-  bio?: string;  
-  location?: string;  
-  avatarUrl?: string;  
-  bannerUrl?: string;  
-  isVerified?: boolean;  
-  stats?: {  
-    postsCount: number;  
-    followersCount: number;  
-    followingCount: number;  
-  };  
-  posts?: any[];  
-  communities?: any[];  
+interface ProfileUser {
+  id: string;
+  name: string;
+  bio?: string;
+  location?: string;
+  avatarUrl?: string;
+  bannerUrl?: string;
+  isVerified?: boolean;
+  stats?: {
+    postsCount: number;
+    followersCount: number;
+    followingCount: number;
+  };
   username?: string;
   role?: string;
   learningTag?: string;
-}  
+}
   
 interface ProfileScreenProps {  
   navigation: any;  
@@ -124,27 +122,25 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
       const userData = await getUserComplete(userId)  
       
       if (userData) {
-        setProfileUser(userData)  
-        setIsOwnProfile(userId === currentUserId)  
-        setFeed(userData.posts || [])  
-        setCommunities(userData.communities || [])
-        
-        // TODO: Obtener personas sugeridas del backend
-        setSuggestedPeople([
-          {
-            id: '1',
-            name: 'Jorge Méndez',
-            title: 'Mercadólogo y financista',
-            commonInterest: 'Inversiones para principiantes',
-          },
-          {
-            id: '2',
-            name: 'Claudio Eslava',
-            title: 'Financiero',
-            commonInterest: 'Inversiones para principiantes',
-          },
-        ])
-      } else {  
+        setProfileUser(userData)
+        setIsOwnProfile(userId === currentUserId)
+
+        // Obtener personas sugeridas del backend
+        try {
+          const suggestedUsers = await getSuggestedPeople(userId)
+          const mappedSuggestedPeople = suggestedUsers.map((user: any) => ({
+            id: user.id,
+            name: user.full_name || user.nombre || user.username,
+            title: user.role || 'Usuario',
+            avatarUrl: user.avatar_url || user.photo_url,
+            commonInterest: user.intereses?.[0] || 'Intereses compartidos'
+          }))
+          setSuggestedPeople(mappedSuggestedPeople)
+        } catch (error) {
+          console.error('Error loading suggested people:', error)
+          setSuggestedPeople([])
+        }
+      } else {
         Alert.alert("Error", "No se pudo cargar el perfil del usuario")  
       }  
     } catch (error: any) {  
@@ -210,12 +206,33 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
     setShowMoreMenu(true)
   }
 
-  const handleConnectPerson = (personId: string) => {
-    Alert.alert('Conectar', 'Solicitud de conexión enviada')
+  const handleConnectPerson = async (personId: string) => {
+    try {
+      const currentUserId = await getCurrentUserId()
+      if (!currentUserId) return
+
+      await connectWithUser(currentUserId, personId)
+      Alert.alert('Conectar', 'Solicitud de conexión enviada')
+      // Remove from suggestions after connecting
+      setSuggestedPeople(prev => prev.filter(p => p.id !== personId))
+    } catch (error) {
+      console.error('Error connecting with user:', error)
+      Alert.alert('Error', 'No se pudo enviar la solicitud de conexión')
+    }
   }
 
-  const handleDismissPerson = (personId: string) => {
-    setSuggestedPeople(prev => prev.filter(p => p.id !== personId))
+  const handleDismissPerson = async (personId: string) => {
+    try {
+      const currentUserId = await getCurrentUserId()
+      if (!currentUserId) return
+
+      await dismissPersonSuggestion(currentUserId, personId)
+      setSuggestedPeople(prev => prev.filter(p => p.id !== personId))
+    } catch (error) {
+      console.error('Error dismissing person suggestion:', error)
+      // Still remove from UI even if API call fails
+      setSuggestedPeople(prev => prev.filter(p => p.id !== personId))
+    }
   }
   
   const renderPostCard = (post: any, index: number) => (  
@@ -559,14 +576,24 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
               <MoreHorizontal size={20} color="#6B7280" />
             </TouchableOpacity>
           </View>
-          <TouchableOpacity 
-            style={styles.followersLink}
-            onPress={() => navigation.navigate('Followers', { userId: targetUserId })}
-          >
-            <Text style={styles.followersLinkText}>
-              {profileUser.stats?.followersCount || 0} seguidores
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.connectionsRow}>
+            <TouchableOpacity
+              style={styles.connectionLink}
+              onPress={() => navigation.navigate('Followers', { userId: targetUserId })}
+            >
+              <Text style={styles.connectionLinkText}>
+                {profileUser.stats?.followersCount || 0} seguidores
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.connectionLink}
+              onPress={() => navigation.navigate('Following', { userId: targetUserId })}
+            >
+              <Text style={styles.connectionLinkText}>
+                {profileUser.stats?.followingCount || 0} siguiendo
+              </Text>
+            </TouchableOpacity>
+          </View>
           
           <View style={styles.activityButtons}>
             <TouchableOpacity 
@@ -618,12 +645,17 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
           <View style={styles.suggestionsSection}>
             <Text style={styles.sectionTitle}>Personas que podrías conocer</Text>
             <Text style={styles.sectionSubtitle}>Según tus intereses</Text>
-            <ScrollView 
-              horizontal 
+            <ScrollView
+              horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.suggestionsScroll}
+              pagingEnabled={false}
+              decelerationRate="fast"
             >
-              {suggestedPeople.map((person, index) => renderSuggestedPerson(person, index))}
+              {suggestedPeople.map((person, index) => (
+                <View key={index} style={styles.personCardWrapper}>
+                  {renderSuggestedPerson(person, index)}
+                </View>
+              ))}
             </ScrollView>
           </View>
         )}
@@ -1056,6 +1088,19 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginBottom: 12,
   },
+  connectionsRow: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 12,
+  },
+  connectionLink: {
+    flex: 1,
+  },
+  connectionLinkText: {
+    fontSize: 14,
+    color: '#0A66C2',
+    fontWeight: '600',
+  },
   followersLink: {
     marginBottom: 12,
   },
@@ -1084,7 +1129,7 @@ const styles = StyleSheet.create({
   },
   activityButtonText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '300',
     color: '#6B7280',
   },
   activityButtonTextActive: {
@@ -1196,7 +1241,10 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   suggestionsScroll: {
-    gap: 12,
+    paddingHorizontal: 16,
+  },
+  personCardWrapper: {
+    marginRight: 12,
   },
   personCard: {
     width: 180,
