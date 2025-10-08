@@ -183,9 +183,9 @@ export function RootStack() {
               console.log('🎓 Navigation: Sin nivel de conocimiento, yendo a PickKnowledge')
               setInitialRoute("PickKnowledge")
             } else {
-              // Onboarding completo, ir al HomeFeed
-              console.log('✅ Navigation: Onboarding completo, yendo a HomeFeed')
-              setInitialRoute("HomeFeed")
+              // Onboarding completo, mostrar pantalla de resumen antes de ir al HomeFeed
+              console.log('✅ Navigation: Onboarding completo, yendo a OnboardingComplete')
+              setInitialRoute("OnboardingComplete")
             }
           } else {
             // Si no se pudo obtener el usuario, ir a UploadAvatar por seguridad
@@ -331,11 +331,16 @@ export function RootStack() {
           component={InvestmentKnowledgeScreen}  
           options={{ gestureEnabled: false }}  
         />  
-        <Stack.Screen  
-          name="CommunityRecommendations"  
-          component={CommunityRecommendationsScreen}  
-          options={{ gestureEnabled: false }}  
-        />  
+        <Stack.Screen
+          name="OnboardingComplete"
+          component={OnboardingCompleteScreen}
+          options={{ gestureEnabled: false }}
+        />
+        <Stack.Screen
+          name="CommunityRecommendations"
+          component={CommunityRecommendationsScreen}
+          options={{ gestureEnabled: false }}
+        />
   
         {/* Main App Flow */}  
         <Stack.Screen  

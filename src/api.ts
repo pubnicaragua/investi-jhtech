@@ -118,34 +118,55 @@ export const getCurrentUser = async () => {
   }
 }  
   
-// Función faltante que causa el error  
-export const getUserComplete = async (uid: string) => {  
-  try {  
-    const user = await getUser(uid)  
-    if (!user) return null  
-  
-    return {  
-      id: user.id,  
-      name: user.full_name || user.nombre,  
-      email: user.email,  
-      bio: user.bio,  
-      location: user.pais,  
-      avatarUrl: user.avatar_url || user.photo_url,  
-      registrationDate: user.fecha_registro,  
-      preferences: user.preferences || { language: "es", notifications: true, theme: "system" },  
-      stats: user.stats || { postsCount: 0, followersCount: 0, followingCount: 0 },  
-      onboarding: {  
-        interests: user.intereses || [],  
-        goals: user.metas || [],  
-        knowledgeLevel: user.nivel_finanzas,  
-        completed: !!(user.metas?.length && user.intereses?.length && user.nivel_finanzas !== 'none')  
-      }  
-    }  
-  } catch (error) {  
-    console.error('Error getting complete user:', error)  
-    return null  
-  }  
-}  
+// Función faltante que causa el error
+export const getUserComplete = async (uid: string) => {
+  try {
+    const user = await getUser(uid)
+    if (!user) return null
+
+    // Get actual follower and following counts
+    const { count: followersCount } = await supabase
+      .from('user_follows')
+      .select('*', { count: 'exact', head: true })
+      .eq('following_id', uid)
+
+    const { count: followingCount } = await supabase
+      .from('user_follows')
+      .select('*', { count: 'exact', head: true })
+      .eq('follower_id', uid)
+
+    // Get posts count
+    const { count: postsCount } = await supabase
+      .from('posts')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', uid)
+
+    return {
+      id: user.id,
+      name: user.full_name || user.nombre,
+      email: user.email,
+      bio: user.bio,
+      location: user.pais,
+      avatarUrl: user.avatar_url || user.photo_url,
+      registrationDate: user.fecha_registro,
+      preferences: user.preferences || { language: "es", notifications: true, theme: "system" },
+      stats: {
+        postsCount: postsCount || 0,
+        followersCount: followersCount || 0,
+        followingCount: followingCount || 0
+      },
+      onboarding: {
+        interests: user.intereses || [],
+        goals: user.metas || [],
+        knowledgeLevel: user.nivel_finanzas,
+        completed: !!(user.metas?.length && user.intereses?.length && user.nivel_finanzas !== 'none')
+      }
+    }
+  } catch (error) {
+    console.error('Error getting complete user:', error)
+    return null
+  }
+}
   
 // ===== FEED FUNCTIONS =====  
 export const getUserFeed = async (userId: string, limit = 20) => {  
@@ -293,13 +314,36 @@ export const isFollowingUser = async (followerId: string, followingId: string) =
     .eq('follower_id', followerId)
     .eq('following_id', followingId)
     .single()
-  
+
   if (error && error.code !== 'PGRST116') throw error
   return !!data
 }
 
+// Follow a user
+export const followUser = async (followerId: string, followingId: string) => {
+  const { data, error } = await supabase
+    .from('user_follows')
+    .insert({ follower_id: followerId, following_id: followingId })
+
+  if (error) throw error
+  return data
+}
+
+// Unfollow a user
+export const unfollowUser = async (followerId: string, followingId: string) => {
+  const { data, error } = await supabase
+    .from('user_follows')
+    .delete()
+    .eq('follower_id', followerId)
+    .eq('following_id', followingId)
+
+  if (error) throw error
+  return data
+}
+
 // Get user's followers list
-export const getUserFollowers = async (userId: string, limit = 50) => {
+export const getUserFollowers = async (userId: string, limit = 50, page = 1) => {
+  const offset = (page - 1) * limit
   const { data, error } = await supabase
     .from('user_follows')
     .select(`
@@ -316,8 +360,8 @@ export const getUserFollowers = async (userId: string, limit = 50) => {
     `)
     .eq('following_id', userId)
     .order('created_at', { ascending: false })
-    .limit(limit)
-  
+    .range(offset, offset + limit - 1)
+
   if (error) throw error
   return (data || []).map((item: any) => ({
     ...item.follower,
@@ -327,7 +371,8 @@ export const getUserFollowers = async (userId: string, limit = 50) => {
 }
 
 // Get user's following list
-export const getUserFollowing = async (userId: string, limit = 50) => {
+export const getUserFollowing = async (userId: string, limit = 50, page = 1) => {
+  const offset = (page - 1) * limit
   const { data, error } = await supabase
     .from('user_follows')
     .select(`
@@ -344,8 +389,8 @@ export const getUserFollowing = async (userId: string, limit = 50) => {
     `)
     .eq('follower_id', userId)
     .order('created_at', { ascending: false })
-    .limit(limit)
-  
+    .range(offset, offset + limit - 1)
+
   if (error) throw error
   return (data || []).map((item: any) => ({
     ...item.following,
@@ -1847,6 +1892,604 @@ export const globalSearch = async (query: string, userId: string, limit = 20): P
     return results
   } catch (error) {
     console.error('Error in global search:', error)
+    return []
+  }
+}
+
+// ===== VIDEO SYSTEM API FUNCTIONS =====
+
+// ===== VIDEO FUNCTIONS =====
+export const getVideoDetails = async (videoId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('videos')
+      .select(`
+        *,
+        instructor:users!videos_instructor_id_fkey(id, nombre, full_name, username, avatar_url, photo_url, bio, role),
+        course:courses(id, title, description, thumbnail_url, instructor_id),
+        lesson:lessons(id, title, description, order_index, duration)
+      `)
+      .eq('id', videoId)
+      .eq('is_published', true)
+      .single()
+
+    if (error) throw error
+
+    // Get like and bookmark counts
+    const [likeCountResult, bookmarkCountResult] = await Promise.all([
+      supabase.from('video_likes').select('id', { count: 'exact', head: true }).eq('video_id', videoId),
+      supabase.from('video_bookmarks').select('id', { count: 'exact', head: true }).eq('video_id', videoId)
+    ])
+
+    return {
+      ...data,
+      like_count: likeCountResult.count || 0,
+      bookmark_count: bookmarkCountResult.count || 0,
+      instructor: {
+        id: data.instructor?.id,
+        name: data.instructor?.full_name || data.instructor?.nombre || 'Instructor',
+        avatar: data.instructor?.avatar_url || data.instructor?.photo_url,
+        title: data.instructor?.bio || 'Instructor',
+        role: data.instructor?.role || 'instructor'
+      },
+      course: data.course ? {
+        id: data.course.id,
+        name: data.course.title,
+        description: data.course.description,
+        thumbnail: data.course.thumbnail_url
+      } : null
+    }
+  } catch (error) {
+    console.error('Error fetching video details:', error)
+    return null
+  }
+}
+
+export const getVideoProgress = async (userId: string, videoId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('video_progress')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('video_id', videoId)
+      .single()
+
+    if (error && error.code !== 'PGRST116') throw error
+    return data || null
+  } catch (error) {
+    console.error('Error fetching video progress:', error)
+    return null
+  }
+}
+
+export const updateVideoProgress = async (userId: string, videoId: string, progressData: {
+  progress_seconds: number
+  total_seconds: number
+  progress_percentage: number
+  completed?: boolean
+  watch_time_seconds?: number
+}) => {
+  try {
+    const { data, error } = await supabase
+      .from('video_progress')
+      .upsert({
+        user_id: userId,
+        video_id: videoId,
+        progress_seconds: progressData.progress_seconds,
+        total_seconds: progressData.total_seconds,
+        progress_percentage: progressData.progress_percentage,
+        completed: progressData.completed || false,
+        completed_at: progressData.completed ? new Date().toISOString() : null,
+        watch_time_seconds: progressData.watch_time_seconds || 0,
+        last_watched_at: new Date().toISOString()
+      }, { onConflict: 'user_id,video_id' })
+
+    if (error) throw error
+    return data
+  } catch (error) {
+    console.error('Error updating video progress:', error)
+    throw error
+  }
+}
+
+export const likeVideo = async (userId: string, videoId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('video_likes')
+      .insert({
+        user_id: userId,
+        video_id: videoId,
+        created_at: new Date().toISOString()
+      })
+
+    if (error) throw error
+
+    // Update video like count
+    await supabase.rpc('update_video_like_count', { video_uuid: videoId })
+
+    return data
+  } catch (error) {
+    console.error('Error liking video:', error)
+    throw error
+  }
+}
+
+export const unlikeVideo = async (userId: string, videoId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('video_likes')
+      .delete()
+      .eq('user_id', userId)
+      .eq('video_id', videoId)
+
+    if (error) throw error
+
+    // Update video like count
+    await supabase.rpc('update_video_like_count', { video_uuid: videoId })
+
+    return data
+  } catch (error) {
+    console.error('Error unliking video:', error)
+    throw error
+  }
+}
+
+export const isVideoLiked = async (userId: string, videoId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('video_likes')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('video_id', videoId)
+      .single()
+
+    if (error && error.code !== 'PGRST116') throw error
+    return !!data
+  } catch (error) {
+    console.error('Error checking if video is liked:', error)
+    return false
+  }
+}
+
+export const bookmarkVideo = async (userId: string, videoId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('video_bookmarks')
+      .insert({
+        user_id: userId,
+        video_id: videoId,
+        created_at: new Date().toISOString()
+      })
+
+    if (error) throw error
+    return data
+  } catch (error) {
+    console.error('Error bookmarking video:', error)
+    throw error
+  }
+}
+
+export const unbookmarkVideo = async (userId: string, videoId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('video_bookmarks')
+      .delete()
+      .eq('user_id', userId)
+      .eq('video_id', videoId)
+
+    if (error) throw error
+    return data
+  } catch (error) {
+    console.error('Error unbookmarking video:', error)
+    throw error
+  }
+}
+
+export const isVideoBookmarked = async (userId: string, videoId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('video_bookmarks')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('video_id', videoId)
+      .single()
+
+    if (error && error.code !== 'PGRST116') throw error
+    return !!data
+  } catch (error) {
+    console.error('Error checking if video is bookmarked:', error)
+    return false
+  }
+}
+
+export const getVideoComments = async (videoId: string, limit = 20) => {
+  try {
+    const { data, error } = await supabase
+      .from('video_comments')
+      .select(`
+        *,
+        user:users(id, nombre, full_name, username, avatar_url, photo_url, role),
+        replies:video_comments!parent_id(
+          *,
+          user:users(id, nombre, full_name, username, avatar_url, photo_url, role)
+        )
+      `)
+      .eq('video_id', videoId)
+      .is('parent_id', null)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (error) throw error
+
+    return (data || []).map((comment: any) => ({
+      ...comment,
+      user: {
+        id: comment.user?.id,
+        name: comment.user?.full_name || comment.user?.nombre || comment.user?.username,
+        avatar: comment.user?.avatar_url || comment.user?.photo_url,
+        role: comment.user?.role
+      },
+      replies: (comment.replies || []).map((reply: any) => ({
+        ...reply,
+        user: {
+          id: reply.user?.id,
+          name: reply.user?.full_name || reply.user?.nombre || reply.user?.username,
+          avatar: reply.user?.avatar_url || reply.user?.photo_url,
+          role: reply.user?.role
+        }
+      }))
+    }))
+  } catch (error) {
+    console.error('Error fetching video comments:', error)
+    return []
+  }
+}
+
+export const addVideoComment = async (videoId: string, userId: string, content: string, parentId?: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('video_comments')
+      .insert({
+        video_id: videoId,
+        user_id: userId,
+        content: content,
+        parent_id: parentId || null,
+        created_at: new Date().toISOString()
+      })
+      .select(`
+        *,
+        user:users(id, nombre, full_name, username, avatar_url, photo_url, role)
+      `)
+      .single()
+
+    if (error) throw error
+
+    return {
+      ...data,
+      user: {
+        id: data.user?.id,
+        name: data.user?.full_name || data.user?.nombre || data.user?.username,
+        avatar: data.user?.avatar_url || data.user?.photo_url,
+        role: data.user?.role
+      }
+    }
+  } catch (error) {
+    console.error('Error adding video comment:', error)
+    throw error
+  }
+}
+
+// ===== COURSE FUNCTIONS =====
+export const getCourses = async (params?: { limit?: number; category?: string; instructor?: string }) => {
+  try {
+    let query = supabase
+      .from('courses')
+      .select(`
+        *,
+        instructor:users!courses_instructor_id_fkey(id, nombre, full_name, username, avatar_url, photo_url, bio, role)
+      `)
+      .eq('is_published', true)
+      .order('created_at', { ascending: false })
+
+    if (params?.limit) {
+      query = query.limit(params.limit)
+    }
+
+    if (params?.category) {
+      query = query.eq('category', params.category)
+    }
+
+    if (params?.instructor) {
+      query = query.eq('instructor_id', params.instructor)
+    }
+
+    const { data, error } = await query
+
+    if (error) throw error
+
+    return (data || []).map((course: any) => ({
+      ...course,
+      instructor: {
+        id: course.instructor?.id,
+        name: course.instructor?.full_name || course.instructor?.nombre || 'Instructor',
+        avatar: course.instructor?.avatar_url || course.instructor?.photo_url,
+        bio: course.instructor?.bio
+      }
+    }))
+  } catch (error) {
+    console.error('Error fetching courses:', error)
+    return []
+  }
+}
+
+export const getCourseDetails = async (courseId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('courses')
+      .select(`
+        *,
+        instructor:users!courses_instructor_id_fkey(id, nombre, full_name, username, avatar_url, photo_url, bio, role),
+        lessons:lessons(
+          *,
+          video:videos(id, title, duration, thumbnail_url, video_url)
+        )
+      `)
+      .eq('id', courseId)
+      .eq('is_published', true)
+      .single()
+
+    if (error) throw error
+
+    return {
+      ...data,
+      instructor: {
+        id: data.instructor?.id,
+        name: data.instructor?.full_name || data.instructor?.nombre || 'Instructor',
+        avatar: data.instructor?.avatar_url || data.instructor?.photo_url,
+        bio: data.instructor?.bio,
+        role: data.instructor?.role
+      },
+      lessons: (data.lessons || []).sort((a: any, b: any) => a.order_index - b.order_index)
+    }
+  } catch (error) {
+    console.error('Error fetching course details:', error)
+    return null
+  }
+}
+
+export const getCourseVideos = async (courseId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('videos')
+      .select(`
+        *,
+        lesson:lessons(id, title, description, order_index, duration)
+      `)
+      .eq('course_id', courseId)
+      .eq('is_published', true)
+      .order('created_at', { ascending: true })
+
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    console.error('Error fetching course videos:', error)
+    return []
+  }
+}
+
+export const getNextVideo = async (currentVideoId: string) => {
+  try {
+    // First get current video details
+    const { data: currentVideo, error: currentError } = await supabase
+      .from('videos')
+      .select('course_id, lesson_id')
+      .eq('id', currentVideoId)
+      .single()
+
+    if (currentError) throw currentError
+
+    if (!currentVideo?.course_id) return null
+
+    // Get next lesson in the course
+    const { data: nextLesson, error: lessonError } = await supabase
+      .from('lessons')
+      .select('id, order_index')
+      .eq('course_id', currentVideo.course_id)
+      .gt('order_index', currentVideo.lesson_id ?
+        (await supabase.from('lessons').select('order_index').eq('id', currentVideo.lesson_id).single()).data?.order_index || 0
+        : 0
+      )
+      .order('order_index', { ascending: true })
+      .limit(1)
+      .single()
+
+    if (lessonError && lessonError.code !== 'PGRST116') throw lessonError
+
+    if (nextLesson) {
+      // Get video for next lesson
+      const { data: nextVideo, error: videoError } = await supabase
+        .from('videos')
+        .select('*')
+        .eq('lesson_id', nextLesson.id)
+        .eq('is_published', true)
+        .single()
+
+      if (videoError && videoError.code !== 'PGRST116') throw videoError
+      return nextVideo || null
+    }
+
+    return null
+  } catch (error) {
+    console.error('Error fetching next video:', error)
+    return null
+  }
+}
+
+export const enrollInCourse = async (userId: string, courseId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('course_enrollments')
+      .insert({
+        user_id: userId,
+        course_id: courseId,
+        enrolled_at: new Date().toISOString()
+      })
+
+    if (error) throw error
+
+    // Update course enrollment count
+    await supabase.rpc('update_course_enrollment_count', { course_uuid: courseId })
+
+    return data
+  } catch (error) {
+    console.error('Error enrolling in course:', error)
+    throw error
+  }
+}
+
+export const getCourseProgress = async (userId: string, courseId: string) => {
+  try {
+    // Get all videos in the course
+    const { data: videos, error: videosError } = await supabase
+      .from('videos')
+      .select('id, duration')
+      .eq('course_id', courseId)
+      .eq('is_published', true)
+
+    if (videosError) throw videosError
+
+    if (!videos || videos.length === 0) return { progress_percentage: 0, completed_lessons: 0, total_lessons: 0 }
+
+    // Get progress for each video
+    const progressPromises = videos.map((video: { id: any })=>
+      supabase
+        .from('video_progress')
+        .select('completed')
+        .eq('user_id', userId)
+        .eq('video_id', video.id)
+        .single()
+    )
+
+    const progressResults = await Promise.all(progressPromises)
+
+    const completedLessons = progressResults.filter(result =>
+      result.data && result.data.completed
+    ).length
+
+    const progressPercentage = Math.round((completedLessons / videos.length) * 100)
+
+    return {
+      progress_percentage: progressPercentage,
+      completed_lessons: completedLessons,
+      total_lessons: videos.length
+    }
+  } catch (error) {
+    console.error('Error fetching course progress:', error)
+    return { progress_percentage: 0, completed_lessons: 0, total_lessons: 0 }
+  }
+}
+
+export const getLessons = async (courseId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('lessons')
+      .select(`
+        *,
+        video:videos(id, title, duration, thumbnail_url, video_url, is_published)
+      `)
+      .eq('course_id', courseId)
+      .order('order_index', { ascending: true })
+
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    console.error('Error fetching lessons:', error)
+    return []
+  }
+}
+
+export const completeVideoLesson = async (userId: string, lessonId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('lesson_progress')
+      .upsert({
+        user_id: userId,
+        lesson_id: lessonId,
+        completed: true,
+        completed_at: new Date().toISOString()
+      }, { onConflict: 'user_id,lesson_id' })
+
+    if (error) throw error
+    return data
+  } catch (error) {
+    console.error('Error completing lesson:', error)
+    throw error
+  }
+}
+
+export const getUserBookmarks = async (userId: string, limit = 20) => {
+  try {
+    const { data, error } = await supabase
+      .from('video_bookmarks')
+      .select(`
+        created_at,
+        video:videos(
+          id,
+          title,
+          description,
+          thumbnail_url,
+          duration,
+          instructor:users!videos_instructor_id_fkey(id, nombre, full_name, username, avatar_url, photo_url, role),
+          course:courses(id, title)
+        )
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (error) throw error
+
+    return (data || []).map((bookmark: { video: { instructor: { id: any; full_name: any; nombre: any; avatar_url: any; photo_url: any }; course: { id: any; title: any } }; created_at: any }) => ({
+      ...bookmark.video,
+      bookmarked_at: bookmark.created_at,
+      instructor: {
+        id: bookmark.video.instructor?.id,
+        name: bookmark.video.instructor?.full_name || bookmark.video.instructor?.nombre || 'Instructor',
+        avatar: bookmark.video.instructor?.avatar_url || bookmark.video.instructor?.photo_url
+      },
+      course: bookmark.video.course ? {
+        id: bookmark.video.course.id,
+        name: bookmark.video.course.title
+      } : null
+    }))
+  } catch (error) {
+    console.error('Error fetching user bookmarks:', error)
+    return []
+  }
+}
+
+export const getVideoLikes = async (videoId: string, limit = 20) => {
+  try {
+    const { data, error } = await supabase
+      .from('video_likes')
+      .select(`
+        created_at,
+        user:users(id, nombre, full_name, username, avatar_url, photo_url, bio, role)
+      `)
+      .eq('video_id', videoId)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (error) throw error
+
+    return (data || []).map((like: { user: { full_name: any; nombre: any; username: any; avatar_url: any; photo_url: any }; created_at: any }) => ({
+      ...like.user,
+      name: like.user.full_name || like.user.nombre || like.user.username,
+      avatar: like.user.avatar_url || like.user.photo_url,
+      liked_at: like.created_at
+    }))
+  } catch (error) {
+    console.error('Error fetching video likes:', error)
     return []
   }
 }
