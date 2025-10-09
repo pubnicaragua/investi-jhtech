@@ -1,145 +1,229 @@
-import React, { useEffect, useState } from 'react'
-import { View, Text, SafeAreaView, FlatList, TouchableOpacity, Image, StyleSheet, ActivityIndicator, TextInput, RefreshControl } from 'react-native'
-import { getCurrentUserId, getUserConversations, searchUsers, getSuggestedPeople } from '../rest/api'
-import { startConversationWithUser } from '../api'
-import { useAuthGuard } from '../hooks/useAuthGuard'
+/**
+ * ============================================================================
+ * NEW MESSAGE SCREEN - NUEVA CONVERSACIÓN
+ * ============================================================================
+ * 
+ * Pantalla para iniciar una nueva conversación 100% PIXEL PERFECT.
+ * 
+ * CARACTERÍSTICAS:
+ * ✅ Lista de usuarios sugeridos
+ * ✅ Búsqueda en tiempo real
+ * ✅ Pull to refresh
+ * ✅ Backend-driven (usuarios reales)
+ * ✅ Navegación fluida a ChatScreen
+ * ✅ Diseño moderno y limpio
+ * 
+ * ============================================================================
+ */
+
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  SafeAreaView,
+  FlatList,
+  TouchableOpacity,
+  Image,
+  StyleSheet,
+  ActivityIndicator,
+  TextInput,
+  RefreshControl,
+  Platform,
+  StatusBar,
+} from 'react-native';
+import { ArrowLeft, Search, Users } from 'lucide-react-native';
+import { getCurrentUserId, getUserConversations, searchUsers, getSuggestedPeople } from '../rest/api';
+import { startConversationWithUser } from '../api';
+import { useAuthGuard } from '../hooks/useAuthGuard';
+
+interface User {
+  id: string;
+  nombre: string;
+  avatar_url: string;
+  username?: string;
+  bio?: string;
+  email?: string;
+}
 
 export function NewMessageScreen({ navigation }: any) {
-  const [users, setUsers] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [query, setQuery] = useState('')
-  const [refreshing, setRefreshing] = useState(false)
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
-  useAuthGuard()
+  useAuthGuard();
 
   useEffect(() => {
-    loadUsers()
-  }, [])
+    loadUsers();
+  }, []);
 
   async function loadUsers() {
     try {
-      setLoading(true)
-      const uid = await getCurrentUserId()
-      const convs: any[] = await getUserConversations(uid || '')
-      const participants: any[] = []
+      setLoading(true);
+      const uid = await getCurrentUserId();
+      if (!uid) return;
+
+      // Get existing conversation participants
+      const convs: any[] = await getUserConversations(uid);
+      const participants: User[] = [];
       convs.forEach(c => {
         (c.participants || []).forEach((p: any) => {
-          if (p && p.id !== uid && !participants.find(u => u.id === p.id)) participants.push(p)
-        })
-      })
+          if (p && p.id !== uid && !participants.find(u => u.id === p.id)) {
+            participants.push({
+              id: p.id,
+              nombre: p.nombre || p.full_name || p.username || 'Usuario',
+              avatar_url: p.avatar_url || p.photo_url || '',
+              username: p.username || '',
+              bio: p.bio || '',
+              email: p.email || '',
+            });
+          }
+        });
+      });
 
+      // Get suggested people
       try {
-        const recs: any[] = await getSuggestedPeople(uid || '', 12)
+        const recs: any[] = await getSuggestedPeople(uid, 20);
         const normalizedRecs = (recs || []).map((u: any) => ({
           id: u.id,
-          nombre: u.nombre || u.name || u.full_name || u.username || '',
-          avatar_url: u.avatar_url || u.avatar || u.photo_url || null,
-          username: u.username || null,
-          bio: u.bio || null,
-          intereses: u.intereses || []
-        }))
+          nombre: u.nombre || u.name || u.full_name || u.username || 'Usuario',
+          avatar_url: u.avatar_url || u.avatar || u.photo_url || '',
+          username: u.username || '',
+          bio: u.bio || '',
+          email: u.email || '',
+        }));
 
-        const combined = [...participants]
+        const combined = [...participants];
         normalizedRecs.forEach((r: any) => {
-          if (r.id && r.id !== uid && !combined.find((c: any) => c.id === r.id)) combined.push(r)
-        })
+          if (r.id && r.id !== uid && !combined.find((c: any) => c.id === r.id)) {
+            combined.push(r);
+          }
+        });
 
-        if (combined.length === 0) {
-          const results: any[] = await searchUsers('')
-          setUsers((results || []).filter(u => u.id !== uid))
-        } else {
-          setUsers(combined)
-        }
+        setUsers(combined.length > 0 ? combined : participants);
       } catch (e) {
-        console.error('Error fetching suggested people:', e)
-        try {
-          const results: any[] = await searchUsers('')
-          const filtered = (results || []).filter(u => u.id !== uid)
-          const combined = [...participants]
-          filtered.forEach((r: any) => {
-            if (!combined.find((c: any) => c.id === r.id)) combined.push(r)
-          })
-          setUsers(combined)
-        } catch (e2) {
-          console.error('Fallback search failed:', e2)
-          setUsers(participants)
-        }
+        console.error('Error fetching suggested people:', e);
+        setUsers(participants);
       }
     } catch (err) {
-      console.error('Error loading users for new message:', err)
-      setUsers([])
+      console.error('Error loading users for new message:', err);
+      setUsers([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   async function handleStartConversation(userId: string) {
     try {
-      const currentUserId = await getCurrentUserId()
-      if (!currentUserId) return
-      const conv = await startConversationWithUser(currentUserId, userId)
-      // Try to find participant info from loaded users so ChatScreen can show avatar immediately
-      const participantInfo = users.find(u => u.id === userId) || { id: userId }
+      const currentUserId = await getCurrentUserId();
+      if (!currentUserId) return;
 
-      if (conv && conv.id) {
-        navigation.replace('ChatScreen', { conversationId: conv.id, type: 'direct', participant: { id: participantInfo.id, nombre: participantInfo.nombre, avatar_url: participantInfo.avatar_url } })
-      } else if (conv) {
-        // If RPC returned full conv
-        const convId = conv.id || conv
-        navigation.replace('ChatScreen', { conversationId: convId, type: 'direct', participant: { id: participantInfo.id, nombre: participantInfo.nombre, avatar_url: participantInfo.avatar_url } })
+      const conv = await startConversationWithUser(currentUserId, userId);
+      const participantInfo = users.find(u => u.id === userId) || { id: userId, nombre: 'Usuario', avatar_url: '' };
+
+      if (conv && (conv.id || typeof conv === 'string')) {
+        const convId = typeof conv === 'string' ? conv : conv.id;
+        navigation.replace('ChatScreen', {
+          conversationId: convId,
+          type: 'direct',
+          participant: {
+            id: participantInfo.id,
+            nombre: participantInfo.nombre,
+            avatar_url: participantInfo.avatar_url,
+          },
+        });
       }
     } catch (err) {
-      console.error('Error starting conversation:', err)
+      console.error('Error starting conversation:', err);
     }
   }
 
-  function renderItem({ item }: { item: any }) {
+  function renderItem({ item }: { item: User }) {
     return (
-      <TouchableOpacity style={styles.item} onPress={() => handleStartConversation(item.id)}>
-        <Image source={{ uri: item.avatar_url || item.avatar || 'https://i.pravatar.cc/100' }} style={styles.avatar} />
-        <View>
-          <Text style={styles.name}>{item.nombre || item.full_name || item.username || 'Usuario'}</Text>
-          <Text style={styles.subtitle}>{item.email || item.username || ''}</Text>
+      <TouchableOpacity
+        style={styles.userItem}
+        activeOpacity={0.6}
+        onPress={() => handleStartConversation(item.id)}
+      >
+        <Image
+          source={{ uri: item.avatar_url || 'https://i.pravatar.cc/100' }}
+          style={styles.avatar}
+        />
+        <View style={styles.userInfo}>
+          <Text style={styles.userName}>{item.nombre}</Text>
+          <Text style={styles.userSubtitle} numberOfLines={1}>
+            {item.username ? `@${item.username}` : item.email || 'Usuario'}
+          </Text>
         </View>
       </TouchableOpacity>
-    )
+    );
   }
 
-  // Handler para pull-to-refresh desde la UI
   const onRefresh = async () => {
-    setRefreshing(true)
+    setRefreshing(true);
     try {
-      await loadUsers()
+      await loadUsers();
     } catch (e) {
-      console.error('Refresh error:', e)
+      console.error('Refresh error:', e);
     } finally {
-      setRefreshing(false)
+      setRefreshing(false);
     }
+  };
+
+  const filteredUsers = users.filter(u =>
+    query
+      ? (u.nombre || '').toLowerCase().includes(query.toLowerCase()) ||
+        (u.username || '').toLowerCase().includes(query.toLowerCase())
+      : true
+  );
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2673f3" />
+        </View>
+      </SafeAreaView>
+    );
   }
 
-  if (loading) return (
-    <SafeAreaView style={styles.container}>
-      <ActivityIndicator style={{ marginTop: 40 }} size="large" color="#2673f3" />
-    </SafeAreaView>
-  )
+  const headerPaddingTop = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 20) + 10 : 12;
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Encabezado con botón para regresar */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} accessibilityLabel="Volver">
-          <Text style={styles.backCaret}>{'<'}</Text>
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          accessibilityLabel="Volver"
+        >
+          <ArrowLeft size={24} color="#666" />
         </TouchableOpacity>
-        <Text style={styles.title}>Nuevo mensaje</Text>
-        <View style={{ width: 36 }} />
+        <Text style={styles.headerTitle}>Nuevo mensaje</Text>
+        <View style={{ width: 40 }} />
       </View>
+
+      {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <TextInput placeholder="Buscar" value={query} onChangeText={setQuery} style={styles.search} />
+        <View style={styles.searchBar}>
+          <Search size={18} color="#999" />
+          <TextInput
+            placeholder="Buscar contactos..."
+            placeholderTextColor="#999"
+            value={query}
+            onChangeText={setQuery}
+            style={styles.searchInput}
+          />
+        </View>
       </View>
+
+      {/* User List */}
       <FlatList
-        data={users.filter(u => (query ? (u.nombre||u.username||'').toLowerCase().includes(query.toLowerCase()) : true))}
+        data={filteredUsers}
         keyExtractor={u => u.id}
         renderItem={renderItem}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -148,37 +232,129 @@ export function NewMessageScreen({ navigation }: any) {
             tintColor="#2673f3"
           />
         }
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Users size={48} color="#ccc" />
+            <Text style={styles.emptyStateText}>
+              {query ? 'No se encontraron usuarios' : 'No hay contactos disponibles'}
+            </Text>
+            <Text style={styles.emptyStateSubtext}>
+              {query ? 'Intenta con otro nombre' : 'Explora comunidades para conocer gente'}
+            </Text>
+          </View>
+        }
+        contentContainerStyle={filteredUsers.length === 0 ? { flex: 1 } : {}}
       />
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  header: { borderBottomWidth: 1, borderBottomColor: '#eee' },
-  title: { fontSize: 18, fontWeight: '600' , textAlign: 'center'},
-  item: { flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: '#f5f5f5' },
-  avatar: { width: 44, height: 44, borderRadius: 22, marginRight: 12 },
-  name: { fontSize: 16, fontWeight: '600' },
-  subtitle: { fontSize: 12, color: '#666' },
-  searchContainer: { paddingHorizontal: 16, paddingVertical: 8 },
-  search: { backgroundColor: '#f5f5f5', borderRadius: 8, padding: 8 },
-  backButton: {
-    width: 36,
-    alignItems: 'center',
-    justifyContent: 'center'
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
   },
-  backCaret: {
-    fontSize: 30,
-    color: '#666',
+
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    backgroundColor: '#fff',
+  },
+
+  backButton: {
+    padding: 4,
+  },
+
+  headerTitle: {
+    fontSize: 20,
     fontWeight: '600',
-    paddingTop: 50,
-  }
-  ,
-  /* FAB styles removed */
-})
+    color: '#111',
+  },
 
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#fff',
+  },
 
-// Not merging styles to keep TypeScript types intact; use extraStyles directly where needed.
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
 
-export default NewMessageScreen
+  searchInput: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 15,
+    color: '#111',
+    paddingVertical: 0,
+  },
+
+  userItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+  },
+
+  avatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+  },
+
+  userInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+
+  userName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111',
+    marginBottom: 2,
+  },
+
+  userSubtitle: {
+    fontSize: 14,
+    color: '#666',
+  },
+
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+
+  emptyStateSubtext: {
+    fontSize: 15,
+    color: '#999',
+    textAlign: 'center',
+  },
+});
+
+export default NewMessageScreen;
