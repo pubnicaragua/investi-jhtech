@@ -67,9 +67,8 @@ export const Sidebar = ({
   onClose: () => void;
 }) => {
   const navigation = useNavigation();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const slideAnim = useRef(new Animated.Value(-width)).current;
-  const [user, setUser] = useState<any>(null);
   const [communities, setCommunities] = useState<any[]>([]);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedCommunities, setSelectedCommunities] = useState<string[]>([]);
@@ -81,41 +80,32 @@ export const Sidebar = ({
       duration: 280,  
       useNativeDriver: true,  
     }).start();  
-  }, [isOpen]);  
+  }, [isOpen]);
   
   useEffect(() => {  
     const fetchData = async () => {
       if (!isOpen) return;
       
       try {  
-        console.log('🔄 [Sidebar] Fetching user data...')
-        const currentUser = await getCurrentUser();  
-        console.log('✅ [Sidebar] User data received:', currentUser?.nombre || currentUser?.username)
+        console.log('🔄 [Sidebar] User from AuthContext:', user?.nombre || user?.username || user?.id)
         
-        // Establecer país por defecto si no existe
-        if (currentUser && !currentUser.pais) {
-          currentUser.pais = 'Chile'
-        }
-        
-        setUser(currentUser);
-        
-        if (currentUser?.id) {
-          console.log('🔄 [Sidebar] Fetching user communities for userId:', currentUser.id)
-          const userComms = await getUserCommunities(currentUser.id);  
+        if (user?.id) {
+          console.log('🔄 [Sidebar] Fetching user communities for userId:', user.id)
+          const userComms = await getUserCommunities(user.id);  
           console.log('✅ [Sidebar] Communities received:', userComms?.length || 0)
           setCommunities(userComms || []);
           
           // Cargar accesos rápidos guardados
           await loadQuickAccess(userComms || [])
         } else {
-          console.warn('⚠️ [Sidebar] No user ID available')
+          console.warn('⚠️ [Sidebar] No user ID available from AuthContext')
         }
       } catch (err) {  
         console.error("❌ [Sidebar] Error loading data:", err);
       }
     };  
     fetchData();
-  }, [isOpen]);  
+  }, [isOpen, user]);  
   
   const loadQuickAccess = async (comms: any[]) => {
     try {
@@ -168,7 +158,9 @@ export const Sidebar = ({
         Alert.alert('Error', 'No se pudo cargar tu perfil. Intenta de nuevo.')
         return
       }
-      navigation.navigate("Profile" as never, { userId: user?.id } as never);  
+      
+      // Use push instead of navigate to ensure it works from any screen
+      (navigation as any).push("Profile", { userId: user.id });
       console.log('✅ [Sidebar] Navigation to Profile initiated')
       onClose();  
     } catch (error) {  
@@ -180,7 +172,7 @@ export const Sidebar = ({
   const handleCommunitiesPress = () => {  
     try {  
       console.log('🔄 [Sidebar] Navigating to Communities')
-      navigation.navigate("Communities" as never);  
+      (navigation as any).push("Communities");
       console.log('✅ [Sidebar] Navigation to Communities initiated')
       onClose();  
     } catch (error) {  
@@ -192,7 +184,7 @@ export const Sidebar = ({
   const handleSettingsPress = () => {  
     try {  
       console.log('🔄 [Sidebar] Navigating to Settings')
-      navigation.navigate("Settings" as never);  
+      (navigation as any).push("Settings");
       console.log('✅ [Sidebar] Navigation to Settings initiated')
       onClose();  
     } catch (error) {  
@@ -204,7 +196,7 @@ export const Sidebar = ({
   const handleSavedPostsPress = () => {  
     try {  
       console.log('🔄 [Sidebar] Navigating to SavedPosts')
-      navigation.navigate("SavedPosts" as never);  
+      (navigation as any).push("SavedPosts");
       console.log('✅ [Sidebar] Navigation to SavedPosts initiated')
       onClose();  
     } catch (error) {  
@@ -216,7 +208,7 @@ export const Sidebar = ({
   const handleChatPress = () => {
     try {
       console.log('🔄 [Sidebar] Navigating to Messages')
-      navigation.navigate("Messages" as never);
+      (navigation as any).push("Messages");
       console.log('✅ [Sidebar] Navigation to Messages initiated')
       onClose();
     } catch (error) {
@@ -228,7 +220,7 @@ export const Sidebar = ({
   const handleCommunityPress = (communityId: string) => {
     try {
       console.log('🔄 [Sidebar] Navigating to CommunityDetail with ID:', communityId)
-      navigation.navigate("CommunityDetail" as never, { communityId } as never);
+      (navigation as any).push("CommunityDetail", { communityId });
       console.log('✅ [Sidebar] Navigation to CommunityDetail initiated')
       onClose();
     } catch (error) {

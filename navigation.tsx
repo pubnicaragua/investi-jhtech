@@ -183,9 +183,10 @@ export function RootStack() {
               console.log('🎓 Navigation: Sin nivel de conocimiento, yendo a PickKnowledge')
               setInitialRoute("PickKnowledge")
             } else {
-              // Onboarding completo, mostrar pantalla de resumen antes de ir al HomeFeed
-              console.log('✅ Navigation: Onboarding completo, yendo a OnboardingComplete')
-              setInitialRoute("OnboardingComplete")
+              // Onboarding completo - usar HomeFeed como default
+              // El deep linking manejará la navegación a rutas específicas
+              console.log('✅ Navigation: Onboarding completo, usando HomeFeed como default')
+              setInitialRoute("HomeFeed")
             }
           } else {
             // Si no se pudo obtener el usuario, ir a UploadAvatar por seguridad

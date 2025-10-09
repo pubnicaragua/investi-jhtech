@@ -1,7 +1,7 @@
 import { I18nextProvider } from "react-i18next"  
 import { SafeAreaProvider } from 'react-native-safe-area-context'  
 import { NavigationContainer } from '@react-navigation/native';
-import { RootStack } from "./src/navigation"
+import { RootStack } from "./navigation"
 import * as Linking from "expo-linking"  
 import i18n from "./src/i18n/i18n"
 import { AuthProvider } from "./src/contexts/AuthContext"
@@ -23,7 +23,8 @@ const linking = {
       PickInterests: "/pick-interests",  
       PickKnowledge: "/pick-knowledge",  
       CommunityRecommendations: "/community-recommendations",  
-      HomeFeed: "/home",  
+      HomeFeed: "/home",
+      Home: "/feed",  
       CreatePost: "/create-post",  
       PostDetail: "/post/:postId",  
       Profile: "/profile/:userId?",  

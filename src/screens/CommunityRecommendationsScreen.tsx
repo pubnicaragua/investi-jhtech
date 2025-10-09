@@ -19,7 +19,6 @@ import { useTranslation } from "react-i18next"
 import { X, Users, Check, ChevronLeft } from "lucide-react-native"
 import { 
   joinCommunity, 
-  getCurrentUser, 
   getCommunityDetailsComplete, 
   getSuggestedPeople, 
   followUserNew, 
@@ -27,6 +26,7 @@ import {
 } from "../rest/api"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { useAuth } from "../contexts/AuthContext"
 
 const { width, height } = Dimensions.get("window")
 
@@ -55,6 +55,7 @@ type SuggestedPerson = {
 export function CommunityRecommendationsScreen({ navigation, route }: any) {
   const { t } = useTranslation()
   const insets = useSafeAreaInsets()
+  const { user } = useAuth()
   const [communities, setCommunities] = useState<Community[]>([])
   const [joined, setJoined] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -79,10 +80,9 @@ export function CommunityRecommendationsScreen({ navigation, route }: any) {
   const loadCommunities = async () => {
     try {
       setLoading(true)
-      const user = await getCurrentUser()
       
       if (!user?.id) {
-        console.error('❌ No user found')
+        console.error('❌ No user found in AuthContext')
         setLoading(false)
         return
       }
@@ -256,7 +256,6 @@ export function CommunityRecommendationsScreen({ navigation, route }: any) {
         communityName: community.name
       })
 
-      const user = await getCurrentUser()
       console.log('🔵 [handleJoin] Usuario obtenido:', {
         userId: user?.id,
         userName: user?.name || user?.username
@@ -319,7 +318,6 @@ export function CommunityRecommendationsScreen({ navigation, route }: any) {
 
   const handleFollowPerson = async (personId: string) => {
     try {
-      const user = await getCurrentUser()
       if (user?.id) {
         await followUserNew(user.id, personId, 'suggestions')
         setFollowedPeople((prev) => [...prev, personId])
@@ -328,17 +326,27 @@ export function CommunityRecommendationsScreen({ navigation, route }: any) {
       console.error('Error following person:', error)
     }
   }
-
   const handleDismissPerson = (personId: string) => {
     setDismissedPeople((prev) => [...prev, personId])
   }
 
   const handleFinish = async () => {
-    await AsyncStorage.setItem("@communities_complete", "true")
-    if (route.params?.onComplete) {
-      route.params.onComplete()
-    } else {
-      navigation.reset({ index: 0, routes: [{ name: "HomeFeed" }] })
+    try {
+      console.log('[CommunityRecommendations] Finishing onboarding');
+      await AsyncStorage.setItem("@onboarding_complete", "true");
+      await AsyncStorage.setItem("@communities_complete", "true");
+
+      if (route.params?.onComplete) {
+        console.log('[CommunityRecommendations] Calling onComplete callback');
+        route.params.onComplete();
+      } else {
+        console.warn('[CommunityRecommendations] No onComplete callback, navigating to HomeFeed');
+        // Si no hay callback, intentar navegar directamente
+        // @ts-ignore
+        navigation.navigate('HomeFeed');
+      }
+    } catch (error) {
+      console.error('[CommunityRecommendations] Error finishing:', error);
     }
   }
 

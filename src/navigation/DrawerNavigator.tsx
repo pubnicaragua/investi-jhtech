@@ -81,7 +81,7 @@ export function DrawerNavigator() {
       }}
     >
       <Drawer.Screen 
-        name="HomeFeed" 
+        name="Home" 
         component={HomeFeedScreen} 
         options={{
           title: 'Inicio',

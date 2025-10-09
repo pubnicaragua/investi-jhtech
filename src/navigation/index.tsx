@@ -108,46 +108,41 @@ export function RootStack() {
         }}
       />
 
-      {/* Onboarding Flow */}
-      {isAuthenticated && !isOnboarded && (
-        <>
-          <Stack.Screen 
-            name="Onboarding"
-            options={{
-              headerShown: false
-            }}
-          >
-            {() => <OnboardingScreenWrapper route={{
-              params: {
-                onComplete: handleOnboardingComplete
-              }
-            }} />}
-          </Stack.Screen>
-          <Stack.Screen 
-            name="CommunityRecommendations" 
-            component={CommunityRecommendationsScreen}
-            options={{
-              headerShown: false,
-              gestureEnabled: false
-            }}
-            initialParams={{
-              onComplete: handleOnboardingComplete
-            }}
-          />
-        </>
-      )}
+      {/* Onboarding Flow - Always render */}
+      <Stack.Screen 
+        name="Onboarding"
+        options={{
+          headerShown: false
+        }}
+      >
+        {() => <OnboardingScreenWrapper route={{
+          params: {
+            onComplete: handleOnboardingComplete
+          }
+        }} />}
+      </Stack.Screen>
+      
+      <Stack.Screen 
+        name="CommunityRecommendations" 
+        component={CommunityRecommendationsScreen}
+        options={{
+          headerShown: false,
+          gestureEnabled: false
+        }}
+        initialParams={{
+          onComplete: handleOnboardingComplete
+        }}
+      />
 
-      {/* Main App */}
-      {isAuthenticated && isOnboarded && (
-        <Stack.Screen 
-          name="HomeFeed" 
-          component={DrawerNavigator}
-          options={{
-            headerShown: false,
-            gestureEnabled: false
-          }}
-        />
-      )}
+      {/* Main App - Always render */}
+      <Stack.Screen 
+        name="HomeFeed" 
+        component={DrawerNavigator}
+        options={{
+          headerShown: false,
+          gestureEnabled: false
+        }}
+      />
     </Stack.Navigator>
   );
 }
