@@ -81,17 +81,36 @@ export function SignInScreen({ navigation }: any) {
   }
 
   const handleSignIn = async () => {
+    // Validar campos
     if (!email || !password) {
-      Alert.alert(t("common.error"), t("auth.completeAllFields"))
+      Alert.alert(t("common.error"), t("auth.completeAllFields") || "Por favor completa todos los campos")
       return
     }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email.trim())) {
+      Alert.alert("Error", "Por favor ingresa un correo electrónico válido")
+      return
+    }
+
+    // Validar longitud de contraseña
+    if (password.length < 6) {
+      Alert.alert("Error", "La contraseña debe tener al menos 6 caracteres")
+      return
+    }
+
     setLoading(true)
     try {
-      await signIn(email, password)
-      console.log("SignIn successful - user authenticated")
+      console.log("[SignInScreen] Attempting sign in...")
+      await signIn(email.trim(), password)
+      console.log("[SignInScreen] SignIn successful - user authenticated")
     } catch (error: any) {
-      console.error("SignIn error:", error)
-      Alert.alert("Error", error.message || "Error al iniciar sesión. Verifica tus credenciales.")
+      console.error("[SignInScreen] SignIn error:", error)
+      Alert.alert(
+        "Error de autenticación",
+        error.message || "Error al iniciar sesión. Verifica tus credenciales."
+      )
     } finally {
       setLoading(false)
     }

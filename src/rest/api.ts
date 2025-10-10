@@ -1182,18 +1182,237 @@ export async function uploadImage(file: any) {
   
 // ===== CURSOS Y LECCIONES =====  
 
-// Funciones para educación - mantén las existentes y agrega estas  
-export async function getCourses() {  
-  try {  
-    return await request("GET", "/courses", {  
-      params: {  
-        select: "id,titulo,descripcion,imagen_url,category,precio,total_lecciones,duracion_total"  
-      }  
-    })  
-  } catch (error: any) {  
-    console.error('Error fetching courses:', error)  
-    return []  
-  }  
+// ===== EDUCATION SYSTEM =====
+
+// Video Themes
+export async function getVideoThemes() {
+  try {
+    return await request("GET", "/video_themes", {
+      params: {
+        select: "id,name,color,order_index",
+        is_active: "eq.true",
+        order: "order_index.asc"
+      }
+    });
+  } catch (error: any) {
+    console.error('Error fetching video themes:', error);
+    return [];
+  }
+}
+
+// Videos
+export async function getVideos(themeId?: string) {
+  try {
+    let params: any = {
+      select: "id,title,description,video_url,thumbnail_url,duration,theme_id,view_count,like_count,category,tags",
+      is_published: "eq.true",
+      order: "created_at.desc"
+    };
+    
+    if (themeId) {
+      params.theme_id = `eq.${themeId}`;
+    }
+    
+    return await request("GET", "/videos", { params });
+  } catch (error: any) {
+    console.error('Error fetching videos:', error);
+    return [];
+  }
+}
+
+// Course Topics
+export async function getCourseTopics() {
+  try {
+    return await request("GET", "/course_topics", {
+      params: {
+        select: "id,name,description,icon,color,order_index",
+        is_active: "eq.true",
+        order: "order_index.asc"
+      }
+    });
+  } catch (error: any) {
+    console.error('Error fetching course topics:', error);
+    return [];
+  }
+}
+
+// Courses
+export async function getCourses(topicId?: string) {
+  try {
+    let params: any = {
+      select: "id,title,description,category,level,duration,price,currency,topic,icon,color",
+      is_published: "eq.true",
+      order: "created_at.desc"
+    };
+    
+    if (topicId) {
+      params.topic = `eq.${topicId}`;
+    }
+    
+    return await request("GET", "/courses", { params });
+  } catch (error: any) {
+    console.error('Error fetching courses:', error);
+    return [];
+  }
+}
+
+// Educational Tools
+export async function getEducationalTools() {
+  try {
+    return await request("GET", "/educational_tools", {
+      params: {
+        select: "id,title,description,icon,route,is_premium,order_index",
+        is_active: "eq.true",
+        order: "order_index.asc"
+      }
+    });
+  } catch (error: any) {
+    console.error('Error fetching educational tools:', error);
+    return [];
+  }
+}
+
+// User Video Progress
+export async function getUserVideoProgress(userId: string) {
+  try {
+    return await request("GET", "/video_progress", {
+      params: {
+        user_id: `eq.${userId}`,
+        select: "video_id,progress_percentage,completed,last_watched_at",
+        order: "last_watched_at.desc"
+      }
+    });
+  } catch (error: any) {
+    console.error('Error fetching video progress:', error);
+    return [];
+  }
+}
+
+// User Course Progress
+export async function getUserCourseProgress(userId: string) {
+  try {
+    return await request("GET", "/course_enrollments", {
+      params: {
+        user_id: `eq.${userId}`,
+        select: "course_id,progress_percentage,completed_at,last_accessed_at",
+        is_active: "eq.true",
+        order: "last_accessed_at.desc"
+      }
+    });
+  } catch (error: any) {
+    console.error('Error fetching course progress:', error);
+    return [];
+  }
+}
+
+// Update Video Progress
+export async function updateVideoProgress(userId: string, videoId: string, progressPercentage: number, completed: boolean = false) {
+  try {
+    return await request("POST", "/video_progress", {
+      body: {
+        user_id: userId,
+        video_id: videoId,
+        progress_percentage: progressPercentage,
+        completed: completed,
+        last_watched_at: new Date().toISOString()
+      }
+    });
+  } catch (error: any) {
+    console.error('Error updating video progress:', error);
+    throw error;
+  }
+}
+
+// Update Course Progress
+export async function updateCourseProgress(userId: string, courseId: string, progressPercentage: number) {
+  try {
+    return await request("PATCH", "/course_enrollments", {
+      params: {
+        user_id: `eq.${userId}`,
+        course_id: `eq.${courseId}`
+      },
+      body: {
+        progress_percentage: progressPercentage,
+        last_accessed_at: new Date().toISOString()
+      }
+    });
+  } catch (error: any) {
+    console.error('Error updating course progress:', error);
+    throw error;
+  }
+}
+
+// Enroll in Course
+export async function enrollInCourse(userId: string, courseId: string) {
+  try {
+    return await request("POST", "/course_enrollments", {
+      body: {
+        user_id: userId,
+        course_id: courseId,
+        enrolled_at: new Date().toISOString(),
+        is_active: true
+      }
+    });
+  } catch (error: any) {
+    console.error('Error enrolling in course:', error);
+    throw error;
+  }
+}
+
+// Get Lessons for Course
+export async function getCourseLessons(courseId: string) {
+  try {
+    return await request("GET", "/lessons", {
+      params: {
+        course_id: `eq.${courseId}`,
+        select: "id,title,description,order_index,duration,content_type,is_free",
+        order: "order_index.asc"
+      }
+    });
+  } catch (error: any) {
+    console.error('Error fetching course lessons:', error);
+    return [];
+  }
+}
+
+// Get User Lesson Progress
+export async function getUserLessonProgress(userId: string, courseId: string) {
+  try {
+    const lessons = await getCourseLessons(courseId);
+    const lessonIds = lessons.map((l: any) => l.id);
+    
+    if (lessonIds.length === 0) return [];
+    
+    return await request("GET", "/lesson_progress", {
+      params: {
+        user_id: `eq.${userId}`,
+        lesson_id: `in.(${lessonIds.join(',')})`,
+        select: "lesson_id,completed,progress_percentage,last_accessed_at"
+      }
+    });
+  } catch (error: any) {
+    console.error('Error fetching lesson progress:', error);
+    return [];
+  }
+}
+
+// Complete Lesson
+export async function completeLesson(userId: string, lessonId: string) {
+  try {
+    return await request("POST", "/lesson_progress", {
+      body: {
+        user_id: userId,
+        lesson_id: lessonId,
+        completed: true,
+        progress_percentage: 100,
+        completed_at: new Date().toISOString(),
+        last_accessed_at: new Date().toISOString()
+      }
+    });
+  } catch (error: any) {
+    console.error('Error completing lesson:', error);
+    throw error;
+  }
 }  
   
 export async function getLessons(courseId?: string) {  
@@ -1254,11 +1473,6 @@ export async function getUserLearningProgress(userId: string) {
 
 
 
-export async function completeLesson(user_id: string, lesson_id: string) {  
-  return await request("POST", "/lesson_progress", {  
-    body: { user_id, lesson_id },  
-  })  
-}
 
 
   

@@ -10,12 +10,6 @@
       "android": {
         "gradleCommand": ":app:assembleDebug",
         "buildType": "apk"
-      },
-      "env": {
-        "NODE_ENV": "development",
-        "EXPO_USE_TURBO_MODULES": "false",
-        "EXPO_USE_FABRIC": "false",
-        "REACT_NATIVE_NEW_ARCH_ENABLED": "false"
       }
     },
     "preview": {

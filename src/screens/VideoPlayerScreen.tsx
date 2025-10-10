@@ -57,7 +57,7 @@ interface VideoData {
   id: string
   title: string
   description: string
-  duration: string
+  duration: string | number
   instructor: {
     name: string
     avatar: string
@@ -67,9 +67,12 @@ interface VideoData {
     name: string
     progress: number
   }
-  videoUrl: string
-  thumbnail: string
+  videoUrl?: string
+  video_url?: string
+  thumbnail?: string
+  thumbnail_url?: string
   likes: number
+  like_count?: number
   comments: number
   isLiked: boolean
   isBookmarked: boolean
@@ -124,31 +127,58 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
 
         // Obtener ID del usuario actual
         const currentUserId = await getCurrentUserId()
-        setUserId(currentUserId)
+        
+        // Si no hay usuario autenticado, usar un ID temporal
+        const effectiveUserId = currentUserId || 'anonymous-user'
+        setUserId(effectiveUserId)
 
         // Cargar detalles del video
         const videoDetails = await getVideoDetails(videoId)
+        
+        if (!videoDetails) {
+          throw new Error('No se pudo cargar el video')
+        }
+        
         setVideoData(videoDetails)
 
-        // Cargar progreso del video
-        const progress = await getVideoProgress(videoId, currentUserId)
-        setCurrentTime(progress.currentTime || 0)
-        setDuration(progress.duration || 300)
+        // Solo cargar datos de usuario si está autenticado
+        if (currentUserId) {
+          // Cargar progreso del video (ignorar errores RLS temporalmente)
+          try {
+            const progress = await getVideoProgress(currentUserId, videoId)
+            setCurrentTime(progress?.progress_seconds || 0)
+            setDuration(videoDetails.duration || progress?.total_seconds || 300)
+          } catch (err) {
+            console.warn('Could not load video progress:', err)
+            setDuration(videoDetails.duration || 300)
+          }
 
-        // Verificar si el video está liked
-        const liked = await isVideoLiked(videoId, currentUserId)
-        setIsLiked(liked)
+          // Verificar si el video está liked (ignorar errores RLS temporalmente)
+          try {
+            const liked = await isVideoLiked(currentUserId, videoId)
+            setIsLiked(liked)
+          } catch (err) {
+            console.warn('Could not check video like status:', err)
+          }
 
-        // Verificar si el video está bookmarked
-        const bookmarked = await isVideoBookmarked(videoId, currentUserId)
-        setIsBookmarked(bookmarked)
+          // Verificar si el video está bookmarked (ignorar errores RLS temporalmente)
+          try {
+            const bookmarked = await isVideoBookmarked(currentUserId, videoId)
+            setIsBookmarked(bookmarked)
+          } catch (err) {
+            console.warn('Could not check video bookmark status:', err)
+          }
+        } else {
+          // Usuario no autenticado - usar valores por defecto
+          setDuration(videoDetails.duration || 300)
+        }
 
         // Cargar comentarios
         const videoComments = await getVideoComments(videoId)
         setComments(videoComments)
 
         // Cargar progreso del curso
-        setCourseProgress(videoDetails.course.progress)
+        setCourseProgress(videoDetails.course?.progress || 0)
 
       } catch (err) {
         console.error('Error loading video data:', err)
@@ -311,86 +341,41 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
           <ArrowLeft size={24} color="#fff" />
         </TouchableOpacity>
         <View style={styles.headerInfo}>
-          <Text style={styles.courseTitle}>{videoData.course.name}</Text>
-          <Text style={styles.progressText}>{videoData.course.progress}% completado</Text>
+          <Text style={styles.courseTitle}>{videoData.title}</Text>
+          <Text style={styles.progressText}>{courseProgress}% completado</Text>
         </View>
         <TouchableOpacity style={styles.moreButton}>
           <MoreVertical size={24} color="#fff" />
         </TouchableOpacity>
       </View>
 
-      {/* Video Player */}
-      <TouchableOpacity
-        style={styles.videoContainer}
-        onPress={() => setShowControls(!showControls)}
-        activeOpacity={1}
-      >
-        <Image
-          source={{ uri: videoData.thumbnail }}
-          style={styles.videoThumbnail}
-          resizeMode="cover"
-        />
-        
-        {/* Video Overlay */}
-        <View style={styles.videoOverlay}>
-          {/* Progress Bar */}
-          <View style={styles.progressContainer}>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${progressPercentage}%` }]} />
+      {/* Video Player - YouTube Embed */}
+      <View style={styles.videoContainer}>
+        {videoData.video_url ? (
+          <iframe
+            src={videoData.video_url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/') + '?autoplay=0&rel=0&modestbranding=1'}
+            style={{
+              width: '100%',
+              height: '100%',
+              border: 'none',
+            }}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        ) : (
+          <View style={styles.noVideoContainer}>
+            <Image
+              source={{ uri: videoData.thumbnail_url }}
+              style={styles.videoThumbnail}
+              resizeMode="cover"
+            />
+            <View style={styles.noVideoOverlay}>
+              <Play size={64} color="#fff" />
+              <Text style={styles.noVideoText}>Video no disponible</Text>
             </View>
-            <Text style={styles.timeText}>
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </Text>
           </View>
-
-          {/* Controls */}
-          {showControls && (
-            <View style={styles.controlsContainer}>
-              <TouchableOpacity onPress={() => handleSeek('backward')} style={styles.controlButton}>
-                <SkipBack size={32} color="#fff" />
-              </TouchableOpacity>
-              
-              <TouchableOpacity onPress={handlePlayPause} style={styles.playButton}>
-                {isPlaying ? (
-                  <Pause size={48} color="#fff" />
-                ) : (
-                  <Play size={48} color="#fff" />
-                )}
-              </TouchableOpacity>
-              
-              <TouchableOpacity onPress={() => handleSeek('forward')} style={styles.controlButton}>
-                <SkipForward size={32} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Top Controls */}
-          {showControls && (
-            <View style={styles.topControls}>
-              <TouchableOpacity onPress={() => setIsMuted(!isMuted)} style={styles.volumeButton}>
-                {isMuted ? (
-                  <VolumeX size={24} color="#fff" />
-                ) : (
-                  <Volume2 size={24} color="#fff" />
-                )}
-              </TouchableOpacity>
-              
-              <View style={styles.speedContainer}>
-                <TouchableOpacity 
-                  onPress={() => setPlaybackSpeed(playbackSpeed === 1.0 ? 1.5 : playbackSpeed === 1.5 ? 2.0 : 1.0)}
-                  style={styles.speedButton}
-                >
-                  <Text style={styles.speedText}>{playbackSpeed}x</Text>
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity onPress={() => setIsFullscreen(!isFullscreen)} style={styles.fullscreenButton}>
-                <Maximize size={24} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      </TouchableOpacity>
+        )}
+      </View>
 
       {/* Video Info */}
       <ScrollView style={styles.contentContainer}>
@@ -398,9 +383,9 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
           <Text style={styles.videoTitle}>{videoData.title}</Text>
           
           <View style={styles.videoStats}>
-            <Text style={styles.statsText}>{videoData.likes.toLocaleString()} likes</Text>
-            <Text style={styles.statsText}>{videoData.comments} comentarios</Text>
-            <Text style={styles.statsText}>Duración: {videoData.duration}</Text>
+            <Text style={styles.statsText}>{(videoData.like_count || 0).toLocaleString()} likes</Text>
+            <Text style={styles.statsText}>{comments.length} comentarios</Text>
+            <Text style={styles.statsText}>Duración: {Math.floor(duration / 60)}:{(duration % 60).toString().padStart(2, '0')}</Text>
           </View>
 
           {/* Action Buttons */}
@@ -911,10 +896,29 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   noCommentsText: {
-    fontSize: 14,
     color: '#666',
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  noVideoContainer: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+  },
+  noVideoOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noVideoText: {
+    color: '#fff',
+    fontSize: 16,
+    marginTop: 12,
   },
 })
 

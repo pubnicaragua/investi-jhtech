@@ -1,0 +1,106 @@
+RUTAS PARA PROBAR - INVESTI APP
+================================
+
+IMPORTANTE: Asegúrate de estar logueado primero
+Verifica en consola: localStorage.getItem('@auth_token')
+
+RUTAS CON PARÁMETROS (usa IDs reales de tu base de datos):
+-----------------------------------------------------------
+
+1. CommunityMembersScreen
+   http://localhost:8081/community/0ab8bf8f-02c2-49f2-8906-4d131027ba6e/members
+
+2. ChatScreen (1:1)
+   http://localhost:8081/chat/CHAT_ID_AQUI
+   Ejemplo: http://localhost:8081/chat/123e4567-e89b-12d3-a456-426614174000
+
+3. CommunitySettingsScreen
+   http://localhost:8081/community/0ab8bf8f-02c2-49f2-8906-4d131027ba6e/settings
+
+4. CreateCommunityScreen
+   http://localhost:8081/create-community
+
+5. CreatePostScreen
+   http://localhost:8081/create-post
+
+6. EditCommunityScreen
+   http://localhost:8081/community/0ab8bf8f-02c2-49f2-8906-4d131027ba6e/edit
+
+7. EditProfileScreen
+   http://localhost:8081/profile/edit
+
+8. EducacionScreen
+   http://localhost:8081/educacion
+
+9. GroupChatScreen
+   http://localhost:8081/group-chat/GROUP_ID_AQUI
+   Ejemplo: http://localhost:8081/group-chat/0ab8bf8f-02c2-49f2-8906-4d131027ba6e
+
+10. PostDetailScreen
+    http://localhost:8081/post/POST_ID_AQUI
+    Ejemplo: http://localhost:8081/post/a196515a-65e7-4091-803e-fd3d05dacfb3
+
+11. ProfileScreen
+    http://localhost:8081/profile/USER_ID_AQUI
+    O tu propio perfil: http://localhost:8081/profile
+
+12. PromotionDetailScreen
+    http://localhost:8081/promotion/PROMOTION_ID_AQUI
+
+
+RUTAS ADICIONALES (sin parámetros):
+------------------------------------
+
+13. SavedPostsScreen
+    http://localhost:8081/saved-posts
+
+14. SettingsScreen
+    http://localhost:8081/settings
+
+15. SharePostScreen
+    http://localhost:8081/share-post
+
+16. CommunitiesScreen
+    http://localhost:8081/communities
+
+17. HomeFeedScreen
+    http://localhost:8081/home
+
+18. NotificationsScreen
+    http://localhost:8081/notifications
+
+19. MessagesScreen
+    http://localhost:8081/messages
+
+20. ChatListScreen
+    http://localhost:8081/chats
+
+
+CÓMO OBTENER IDs REALES:
+-------------------------
+
+Para obtener IDs reales de tu base de datos, ejecuta en la consola del navegador:
+
+// Ver posts disponibles
+fetch('https://paoliakwfoczcallnecf.supabase.co/rest/v1/posts?select=id,contenido&limit=5', {
+  headers: {
+    'apikey': 'TU_SUPABASE_ANON_KEY',
+    'Authorization': 'Bearer ' + localStorage.getItem('@auth_token')
+  }
+}).then(r => r.json()).then(console.log)
+
+// Ver comunidades disponibles
+fetch('https://paoliakwfoczcallnecf.supabase.co/rest/v1/communities?select=id,nombre&limit=5', {
+  headers: {
+    'apikey': 'TU_SUPABASE_ANON_KEY',
+    'Authorization': 'Bearer ' + localStorage.getItem('@auth_token')
+  }
+}).then(r => r.json()).then(console.log)
+
+// Ver conversaciones disponibles
+fetch('https://paoliakwfoczcallnecf.supabase.co/rest/v1/conversations?select=id,type&limit=5', {
+  headers: {
+    'apikey': 'TU_SUPABASE_ANON_KEY',
+    'Authorization': 'Bearer ' + localStorage.getItem('@auth_token')
+  }
+}).then(r => r.json()).then(console.log)
