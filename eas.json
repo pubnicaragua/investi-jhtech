@@ -17,11 +17,6 @@
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease"
-      },
-      "hooks": {
-        "postPrebuild": {
-          "command": "bash eas-hooks/eas-build-pre-install.sh"
-        }
       }
     },
     "production": {

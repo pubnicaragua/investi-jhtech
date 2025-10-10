@@ -137,17 +137,22 @@ export function RootStack() {
   const [hasDeepLink, setHasDeepLink] = useState(false)
   
   useEffect(() => {
-    // Verificar si hay una ruta específica en la URL
-    const currentPath = window.location.pathname
-    const isDeepLink = currentPath !== '/' && 
-                       currentPath !== '/welcome' && 
-                       currentPath !== '/signin' && 
-                       currentPath !== '/signup' &&
-                       currentPath !== '/language-selection'
+    // Verificar si hay una ruta específica en la URL (solo en web)
+    const checkDeepLink = async () => {
+      try {
+        const url = await Linking.getInitialURL()
+        const isDeepLink = url && url !== prefix && !url.includes('/welcome') && !url.includes('/signin')
+        
+        console.log('🔗 Navigation: Initial URL:', url)
+        console.log('🔗 Navigation: Is deep link:', isDeepLink)
+        setHasDeepLink(!!isDeepLink)
+      } catch (error) {
+        console.log('🔗 Navigation: Error checking deep link:', error)
+        setHasDeepLink(false)
+      }
+    }
     
-    console.log('🔗 Navigation: Current path:', currentPath)
-    console.log('🔗 Navigation: Is deep link:', isDeepLink)
-    setHasDeepLink(isDeepLink)
+    checkDeepLink()
   }, [])
   
   useEffect(() => {  
