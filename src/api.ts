@@ -150,6 +150,9 @@ export const getUserComplete = async (uid: string) => {
       avatarUrl: user.avatar_url || user.photo_url,
       registrationDate: user.fecha_registro,
       preferences: user.preferences || { language: "es", notifications: true, theme: "system" },
+      role: user.role,
+      learningTag: user.intereses?.join(', ') || '',
+      intereses: user.intereses || [],
       stats: {
         postsCount: postsCount || 0,
         followersCount: followersCount || 0,

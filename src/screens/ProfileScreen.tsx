@@ -67,6 +67,7 @@ interface ProfileUser {
   username?: string;
   role?: string;
   learningTag?: string;
+  intereses?: string[];
 }
   
 interface ProfileScreenProps {  
@@ -122,7 +123,10 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
       const userData = await getUserComplete(userId)  
       
       if (userData) {
-        setProfileUser(userData)
+        setProfileUser({
+          ...userData,
+          intereses: userData.intereses || []
+        })
         setIsOwnProfile(userId === currentUserId)
 
         // Obtener personas sugeridas del backend
@@ -549,7 +553,7 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
         </View>
         
         {/* About Section */}
-        {profileUser.bio && (
+        {(profileUser.bio || profileUser.learningTag) && (
           <View style={styles.aboutSection}>
             <View style={styles.aboutHeader}>
               <Text style={styles.aboutTitle}>Acerca de</Text>
@@ -559,12 +563,34 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
                 </TouchableOpacity>
               )}
             </View>
-            <Text style={styles.aboutText} numberOfLines={3}>
-              {profileUser.bio}
-            </Text>
-            <TouchableOpacity onPress={() => setShowAboutModal(true)}>
-              <Text style={styles.seeMoreText}>...ver más</Text>
-            </TouchableOpacity>
+            {profileUser.bio && (
+              <>
+                <Text style={styles.aboutText} numberOfLines={3}>
+                  {profileUser.bio}
+                </Text>
+                <TouchableOpacity onPress={() => setShowAboutModal(true)}>
+                  <Text style={styles.seeMoreText}>...ver más</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {profileUser.learningTag && (
+              <View style={styles.learningTagContainer}>
+                <Text style={styles.learningTagLabel}>Aprendiendo de:</Text>
+                <Text style={styles.learningTagValue}>{profileUser.learningTag}</Text>
+              </View>
+            )}
+            {profileUser.intereses && profileUser.intereses.length > 0 && (
+              <View style={styles.interesesContainer}>
+                <Text style={styles.interesesLabel}>Intereses:</Text>
+                <View style={styles.interesesTags}>
+                  {profileUser.intereses.map((interes, index) => (
+                    <View key={index} style={styles.interesTag}>
+                      <Text style={styles.interesTagText}>{interes}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
           </View>
         )}
         
@@ -1066,6 +1092,53 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     marginTop: 4,
+  },
+  learningTagContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  learningTagLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  learningTagValue: {
+    fontSize: 14,
+    color: '#000',
+    fontStyle: 'italic',
+  },
+  interesesContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  interesesLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  interesesTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  interesTag: {
+    backgroundColor: '#EDF3F8',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#0A66C2',
+  },
+  interesTagText: {
+    fontSize: 12,
+    color: '#0A66C2',
+    fontWeight: '600',
   },
   activitySection: {
     backgroundColor: '#fff',
