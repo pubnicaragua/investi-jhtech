@@ -48,7 +48,9 @@ import {
   Users,
   Bell,
   X,
-} from "lucide-react-native";  
+} from "lucide-react-native";
+import { Ionicons } from '@expo/vector-icons';
+import { useRoute } from '@react-navigation/native';  
 import { getCurrentUserId, getUserConversations, countUnreadMessagesForConversation, markConversationAsRead, getSuggestedPeople } from "../rest/api";  
 import { startConversationWithUser } from "../api";
 import { useAuthGuard } from "../hooks/useAuthGuard";  
@@ -81,6 +83,8 @@ interface Chat {
 }  
   
 export function ChatListScreen({ navigation }: any) {  
+  const route = useRoute()
+  const currentRoute = route.name
   const [users, setUsers] = useState<User[]>([]);  
   const [chats, setChats] = useState<Chat[]>([]);  
   const [filteredChats, setFilteredChats] = useState<Chat[]>([]);  
@@ -93,6 +97,8 @@ export function ChatListScreen({ navigation }: any) {
   
   useAuthGuard();  
   
+  const handleNavigation = (screen: string) => navigation.navigate(screen)
+
   useEffect(() => {  
     loadData();  
   }, []);  
@@ -548,6 +554,61 @@ export function ChatListScreen({ navigation }: any) {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      <View style={styles.bottomNavigation}>
+        <TouchableOpacity 
+          style={styles.navItem} 
+          onPress={() => handleNavigation("HomeFeed")} 
+        >
+          <Ionicons 
+            name={currentRoute === "HomeFeed" ? "home" : "home-outline"}
+            size={26} 
+            color={currentRoute === "HomeFeed" ? "#2673f3" : "#9CA3AF"} 
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.navItem} 
+          onPress={() => handleNavigation("MarketInfo")} 
+        >
+          <Ionicons 
+            name={currentRoute === "MarketInfo" ? "trending-up" : "trending-up-outline"}
+            size={26} 
+            color={currentRoute === "MarketInfo" ? "#2673f3" : "#9CA3AF"} 
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.fabContainer} 
+          onPress={() => handleNavigation("CreatePost")} 
+        >
+          <View style={styles.fabButton}>
+            <Ionicons name="add" size={28} color="#FFFFFF" />
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.navItem} 
+          onPress={() => handleNavigation("News")} 
+        >
+          <Ionicons 
+            name={currentRoute === "News" ? "newspaper" : "newspaper-outline"}
+            size={26} 
+            color={currentRoute === "News" ? "#2673f3" : "#9CA3AF"} 
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.navItem} 
+          onPress={() => handleNavigation("Educacion")} 
+        >
+          <Ionicons 
+            name={currentRoute === "Educacion" ? "school" : "school-outline"}
+            size={26} 
+            color={currentRoute === "Educacion" ? "#2673f3" : "#9CA3AF"} 
+          />
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   ); 
 }  
@@ -827,5 +888,40 @@ const styles = StyleSheet.create({
   menuItemText: {
     fontSize: 16,
     color: '#111',
+  },
+
+  bottomNavigation: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    paddingVertical: 12,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 12,
+  },
+  navItem: {
+    padding: 12,
+  },
+  fabContainer: {
+    marginTop: -16,
+    padding: 8,
+  },
+  fabButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: '#2673f3',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#2673f3',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });

@@ -474,7 +474,7 @@ export default function EditCommunityScreen() {
                   style={styles.inputWithIconText}
                   value={location}
                   onChangeText={setLocation}
-                  placeholder="Ej: Managua, Nicaragua"
+                  placeholder="Ej: Santiago, Chile"
                   placeholderTextColor="#999"
                   maxLength={100}
                   editable={!saving}

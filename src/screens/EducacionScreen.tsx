@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity,
-  Image, ActivityIndicator, RefreshControl, TextInput,
+  Image, ActivityIndicator, RefreshControl, TextInput, Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { 
@@ -346,21 +347,58 @@ export function EducacionScreen() {
         )}
       </ScrollView>
 
-      <View style={[styles.bottomNavigation, { paddingBottom: insets.bottom }]}>
-        <TouchableOpacity style={styles.navItem} onPress={() => handleNavigation("HomeFeed")}>
-          <Home size={24} color={currentRoute === "HomeFeed" ? "#2673f3" : "#999"} />
+      <View style={styles.bottomNavigation}>
+        <TouchableOpacity 
+          style={styles.navItem} 
+          onPress={() => handleNavigation("HomeFeed")} 
+        >
+          <Ionicons 
+            name={currentRoute === "HomeFeed" ? "home" : "home-outline"}
+            size={26} 
+            color={currentRoute === "HomeFeed" ? "#2673f3" : "#9CA3AF"} 
+          />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => handleNavigation("MarketInfo")}>
-          <TrendingUp size={24} color={currentRoute === "MarketInfo" ? "#2673f3" : "#999"} />
+
+        <TouchableOpacity 
+          style={styles.navItem} 
+          onPress={() => handleNavigation("MarketInfo")} 
+        >
+          <Ionicons 
+            name={currentRoute === "MarketInfo" ? "trending-up" : "trending-up-outline"}
+            size={26} 
+            color={currentRoute === "MarketInfo" ? "#2673f3" : "#9CA3AF"} 
+          />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.fabContainer} onPress={() => handleNavigation("CreatePost")}>
-          <View style={styles.fabButton}><PlusCircle size={28} color="#fff" /></View>
+
+        <TouchableOpacity 
+          style={styles.fabContainer} 
+          onPress={() => handleNavigation("CreatePost")} 
+        >
+          <View style={styles.fabButton}>
+            <Ionicons name="add" size={28} color="#FFFFFF" />
+          </View>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => handleNavigation("News")}>
-          <Newspaper size={24} color={currentRoute === "News" ? "#2673f3" : "#999"} />
+
+        <TouchableOpacity 
+          style={styles.navItem} 
+          onPress={() => handleNavigation("News")} 
+        >
+          <Ionicons 
+            name={currentRoute === "News" ? "newspaper" : "newspaper-outline"}
+            size={26} 
+            color={currentRoute === "News" ? "#2673f3" : "#9CA3AF"} 
+          />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => handleNavigation("Educacion")}>
-          <BookOpen size={24} color={currentRoute === "Educacion" ? "#2673f3" : "#999"} />
+
+        <TouchableOpacity 
+          style={styles.navItem} 
+          onPress={() => handleNavigation("Educacion")} 
+        >
+          <Ionicons 
+            name={currentRoute === "Educacion" ? "school" : "school-outline"}
+            size={26} 
+            color={currentRoute === "Educacion" ? "#2673f3" : "#9CA3AF"} 
+          />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -434,8 +472,38 @@ const styles = StyleSheet.create({
   loadingText: { marginTop: 12, fontSize: 16, color: '#666' },
   emptyState: { alignItems: 'center', paddingVertical: 40 },
   emptyStateText: { fontSize: 14, color: '#999', marginTop: 8 },
-  bottomNavigation: { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 8, alignItems: 'center', justifyContent: 'space-around' },
-  navItem: { flex: 1, alignItems: 'center', paddingVertical: 8 },
-  fabContainer: { flex: 1, alignItems: 'center', marginTop: -24 },
-  fabButton: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#2673f3', justifyContent: 'center', alignItems: 'center', shadowColor: '#2673f3', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 },
+  bottomNavigation: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    paddingVertical: 12,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 12,
+  },
+  navItem: {
+    padding: 12,
+  },
+  fabContainer: {
+    marginTop: -16,
+    padding: 8,
+  },
+  fabButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: '#2673f3',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#2673f3',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
 });

@@ -58,7 +58,7 @@ class Storage {
       } else {
         // For native, we'd need to track keys or clear specific ones
         // This is a basic implementation
-        const keys = ['access_token', 'refresh_token', 'user_data'];
+        const keys = ['access_token', 'refresh_token', 'auth_token', 'userToken', 'userId', 'user_data'];
         for (const key of keys) {
           try {
             await SecureStore.deleteItemAsync(key);

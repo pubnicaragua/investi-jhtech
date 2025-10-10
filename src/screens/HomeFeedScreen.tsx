@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
   StatusBar,
   Platform,
   AppState,
+  Alert,
 } from "react-native"
 import { useTranslation } from "react-i18next"
 import {
@@ -31,11 +32,13 @@ import {
   BookOpen,
   MoreHorizontal,
   Bookmark,
+  X,
 } from "lucide-react-native"
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 
 import { Sidebar } from "../components/Sidebar"
 import { NotificationsModal } from "../components/NotificationsModal"
+import { InvestiVideoPlayer } from "../components/InvestiVideoPlayer"
 import { 
   getUserFeed, 
   likePost,
@@ -47,10 +50,11 @@ import {
   unfollowUser,
   sharePost,
 } from "../rest/api"
-import { getCurrentUserId } from "../rest/client"
+import { getCurrentUserId, request } from "../rest/client"
 import { EmptyState } from "../components/EmptyState"
 import { useAuthGuard } from "../hooks/useAuthGuard"
 import { useOnboardingGuard } from "../hooks/useOnboardingGuard"
+import { useAuth } from "../contexts/AuthContext"
 
 const DEFAULT_QUICK_ACTIONS = [
   { key: "celebrate", label: "Celebrar un momento", icon: "party", color: "#FF6B6B" },
@@ -60,6 +64,7 @@ const DEFAULT_QUICK_ACTIONS = [
 
 export function HomeFeedScreen({ navigation }: any) {
   const { t } = useTranslation()
+  const { user } = useAuth()
   const [posts, setPosts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -112,14 +117,31 @@ export function HomeFeedScreen({ navigation }: any) {
       const profile = await getUserProfile(uid)
       const avatarUrl = profile?.avatar_url || profile?.photo_url
       
+      // Generar nombre para el avatar
+      const displayName = profile?.full_name || profile?.nombre || profile?.username || 'User'
+      const initials = getInitialsFromName(displayName)
+      
       setUserProfile({
         ...profile,
-        avatar: avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.full_name || profile?.username || 'User')}&background=3B82F6&color=fff&size=128`
+        avatar: avatarUrl,
+        initials: initials,
+        displayName: displayName
       })
     } catch (err) {
       console.error("Error loading profile:", err)
-      setUserProfile({ avatar: "https://ui-avatars.com/api/?name=User&background=3B82F6&color=fff&size=128" })
+      setUserProfile({ 
+        avatar: null,
+        initials: user?.username?.substring(0, 2).toUpperCase() || 'U',
+        displayName: user?.username || 'Usuario'
+      })
     }
+  }
+
+  const getInitialsFromName = (name: string) => {
+    if (!name || name === 'Usuario') return user?.username?.substring(0, 2).toUpperCase() || 'U'
+    const parts = name.trim().split(' ')
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
+    return name.substring(0, 2).toUpperCase()
   }
 
   const loadFeed = async (uid?: string) => {
@@ -222,23 +244,86 @@ export function HomeFeedScreen({ navigation }: any) {
     }
   }
 
-  const handleShare = async (postId: string, content: string) => {
+  const handleShare = async (postId: string) => {
     if (!userId) return
     
     try {
-      await Share.share({
-        message: `${content}\n\nCompartido desde Investi`,
-        title: 'Compartir publicación'
-      })
-      
-      setPosts(prev => prev.map(post => 
-        post.id === postId ? { ...post, shares: (post.shares || 0) + 1 } : post
-      ))
-      
       await sharePost(postId, userId)
+      
+      const newCount = posts.find(p => p.id === postId)?.shares || 0
+      setPosts(prev => prev.map(p => p.id === postId ? { ...p, shares: newCount + 1 } : p))
+      
+      await Share.share({
+        message: `Mira esta publicación en Investi`,
+        url: `https://investi.app/posts/${postId}`,
+      })
     } catch (err) {
       console.error("Error sharing:", err)
     }
+  }
+
+  const handlePostOptions = (postId: string, postUserId: string) => {
+    const isMyPost = postUserId === userId
+    
+    const options = isMyPost 
+      ? ['Eliminar', 'Editar', 'Cancelar']
+      : ['Reportar', 'Ocultar', 'Cancelar']
+    
+    Alert.alert(
+      'Opciones',
+      '',
+      isMyPost ? [
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: () => handleDeletePost(postId),
+        },
+        {
+          text: 'Editar',
+          onPress: () => Alert.alert('Próximamente', 'Editar posts estará disponible pronto'),
+        },
+        { text: 'Cancelar', style: 'cancel' },
+      ] : [
+        {
+          text: 'Reportar',
+          onPress: () => Alert.alert('Reportado', 'Hemos recibido tu reporte'),
+        },
+        {
+          text: 'Ocultar',
+          onPress: () => {
+            setPosts(prev => prev.filter(p => p.id !== postId))
+            Alert.alert('Ocultado', 'No volverás a ver esta publicación')
+          },
+        },
+        { text: 'Cancelar', style: 'cancel' },
+      ]
+    )
+  }
+
+  const handleDeletePost = async (postId: string) => {
+    Alert.alert(
+      '¿Eliminar publicación?',
+      'Esta acción no se puede deshacer',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await request('DELETE', '/posts', {
+                params: { id: `eq.${postId}` },
+              })
+              setPosts(prev => prev.filter(p => p.id !== postId))
+              Alert.alert('✅ Eliminado', 'La publicación ha sido eliminada')
+            } catch (err) {
+              console.error('Error deleting post:', err)
+              Alert.alert('Error', 'No se pudo eliminar la publicación')
+            }
+          },
+        },
+      ]
+    )
   }
 
   const handleFollow = async (targetUserId: string) => {
@@ -295,9 +380,13 @@ export function HomeFeedScreen({ navigation }: any) {
         <View style={styles.sharedHeader}>
           <Image source={{ uri: item.shared_by_avatar }} style={styles.sharedAvatar} />
           <Text style={styles.sharedText}>
-            <Text style={styles.sharedName}>{item.shared_by_name}</Text> ha compartido esto
+            <Text style={styles.sharedName}>{item.shared_by_name || 'Usuario'}</Text> ha compartido esto
           </Text>
-          <TouchableOpacity style={styles.moreButtonTop} activeOpacity={0.7}>
+          <TouchableOpacity 
+            style={styles.moreButtonTop} 
+            activeOpacity={0.7}
+            onPress={() => handlePostOptions(item.id, item.user_id)}
+          >
             <MoreHorizontal size={20} color="#6B7280" strokeWidth={2} />
           </TouchableOpacity>
         </View>
@@ -325,7 +414,7 @@ export function HomeFeedScreen({ navigation }: any) {
               onPress={() => navigation.navigate("Profile", { userId: item.user_id })}
               activeOpacity={0.7}
             >
-              <Text style={styles.postUser}>{item.user_name}</Text>
+              <Text style={styles.postUser}>{item.user_name || 'Usuario'}</Text>
             </TouchableOpacity>
             
             {!followedUsers.has(item.user_id) && item.user_id !== userId && (
@@ -339,9 +428,9 @@ export function HomeFeedScreen({ navigation }: any) {
           </View>
           
           <View style={styles.postMeta}>
-            <Text style={styles.postRole}>{item.user_role}</Text>
+            <Text style={styles.postRole}>{item.user_role || 'Usuario'}</Text>
             <Text style={styles.postMetaSeparator}> · </Text>
-            <Text style={styles.postTime}>{item.time_ago}</Text>
+            <Text style={styles.postTime}>{item.time_ago || 'Hace un momento'}</Text>
             {!item.shared_by && (
               <>
                 <Text style={styles.postMetaSeparator}> · </Text>
@@ -365,7 +454,11 @@ export function HomeFeedScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.moreButton} activeOpacity={0.7}>
+        <TouchableOpacity 
+          style={styles.moreButton} 
+          activeOpacity={0.7}
+          onPress={() => handlePostOptions(item.id, item.user_id)}
+        >
           <MoreHorizontal size={20} color="#6B7280" strokeWidth={2} />
         </TouchableOpacity>
       </View>
@@ -375,21 +468,28 @@ export function HomeFeedScreen({ navigation }: any) {
         activeOpacity={0.9}
       >
         <Text style={styles.postContent}>
-          {item.content}
+          {item.content || ''}
           {item.content?.length > 150 && (
             <Text style={styles.seeMore}>  ...Ver más</Text>
           )}
         </Text>
       </TouchableOpacity>
 
-      {item.image && (
-        <TouchableOpacity 
-          onPress={() => navigation.navigate("PostDetail", { postId: item.id })}
-          activeOpacity={0.9}
-        >
-          <Image source={{ uri: item.image }} style={styles.postImage} />
-        </TouchableOpacity>
-      )}
+      {(item.image || (item.media_url && item.media_url.length > 0)) && (() => {
+        const mediaUrl = item.media_url && item.media_url.length > 0 ? item.media_url[0] : item.image
+        const isVideo = mediaUrl?.toLowerCase().endsWith('.mp4') || mediaUrl?.toLowerCase().endsWith('.mov')
+        
+        return isVideo ? (
+          <InvestiVideoPlayer uri={mediaUrl} style={styles.videoPlayer} />
+        ) : (
+          <TouchableOpacity 
+            onPress={() => navigation.navigate("PostDetail", { postId: item.id })}
+            activeOpacity={0.9}
+          >
+            <Image source={{ uri: mediaUrl }} style={styles.postImage} />
+          </TouchableOpacity>
+        )
+      })()}
 
       <View style={styles.postStats}>
         <View style={styles.postStatsLeft}>
@@ -477,7 +577,7 @@ export function HomeFeedScreen({ navigation }: any) {
         navigation={navigation} 
       />
 
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
           <TouchableOpacity 
             onPress={() => setIsSidebarOpen(true)}
@@ -486,8 +586,10 @@ export function HomeFeedScreen({ navigation }: any) {
             {userProfile?.avatar ? (
               <Image source={{ uri: userProfile.avatar }} style={styles.headerAvatar} />
             ) : (
-              <View style={[styles.headerAvatar, styles.avatarPlaceholder]}>
-                <Text style={styles.avatarPlaceholderText}>U</Text>
+              <View style={[styles.headerAvatar, styles.avatarPlaceholder]}> 
+                <Text style={styles.avatarPlaceholderText}>
+                  {userProfile?.initials || user?.username?.substring(0, 2).toUpperCase() || 'U'}
+                </Text>
               </View>
             )}
           </TouchableOpacity>
@@ -496,13 +598,18 @@ export function HomeFeedScreen({ navigation }: any) {
             <Search size={18} color="#9CA3AF" strokeWidth={2} />
             <TextInput 
               style={styles.searchInput} 
-              placeholder="Buscar" 
+              placeholder="Buscar personas, comunidades..." 
               placeholderTextColor="#9CA3AF" 
               value={searchQuery} 
               onChangeText={setSearchQuery} 
               returnKeyType="search"
               onSubmitEditing={handleSearch}
             />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
+                <X size={16} color="#9CA3AF" />
+              </TouchableOpacity>
+            )}
           </View>
 
           <TouchableOpacity 
@@ -562,7 +669,9 @@ export function HomeFeedScreen({ navigation }: any) {
             <Image source={{ uri: userProfile.avatar }} style={styles.writeAvatar} />
           ) : (
             <View style={[styles.writeAvatar, styles.avatarPlaceholder]}>
-              <Text style={styles.avatarPlaceholderText}>U</Text>
+              <Text style={styles.avatarPlaceholderText}>
+                {userProfile?.initials || user?.username?.substring(0, 2).toUpperCase() || 'U'}
+              </Text>
             </View>
           )}
           <TouchableOpacity 
@@ -671,7 +780,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingTop: Platform.OS === 'ios' ? 50 : 10,
+    paddingBottom: 10,
     backgroundColor: "#FFFFFF",
     gap: 10,
   },
@@ -711,6 +821,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#1F2937",
     paddingVertical: 0,
+  },
+  clearButton: {
+    padding: 4,
   },
   headerIconButton: {
     padding: 4,
@@ -910,6 +1023,7 @@ const styles = StyleSheet.create({
     color: "#1F2937",
     lineHeight: 20,
     paddingHorizontal: 16,
+    paddingBottom: 12,
     marginBottom: 12,
   },
   seeMore: {
@@ -920,17 +1034,21 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 300,
     marginBottom: 12,
-    backgroundColor: "#F3F4F6",
+    borderRadius: 8,
+    backgroundColor: "#E5E7EB",
+  },
+  videoPlayer: {
+    width: "100%",
+    marginBottom: 12,
   },
   postStats: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingBottom: 12,
-    marginBottom: 12,
+    paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: "#F3F4F6",
   },
   postStatsLeft: {
     flexDirection: "row",

@@ -133,21 +133,18 @@ export interface News {
   created_at: string  
 }  
   
-// ============================================================================
 // AUTENTICACIÓN
 // ============================================================================
 
 /**
- * Re-exportación de funciones de autenticación del cliente
- * Estas funciones manejan login, registro y logout
+ * Re-exportar funciones de autenticación del cliente
  */
-export const authSignIn = clientSignIn  
-export const authSignUp = clientSignUp  
-export const authSignOut = clientSignOut  
-  
-// ============================================================================
-// USUARIOS
-// ============================================================================
+export const authSignIn = clientSignIn
+export const authSignUp = clientSignUp
+export const authSignOut = clientSignOut
+
+// Re-exportar supabase para acceso directo
+export { supabase } from "../supabase"  
 
 /**
  * Obtiene los datos del usuario actual por su ID
@@ -1909,9 +1906,16 @@ export async function getUserComplete(userId: string) {
       communitiesResponse = []  
     }  
     
+    // Determinar el nombre a mostrar (priorizar username si nombre es genérico)
+    const displayName = (user.full_name && user.full_name !== 'Usuario') 
+      ? user.full_name 
+      : (user.nombre && user.nombre !== 'Usuario') 
+        ? user.nombre 
+        : user.username || 'Usuario';
+    
     const result = {  
       id: user.id,  
-      name: user.nombre || user.full_name || user.username,  
+      name: displayName,  
       bio: user.bio,  
       location: user.location,  
       avatarUrl: user.avatar_url || user.photo_url,  

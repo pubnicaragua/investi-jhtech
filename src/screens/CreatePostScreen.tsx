@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Alert,
   ActivityIndicator,
@@ -14,6 +13,7 @@ import {
   Platform,
   Image as RNImage,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft,
@@ -27,6 +27,8 @@ import {
 import * as ImagePicker from 'expo-image-picker'
 
 import { useAuthGuard } from '../hooks/useAuthGuard'
+import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../supabase'
 import {
   getCurrentUser,
   uploadMedia,
@@ -42,20 +44,15 @@ import { PollEditor, PollData } from '../components/poll/PollEditor'
 
 type CelebrationType = 'milestone' | 'achievement' | 'success' | 'investment_win' | 'other'
 
-interface PartnershipData {
-  businessType: string
-  investmentAmount: string
-  location: string
-}
-
 const MAX_CONTENT_LENGTH = 2000
-const AUTOSAVE_INTERVAL = 2000 // 2 seconds
+const AUTOSAVE_INTERVAL = 2000
 
 export function CreatePostScreen({ navigation }: any) {
   const { t } = useTranslation()
   
   // Auth
   useAuthGuard()
+  const { user } = useAuth()
   const [currentUser, setCurrentUser] = useState<any>(null)
   
   // Content
@@ -74,9 +71,6 @@ export function CreatePostScreen({ navigation }: any) {
   
   // Celebration
   const [celebrationType, setCelebrationType] = useState<CelebrationType | null>(null)
-  
-  // Partnership
-  const [partnershipData, setPartnershipData] = useState<PartnershipData | null>(null)
   
   // UI State
   const [loading, setLoading] = useState(false)
@@ -148,7 +142,6 @@ export function CreatePostScreen({ navigation }: any) {
     if (draft.media) setMediaItems(draft.media)
     if (draft.poll) setPollData(draft.poll)
     if (draft.celebration) setCelebrationType(draft.celebration)
-    if (draft.partnership) setPartnershipData(draft.partnership)
   }
   
   // ===== AUTOSAVE =====
@@ -158,12 +151,12 @@ export function CreatePostScreen({ navigation }: any) {
       clearTimeout(autosaveTimerRef.current)
     }
     
-    if (content || mediaItems.length > 0 || pollData || celebrationType || partnershipData) {
+    if (content || mediaItems.length > 0 || pollData || celebrationType) {
       autosaveTimerRef.current = setTimeout(() => {
         handleAutosave()
       }, AUTOSAVE_INTERVAL)
     }
-  }, [content, mediaItems, pollData, celebrationType, partnershipData, audience])
+  }, [content, mediaItems, pollData, celebrationType, audience])
   
   const handleAutosave = useCallback(async () => {
     try {
@@ -173,12 +166,11 @@ export function CreatePostScreen({ navigation }: any) {
         media: mediaItems,
         poll: pollData,
         celebration: celebrationType,
-        partnership: partnershipData,
       })
     } catch (error) {
       console.error('Error autosaving:', error)
     }
-  }, [content, audience, mediaItems, pollData, celebrationType, partnershipData])
+  }, [content, audience, mediaItems, pollData, celebrationType])
   
   // ===== MEDIA HANDLING =====
   
@@ -246,9 +238,116 @@ export function CreatePostScreen({ navigation }: any) {
     setMediaItems((prev) => prev.filter((item) => item.id !== id))
   }, [])
   
+  // Upload media to Supabase Storage
+  const uploadMediaFile = async (item: MediaItem): Promise<string> => {
+    try {
+      console.log('📤 Uploading media:', item.type, item.uri)
+      console.log('👤 User ID:', user?.id)
+      
+      // Verificar autenticación
+      const { data: { session } } = await supabase.auth.getSession()
+      console.log('🔐 Session exists:', !!session)
+      console.log('🔐 Access token exists:', !!session?.access_token)
+      
+      if (!session) {
+        throw new Error('No hay sesión activa. Por favor inicia sesión nuevamente.')
+      }
+      
+      const fileExt = item.uri.split('.').pop() || 'jpg'
+      const timestamp = Date.now()
+      const random = Math.random().toString(36).substr(2, 9)
+      const fileName = `${user?.id}/${timestamp}_${random}.${fileExt}`
+      
+      console.log('📁 File name:', fileName)
+      console.log('📦 Bucket: community-media')
+      
+      // Read file as ArrayBuffer (más compatible con React Native)
+      console.log('📥 Fetching file...')
+      const response = await fetch(item.uri)
+      const arrayBuffer = await response.arrayBuffer()
+      console.log('✅ ArrayBuffer created:', arrayBuffer.byteLength, 'bytes')
+      
+      // Upload to Supabase Storage
+      console.log('⬆️ Starting upload...')
+      const { data, error } = await supabase.storage
+        .from('community-media')
+        .upload(fileName, arrayBuffer, {
+          contentType: item.mimeType || 'image/png',
+          upsert: false,
+        })
+      
+      if (error) {
+        console.error('❌ Supabase upload error:', error)
+        console.error('❌ Error name:', error.name)
+        console.error('❌ Error message:', error.message)
+        console.error('❌ Error details:', JSON.stringify(error, null, 2))
+        
+        // Intentar con REST API directamente como fallback
+        console.log('🔄 Trying direct REST API upload...')
+        try {
+          const { data: { session } } = await supabase.auth.getSession()
+          if (!session?.access_token) {
+            throw new Error('No access token available')
+          }
+          
+          const supabaseUrl = await supabase.storage.from('community-media').getPublicUrl('').data.publicUrl
+          const baseUrl = supabaseUrl.split('/storage/v1')[0]
+          const uploadUrl = `${baseUrl}/storage/v1/object/community-media/${fileName}`
+          
+          console.log('📍 Upload URL:', uploadUrl)
+          
+          const uploadResponse = await fetch(uploadUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': item.mimeType || 'image/png',
+              'x-upsert': 'false',
+            },
+            body: arrayBuffer,
+          })
+          
+          if (!uploadResponse.ok) {
+            const errorText = await uploadResponse.text()
+            console.error('❌ REST API error:', errorText)
+            throw new Error(`REST API failed: ${uploadResponse.status} - ${errorText}`)
+          }
+          
+          console.log('✅ REST API upload successful!')
+          
+          // Get public URL
+          const { data: urlData } = supabase.storage
+            .from('community-media')
+            .getPublicUrl(fileName)
+          
+          console.log('✅ Public URL:', urlData.publicUrl)
+          return urlData.publicUrl
+          
+        } catch (restError: any) {
+          console.error('❌ REST API also failed:', restError)
+          throw error // Throw original error
+        }
+      }
+      
+      console.log('✅ Upload successful:', data)
+      
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('community-media')
+        .getPublicUrl(fileName)
+      
+      console.log('✅ Public URL:', urlData.publicUrl)
+      return urlData.publicUrl
+      
+    } catch (error: any) {
+      console.error('❌ Error uploading media:', error.message || error)
+      console.error('❌ Full error:', JSON.stringify(error, null, 2))
+      throw new Error(`Error al subir ${item.type}: ${error.message || 'Desconocido'}`)
+    }
+  }
+  
   const handleRetryUpload = useCallback(async (id: string) => {
     const item = mediaItems.find((m) => m.id === id)
-    if (!item || !currentUser) return
+    if (!item) return
     
     try {
       setMediaItems((prev) =>
@@ -257,24 +356,24 @@ export function CreatePostScreen({ navigation }: any) {
         )
       )
       
-      const uploaded = await uploadMedia(item.uri, item.type, currentUser.id)
+      const url = await uploadMediaFile(item)
       
       setMediaItems((prev) =>
         prev.map((m) =>
           m.id === id
-            ? { ...m, uri: uploaded.url, uploadProgress: 100, uploadError: undefined }
+            ? { ...m, uri: url, uploadProgress: 100, uploadError: undefined }
             : m
         )
       )
-    } catch (error) {
-      console.error('Error retrying upload:', error)
+    } catch (error: any) {
+      console.error('❌ Error retrying upload:', error)
       setMediaItems((prev) =>
         prev.map((m) =>
-          m.id === id ? { ...m, uploadError: 'Error al subir' } : m
+          m.id === id ? { ...m, uploadError: error.message || 'Error al subir' } : m
         )
       )
     }
-  }, [mediaItems, currentUser])
+  }, [mediaItems, user])
   
   // ===== CELEBRATION =====
   
@@ -300,10 +399,9 @@ export function CreatePostScreen({ navigation }: any) {
     const hasMedia = mediaItems.length > 0
     const hasPoll = pollData !== null
     const hasCelebration = celebrationType !== null
-    const hasPartnership = partnershipData !== null
     
-    return hasContent || hasMedia || hasPoll || hasCelebration || hasPartnership
-  }, [content, mediaItems, pollData, celebrationType, partnershipData])
+    return hasContent || hasMedia || hasPoll || hasCelebration
+  }, [content, mediaItems, pollData, celebrationType])
   
   const handlePublish = useCallback(async () => {
     if (!canPublish) {
@@ -311,7 +409,7 @@ export function CreatePostScreen({ navigation }: any) {
       return
     }
     
-    if (!currentUser) {
+    if (!user) {
       Alert.alert('Error', 'Usuario no encontrado')
       return
     }
@@ -325,108 +423,114 @@ export function CreatePostScreen({ navigation }: any) {
     Keyboard.dismiss()
     
     try {
+      console.log('🚀 Starting post creation...')
+      
       // Upload media first
-      const uploadedMedia: Array<{ url: string; type: string; mime: string; size: number }> = []
+      const uploadedMediaUrls: string[] = []
       
       for (let i = 0; i < mediaItems.length; i++) {
         const item = mediaItems[i]
         try {
+          console.log(`📤 Uploading media ${i + 1}/${mediaItems.length}...`)
+          
           setMediaItems((prev) =>
             prev.map((m, idx) =>
-              idx === i ? { ...m, uploadProgress: 0 } : m
+              idx === i ? { ...m, uploadProgress: 50 } : m
             )
           )
           
-          const uploaded = await uploadMedia(item.uri, item.type, currentUser.id)
+          const url = await uploadMediaFile(item)
+          uploadedMediaUrls.push(url)
           
           setMediaItems((prev) =>
             prev.map((m, idx) =>
               idx === i ? { ...m, uploadProgress: 100 } : m
             )
           )
-          
-          uploadedMedia.push({
-            url: uploaded.url,
-            type: item.type,
-            mime: uploaded.mime,
-            size: uploaded.bytes,
-          })
-        } catch (error) {
-          console.error(`Error uploading media ${i}:`, error)
+        } catch (error: any) {
+          console.error(`❌ Error uploading media ${i}:`, error)
           setMediaItems((prev) =>
             prev.map((m, idx) =>
-              idx === i ? { ...m, uploadError: 'Error al subir' } : m
+              idx === i ? { ...m, uploadError: error.message || 'Error al subir' } : m
             )
           )
           throw error
         }
       }
       
+      console.log('✅ All media uploaded:', uploadedMediaUrls)
+      
       // Create post
-      const payload: any = {
-        user_id: currentUser.id,
+      const postData: any = {
+        user_id: user.id,
         content: content.trim(),
-        audience_type: audience.type,
+        contenido: content.trim(), // Para compatibilidad
       }
       
+      // Add community if selected
       if (audience.type === 'community') {
-        payload.audience_id = audience.id
+        postData.community_id = audience.id
       }
       
-      if (uploadedMedia.length > 0) {
-        payload.media = uploadedMedia
-      }
-      
-      if (pollData) {
-        payload.poll = {
-          options: pollData.options,
-          duration_days: pollData.duration,
+      // Add media URLs (usar media_url que es ARRAY en la BD)
+      if (uploadedMediaUrls.length > 0) {
+        postData.media_url = uploadedMediaUrls
+        // También agregar image_url para el primer item (compatibilidad)
+        if (uploadedMediaUrls[0]) {
+          postData.image_url = uploadedMediaUrls[0]
         }
       }
       
-      if (celebrationType) {
-        payload.celebration = { type: celebrationType }
+      console.log('📝 Creating post with data:', postData)
+      
+      const { data, error } = await supabase
+        .from('posts')
+        .insert(postData)
+        .select()
+        .single()
+      
+      if (error) {
+        console.error('❌ Supabase insert error:', error)
+        throw error
       }
       
-      if (partnershipData) {
-        payload.partnership = partnershipData
-      }
-      
-      const result = await createPostFull(payload)
+      console.log('✅ Post created:', data.id)
       
       // Clear draft
       await clearDraft()
       
       // Success
-      Alert.alert('¡Publicado!', 'Tu publicación se ha compartido exitosamente', [
+      Alert.alert('✅ ¡Publicado!', 'Tu publicación se ha compartido exitosamente', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ])
     } catch (error: any) {
-      console.error('Error publishing post:', error)
+      console.error('❌ Error publishing post:', error)
       
-      let errorMessage = 'No se pudo publicar el post'
-      if (error?.message?.includes('network')) {
-        errorMessage = 'Error de conexión. Verifica tu internet.'
-      } else if (error?.message?.includes('auth')) {
-        errorMessage = 'Error de autenticación. Inicia sesión nuevamente.'
-      } else if (error?.message?.includes('permission')) {
-        errorMessage = 'No tienes permisos para publicar en esta comunidad.'
-      }
+      let errorMessage = error.message || 'No se pudo publicar el post'
       
-      Alert.alert('Error', errorMessage, [
+      Alert.alert('❌ Error', errorMessage, [
         { text: 'Reintentar', onPress: () => handlePublish() },
         { text: 'Cancelar', style: 'cancel' },
       ])
     } finally {
       setLoading(false)
     }
-  }, [canPublish, currentUser, content, audience, mediaItems, pollData, celebrationType, partnershipData, navigation])
+  }, [canPublish, user, content, audience, mediaItems, pollData, celebrationType, navigation])
   
   // ===== AUDIENCE PICKER =====
   
   const fetchCommunitiesForPicker = useCallback(
     async (userId: string, query: string, page: number) => {
-      return await listCommunitiesPaged(userId, query, page)
+      const result = await listCommunitiesPaged(userId, query, page)
+      return {
+        items: result.items.map(c => ({
+          id: c.id,
+          name: c.name,
+          type: 'community' as const,
+          image_url: c.image_url,
+        })),
+        hasMore: result.hasMore,
+      }
     },
     []
   )
@@ -449,7 +553,7 @@ export function CreatePostScreen({ navigation }: any) {
   // Render
   if (loadingData) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#3B82F6" />
           <Text style={styles.loadingText}>Cargando...</Text>
@@ -459,7 +563,7 @@ export function CreatePostScreen({ navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>

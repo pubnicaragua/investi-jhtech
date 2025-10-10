@@ -2,6 +2,28 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '../supabase';
 import { storage } from '../utils/storage';
+import { migrateStorageKeys } from '../utils/storageMigration';
+
+// Helper function to load complete user data from public.users
+async function loadCompleteUserData(userId: string): Promise<User | null> {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, nombre, full_name, username, photo_url, avatar_url, bio, role, pais, email')
+      .eq('id', userId)
+      .single();
+    
+    if (error) {
+      console.error('[loadCompleteUserData] Error:', error);
+      return null;
+    }
+    
+    return data as User;
+  } catch (error) {
+    console.error('[loadCompleteUserData] Exception:', error);
+    return null;
+  }
+}
 
 export type User = {
   id: string;
@@ -9,6 +31,12 @@ export type User = {
   name?: string;
   username?: string;
   photo_url?: string;
+  avatar_url?: string;
+  full_name?: string;
+  nombre?: string;
+  bio?: string;
+  role?: string;
+  pais?: string;
   created_at?: string;
   updated_at?: string;
 };
@@ -26,7 +54,7 @@ const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Start as true to check for existing session
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
 
@@ -39,8 +67,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         console.log('[AuthProvider] Setting up auth listener');
         
+        // 🔄 MIGRACIÓN: Migrar claves antiguas con '@' a claves válidas
+        await migrateStorageKeys();
+        
         // 🔧 PRIMERO: Verificar si hay token guardado en AsyncStorage
-        const savedToken = await storage.getItem('@auth_token');
+        const savedToken = await storage.getItem('auth_token');
         const savedUserId = await storage.getItem('userId');
         console.log('[AuthProvider] Saved token exists:', !!savedToken);
         console.log('[AuthProvider] Saved userId exists:', !!savedUserId);
@@ -55,12 +86,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               if (session) {
                 console.log('[AuthProvider] ✅ Session active, saving...');
                 setSession(session);
-                setUser(session.user as unknown as User);
+                
+                // Load complete user data from public.users
+                const completeUserData = await loadCompleteUserData(session.user.id);
+                if (completeUserData) {
+                  setUser(completeUserData);
+                } else {
+                  // Fallback to auth user data
+                  setUser(session.user as unknown as User);
+                }
                 setIsAuthenticated(true);
                 
                 // Guardar en múltiples formatos para compatibilidad
                 await storage.setItem('access_token', session.access_token);
-                await storage.setItem('@auth_token', session.access_token);
+                await storage.setItem('auth_token', session.access_token);
                 await storage.setItem('userToken', session.access_token);
                 await storage.setItem('userId', session.user.id);
                 
@@ -78,7 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 // Limpiar todos los tokens
                 await storage.removeItem('access_token');
                 await storage.removeItem('refresh_token');
-                await storage.removeItem('@auth_token');
+                await storage.removeItem('auth_token');
                 await storage.removeItem('userToken');
                 await storage.removeItem('userId');
               }
@@ -104,11 +143,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (mounted && sessionData?.session) {
           console.log('[AuthProvider] ✅ Found existing session');
           setSession(sessionData.session);
-          setUser(sessionData.session.user as unknown as User);
+          
+          // Load complete user data from public.users
+          const completeUserData = await loadCompleteUserData(sessionData.session.user.id);
+          if (completeUserData) {
+            setUser(completeUserData);
+          } else {
+            // Fallback to auth user data
+            setUser(sessionData.session.user as unknown as User);
+          }
           setIsAuthenticated(true);
           
           // Guardar tokens
-          await storage.setItem('@auth_token', sessionData.session.access_token);
+          await storage.setItem('auth_token', sessionData.session.access_token);
           await storage.setItem('userToken', sessionData.session.access_token);
           await storage.setItem('userId', sessionData.session.user.id);
         } else if (savedToken && savedUserId) {
@@ -118,11 +165,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const { data: userData, error: userError } = await supabase.auth.getUser(savedToken);
             if (!userError && userData?.user) {
               console.log('[AuthProvider] ✅ Restored session from saved token');
-              setUser(userData.user as unknown as User);
+              
+              // Load complete user data from public.users
+              const completeUserData = await loadCompleteUserData(userData.user.id);
+              if (completeUserData) {
+                setUser(completeUserData);
+              } else {
+                // Fallback to auth user data
+                setUser(userData.user as unknown as User);
+              }
               setIsAuthenticated(true);
             } else {
               console.log('[AuthProvider] ⚠️ Could not restore session, clearing tokens');
-              await storage.removeItem('@auth_token');
+              await storage.removeItem('auth_token');
               await storage.removeItem('userToken');
               await storage.removeItem('userId');
             }
@@ -134,6 +189,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (error) {
         console.error('[AuthProvider] Error in setupAuth:', error);
+      } finally {
+        // Always set loading to false after checking session
+        if (mounted) {
+          setIsLoading(false);
+          console.log('[AuthProvider] ✅ Initial auth check complete');
+        }
       }
     };
 
@@ -180,7 +241,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Guardar TODOS los tokens inmediatamente (no esperar al listener)
       if (data?.session) {
         console.log('[AuthContext] 💾 Saving session tokens...');
-        await storage.setItem('@auth_token', data.session.access_token);
+        await storage.setItem('auth_token', data.session.access_token);
         await storage.setItem('userToken', data.session.access_token);
         await storage.setItem('access_token', data.session.access_token);
         await storage.setItem('userId', data.user.id);
@@ -191,7 +252,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // Actualizar estado inmediatamente
         setSession(data.session);
-        setUser(data.user as unknown as User);
+        
+        // Load complete user data from public.users
+        const completeUserData = await loadCompleteUserData(data.user.id);
+        if (completeUserData) {
+          setUser(completeUserData);
+        } else {
+          // Fallback to auth user data
+          setUser(data.user as unknown as User);
+        }
         setIsAuthenticated(true);
         
         console.log('[AuthContext] ✅ All tokens saved and state updated');
@@ -219,7 +288,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
       
       // Clear auth token
-      await storage.removeItem('@auth_token');
+      await storage.removeItem('auth_token');
       
       // El listener de onAuthStateChange manejará la limpieza
     } catch (error) {

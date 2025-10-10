@@ -149,8 +149,18 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
     if (!quickAccessIds.length) return communities.slice(0, 3)
     return communities.filter(c => quickAccessIds.includes(c.id))
   };
-  const getUserFullName = () => user?.full_name || (user?.nombre !== 'Usuario' ? user?.nombre : null) || user?.username || 'Usuario';
-  const getUserDescription = () => user?.bio || (user?.role !== 'Usuario' ? user?.role : null) || 'Miembro de la comunidad';
+  const getUserFullName = () => {
+    if (!user) return 'Usuario';
+    if (user.full_name && user.full_name !== 'Usuario') return user.full_name;
+    if (user.nombre && user.nombre !== 'Usuario') return user.nombre;
+    return user.username || 'Usuario';
+  };
+  const getUserDescription = () => {
+    if (!user) return 'Miembro de la comunidad';
+    if (user.bio) return user.bio;
+    if (user.role && user.role !== 'Usuario') return user.role;
+    return 'Miembro de la comunidad';
+  };
   
   if (!isOpen) return null;  
   

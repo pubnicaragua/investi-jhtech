@@ -23,6 +23,7 @@ import {
   RefreshControl,
 } from 'react-native'
 import { useNavigation, useRoute, NavigationProp } from '@react-navigation/native'
+import { InvestiVideoPlayer } from '../components/InvestiVideoPlayer'
 import type { RootStackParamList } from '../types/navigation'
 import {
   ArrowLeft,
@@ -408,7 +409,16 @@ export function PostDetailScreen() {
 
             <Text style={styles.postContent}>{post.contenido || post.content}</Text>
 
-            {post.image_url && <Image source={{ uri: post.image_url }} style={styles.postImage} />}
+            {(post.image_url || (post.media_url && post.media_url.length > 0)) && (() => {
+              const mediaUrl = post.media_url && post.media_url.length > 0 ? post.media_url[0] : post.image_url
+              const isVideo = mediaUrl?.toLowerCase().endsWith('.mp4') || mediaUrl?.toLowerCase().endsWith('.mov')
+              
+              return isVideo ? (
+                <InvestiVideoPlayer uri={mediaUrl} style={{ width: '100%', marginBottom: 12 }} />
+              ) : (
+                <Image source={{ uri: mediaUrl }} style={styles.postImage} />
+              )
+            })()}
 
             <View style={styles.statsContainer}>
               <View style={styles.statItem}>

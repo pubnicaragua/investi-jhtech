@@ -14,7 +14,7 @@ async function debugAuth() {
     'userId', 
     'access_token',
     'refresh_token',
-    '@auth_token',
+    'auth_token',
     'user_language'
   ]
   
@@ -79,7 +79,7 @@ async function forceLogin(email, password) {
   // Guardar en AsyncStorage
   await AsyncStorage.setItem('userToken', data.session.access_token)
   await AsyncStorage.setItem('userId', data.user.id)
-  await AsyncStorage.setItem('@auth_token', data.session.access_token)
+  await AsyncStorage.setItem('auth_token', data.session.access_token)
   
   console.log('✅ Tokens guardados en AsyncStorage')
   console.log('🔄 Recarga la página para aplicar cambios')

@@ -1121,7 +1121,7 @@ export function CommunitySettingsScreen() {
                 style={styles.input}
                 value={editedLocation}
                 onChangeText={setEditedLocation}
-                placeholder="Ej: Managua, Nicaragua"
+                placeholder="Ej: Santiago, Chile"
                 placeholderTextColor="#999"
               />
             </View>

@@ -15,8 +15,8 @@ import { ActivityIndicator, View } from 'react-native';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const ONBOARDING_COMPLETE_KEY = '@onboarding_complete';
-const COMMUNITIES_COMPLETE_KEY = '@communities_complete';
+const ONBOARDING_COMPLETE_KEY = 'onboarding_complete';
+const COMMUNITIES_COMPLETE_KEY = 'communities_complete';
 
 // Create a wrapper component to handle the navigation
 const OnboardingScreenWrapper: React.FC<{ route: any }> = ({ route }) => {

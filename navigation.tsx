@@ -165,7 +165,7 @@ export function RootStack() {
       console.log('🔐 Navigation: isAuthenticated:', isAuthenticated)
       
       // 🔧 Verificar token en AsyncStorage (más confiable que el contexto)
-      const authToken = await AsyncStorage.getItem('@auth_token')
+      const authToken = await AsyncStorage.getItem('auth_token')
       const userId = await AsyncStorage.getItem('userId')
       console.log('🔑 Navigation: Auth token exists:', !!authToken)
       console.log('👤 Navigation: UserId exists:', !!userId)
@@ -202,8 +202,9 @@ export function RootStack() {
     }
   }
   
-  // Mostrar estado de carga mientras se determina la ruta  
-  if (loading || authLoading || !initialRoute) {  
+  // Mostrar estado de carga mientras se determina la ruta o se verifica la autenticación
+  if (loading || authLoading || !initialRoute) {
+    console.log('🔄 Navigation: Showing loading screen - loading:', loading, 'authLoading:', authLoading, 'initialRoute:', initialRoute);
     return (  
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f8fa' }}>  
         <Image  

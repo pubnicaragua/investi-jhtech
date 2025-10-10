@@ -333,8 +333,8 @@ export function CommunityRecommendationsScreen({ navigation, route }: any) {
   const handleFinish = async () => {
     try {
       console.log('[CommunityRecommendations] Finishing onboarding');
-      await AsyncStorage.setItem("@onboarding_complete", "true");
-      await AsyncStorage.setItem("@communities_complete", "true");
+      await AsyncStorage.setItem("onboarding_complete", "true");
+      await AsyncStorage.setItem("communities_complete", "true");
 
       if (route.params?.onComplete) {
         console.log('[CommunityRecommendations] Calling onComplete callback');

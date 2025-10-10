@@ -28,7 +28,8 @@ import {
   MessageCircle,
   Send,
 } from "lucide-react-native"  
-import { getUserComplete, followUser, unfollowUser, getCurrentUserId, getSuggestedPeople, connectWithUser, dismissPersonSuggestion } from "../api"
+import { getUserComplete, followUser, unfollowUser, getCurrentUserId, getSuggestedPeople, connectWithUser } from "../rest/api"
+import { useAuth } from "../contexts/AuthContext"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -125,7 +126,7 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
       if (userData) {
         setProfileUser({
           ...userData,
-          intereses: userData.intereses || []
+          intereses: []
         })
         setIsOwnProfile(userId === currentUserId)
 
@@ -194,12 +195,13 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
   }
 
   const handleEditProfile = () => {
-    navigation.navigate('EditProfileScreen')
+    console.log('[ProfileScreen] Navigating to EditProfile')
+    navigation.navigate('EditProfile')
   }
 
   const handleMessage = () => {
     if (!profileUser) return
-    navigation.navigate('Chat', { userId: profileUser.id, userName: profileUser.name })
+    navigation.navigate('ChatScreen', { userId: profileUser.id, userName: profileUser.name })
   }
 
   const handleShare = async () => {
@@ -226,17 +228,8 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
   }
 
   const handleDismissPerson = async (personId: string) => {
-    try {
-      const currentUserId = await getCurrentUserId()
-      if (!currentUserId) return
-
-      await dismissPersonSuggestion(currentUserId, personId)
-      setSuggestedPeople(prev => prev.filter(p => p.id !== personId))
-    } catch (error) {
-      console.error('Error dismissing person suggestion:', error)
-      // Still remove from UI even if API call fails
-      setSuggestedPeople(prev => prev.filter(p => p.id !== personId))
-    }
+    // Simply remove from UI
+    setSuggestedPeople(prev => prev.filter(p => p.id !== personId))
   }
   
   const renderPostCard = (post: any, index: number) => (  
