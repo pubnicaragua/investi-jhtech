@@ -39,17 +39,20 @@ if (supabaseUrl && supabaseAnonKey) {
     supabase = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         storage: AsyncStorage,
-        autoRefreshToken: false,
+        autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,
       },
     });
-    console.log('Supabase client initialized');
+    console.log('✅ Supabase client initialized successfully');
+    console.log('📍 Supabase URL:', supabaseUrl);
   } catch (error) {
-    console.warn('Failed to initialize Supabase:', error);
+    console.error('❌ Failed to initialize Supabase:', error);
   }
 } else {
-  console.warn('Supabase URL or Anon Key is missing. Using mock client.');
+  console.error('❌ Supabase URL or Anon Key is missing. Using mock client.');
+  console.log('URL:', supabaseUrl ? '✓' : '✗');
+  console.log('Key:', supabaseAnonKey ? '✓' : '✗');
 }
 
 export { supabase };

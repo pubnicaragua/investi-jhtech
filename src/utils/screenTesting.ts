@@ -35,104 +35,14 @@
 import * as React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-// Importa todas las pantallas de tu aplicación
-import { SignInScreen } from '../screens/SignInScreen';
-import { SignUpScreen } from '../screens/SignUpScreen';
-import { WelcomeScreen } from '../screens/WelcomeScreen';
-import { LanguageSelectionScreen } from '../screens/LanguageSelectionScreen';
-import { HomeFeedScreen } from '../screens/HomeFeedScreen';
-import { ProfileScreen } from '../screens/ProfileScreen';
-import { SettingsScreen } from '../screens/SettingsScreen';
-import { NotificationsScreen } from '../screens/NotificationsScreen';
-import { NewsScreen } from '../screens/NewsScreen';
-import { EducacionScreen } from '../screens/EducacionScreen';
-import { InversionesScreen } from '../screens/InversionesScreen';
-import { CommunitiesScreen } from '../screens/CommunitiesScreen';
-import { MessagesScreen } from '../screens/MessagesScreen';
-import { CreatePostScreen } from '../screens/CreatePostScreen';
-import { PostDetailScreen } from '../screens/PostDetailScreen';
-import { ChatScreen } from '../screens/ChatScreen';
-import DevMenuScreen from '../screens/DevMenuScreen';
-import { UploadAvatarScreen } from '../screens/UploadAvatarScreen';
-import { PickInterestsScreen } from '../screens/PickInterestsScreen';
-import { PickGoalsScreen } from '../screens/PickGoalsScreen';
-import { PickKnowledgeScreen } from '../screens/PickKnowledgeScreen';
-import { OnboardingCompleteScreen } from '../screens/OnboardingCompleteScreen';
-import { CommunityDetailScreen } from '../screens/CommunityDetailScreen';
-import CommunityMembersScreen from '../screens/CommunityMembersScreen';
-import EditCommunityScreen from '../screens/EditCommunityScreen';
-import CreateCommunityScreen from '../screens/CreateCommunityScreen';
-import { MarketInfoScreen } from '../screens/MarketInfoScreen';
-import { PromotionDetailScreen } from '../screens/PromotionDetailScreen';
-import InversionistaScreen from '../screens/InversionistaScreen';
-import { NewsDetailScreen } from '../screens/NewsDetailScreen';
-import { ChatListScreen } from '../screens/ChatListScreen';
-import PaymentScreen from '../screens/PaymentScreen';
-import { CourseDetailScreen } from '../screens/CourseDetailScreen';
-import { LearningPathsScreen } from '../screens/LearningPathsScreen';
-import { GroupChatScreen } from '../screens/GroupChatScreen';
-import { SharePostScreen } from '../screens/SharePostScreen';
-import { SavedPostsScreen } from '../screens/SavedPostsScreen';
-import { CommunityRecommendationsScreen } from '../screens/CommunityRecommendationsScreen';
-import { PromotionsScreen } from '../screens/PromotionsScreen';
-import { VideoPlayerScreen } from '../screens/VideoPlayerScreen';
-import { CazaHormigasScreen } from '../screens/CazaHormigasScreen';
-import { ReportesAvanzadosScreen } from '../screens/ReportesAvanzadosScreen';
-import { PlanificadorFinancieroScreen } from '../screens/PlanificadorFinancieroScreen';
-import { InvestmentKnowledgeScreen } from '../screens/InvestmentKnowledgeScreen';
-// Removed non-existent community screens
+// ⚠️ IMPORTACIONES DESHABILITADAS - Causaban error TurboModuleRegistry
+// Las importaciones se cargan dinámicamente solo cuando TESTING_CONFIG.ENABLED = true
 
-// Mapa de componentes de pantalla
-const SCREEN_COMPONENTS: Record<string, React.ComponentType<any>> = {
-  SignInScreen,
-  SignUpScreen,
-  WelcomeScreen,
-  LanguageSelectionScreen,
-  HomeFeedScreen,
-  ProfileScreen,
-  SettingsScreen,
-  NotificationsScreen,
-  NewsScreen,
-  EducacionScreen,
-  InversionesScreen,
-  CommunitiesScreen,
-  MessagesScreen,
-  CreatePostScreen,
-  PostDetailScreen,
-  ChatScreen,
-  DevMenuScreen,
-  UploadAvatarScreen,
-  PickInterestsScreen,
-  PickGoalsScreen,
-  PickKnowledgeScreen,
-  OnboardingCompleteScreen,
-  CommunityDetailScreen,
-  CommunityMembersScreen,
-  EditCommunityScreen,
-  CreateCommunityScreen,
-  MarketInfoScreen,
-  PromotionDetailScreen,
-  InversionistaScreen,
-  NewsDetailScreen,
-  ChatListScreen,
-  PaymentScreen: PaymentScreen,
-  CourseDetailScreen,
-  LearningPathsScreen,
-  GroupChatScreen,
-  SharePostScreen,
-  SavedPostsScreen,
-  CommunityRecommendationsScreen,
-  PromotionsScreen,
-  VideoPlayerScreen,
-  CazaHormigasScreen,
-  ReportesAvanzadosScreen,
-  PlanificadorFinancieroScreen,
-  InvestmentKnowledgeScreen,
-  CommunitiesScreen,
-};
+// Mapa de componentes de pantalla (lazy loading)
+const SCREEN_COMPONENTS: Record<string, React.ComponentType<any>> = {};
 
 export const TESTING_CONFIG = {
-  ENABLED: false, // ← Deshabilitado - Usar flujo normal de navegación
+  ENABLED: false, // ⚠️ MANTENER EN FALSE - Causa error TurboModuleRegistry si se activa
   SCREEN: 'HomeFeedScreen',
   // Only include screens that actually exist in the codebase
   SAFE_SCREENS: [
@@ -227,14 +137,10 @@ export const TESTING_CONFIG = {
   } as Record<string, any>
 };
 
-// Obtener el componente de pantalla
+// Obtener el componente de pantalla (deshabilitado)
 export function getScreenComponent(screenName: string): React.ComponentType<any> {
-  const ScreenComponent = SCREEN_COMPONENTS[screenName];
-  if (!ScreenComponent) {
-    console.warn(`No se encontró el componente para la pantalla: ${screenName}`);
-    return () => null;
-  }
-  return ScreenComponent;
+  console.warn('⚠️ screenTesting está deshabilitado para evitar error TurboModuleRegistry');
+  return () => null;
 }
 
 // Validar pantalla segura
@@ -247,17 +153,9 @@ export function getScreenParams(screenName: string): any {
   return TESTING_CONFIG.UNSAFE_SCREENS[screenName] || {};
 }
 
-// Componente de Testing
+// Componente de Testing (deshabilitado)
 export function TestingScreen() {
-  const TestScreen = getScreenComponent(TESTING_CONFIG.SCREEN);
-  const screenParams = getScreenParams(TESTING_CONFIG.SCREEN);
-
-  if (isSafeScreen(TESTING_CONFIG.SCREEN) || Object.keys(screenParams).length > 0) {
-    const ScreenComponent = TestScreen as React.ComponentType<any>;
-    return React.createElement(ScreenComponent, screenParams);
-  }
-
-  const errorMessage = `La pantalla "${TESTING_CONFIG.SCREEN}" necesita parámetros.\n\nAgrega los parámetros necesarios en TESTING_CONFIG.UNSAFE_SCREENS`;
+  const errorMessage = `⚠️ TESTING DESHABILITADO\n\nscreenTesting causa error TurboModuleRegistry.\nUsa el flujo normal de navegación.`;
   
   return React.createElement(
     View,

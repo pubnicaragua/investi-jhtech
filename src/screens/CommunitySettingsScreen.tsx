@@ -1,9 +1,11 @@
 // ============================================================================
-// COMMUNITY SETTINGS SCREEN - 100% Backend Driven + UI Profesional
+// CommunitySettingsScreen.tsx - Configuración de Comunidad
+// ============================================================================
+// 100% Backend Driven + UI Profesional Moderna
 // Accesible desde: CommunityDetailScreen (menú ...)
 // ============================================================================
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   View,
   Text,
@@ -17,7 +19,8 @@ import {
   TextInput,
   Image,
   RefreshControl,
-} from 'react-native';
+  Platform,
+} from 'react-native'
 import {
   ArrowLeft,
   Settings,
@@ -32,7 +35,6 @@ import {
   UserMinus,
   Trash2,
   Edit3,
-  Image as ImageIcon,
   Globe,
   MapPin,
   Tag,
@@ -45,157 +47,208 @@ import {
   ChevronRight,
   Camera,
   Save,
-} from 'lucide-react-native';
-import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../supabase';
+  Info,
+  Zap,
+  MessageSquare,
+  Heart,
+  Ban,
+  CheckCircle,
+  XCircle,
+} from 'lucide-react-native'
+import { useRoute, useNavigation, NavigationProp } from '@react-navigation/native'
+import type { RootStackParamList } from '../types/navigation'
+import { request } from '../rest/client'
+import { getCurrentUser } from '../rest/api'
 
 // ============================================================================
 // INTERFACES
 // ============================================================================
 
 interface CommunitySettings {
-  community_id: string;
-  is_private: boolean;
-  require_approval: boolean;
-  allow_member_posts: boolean;
-  allow_member_invites: boolean;
-  allow_comments: boolean;
-  allow_reactions: boolean;
-  show_member_count: boolean;
-  show_member_list: boolean;
-  enable_notifications: boolean;
-  notify_new_members: boolean;
-  notify_new_posts: boolean;
-  notify_new_comments: boolean;
-  auto_moderate: boolean;
-  profanity_filter: boolean;
-  spam_filter: boolean;
-  max_post_length: number;
-  max_comment_length: number;
-  created_at?: string;
-  updated_at?: string;
+  id?: string
+  community_id: string
+  // Privacidad
+  is_private: boolean
+  require_approval: boolean
+  show_member_count: boolean
+  show_member_list: boolean
+  // Permisos
+  allow_member_posts: boolean
+  allow_member_invites: boolean
+  allow_comments: boolean
+  allow_reactions: boolean
+  // Notificaciones
+  enable_notifications: boolean
+  notify_new_members: boolean
+  notify_new_posts: boolean
+  notify_new_comments: boolean
+  // Moderación
+  auto_moderate: boolean
+  profanity_filter: boolean
+  spam_filter: boolean
+  max_post_length: number
+  max_comment_length: number
+  // Metadata
+  created_at?: string
+  updated_at?: string
 }
 
 interface Community {
-  id: string;
-  name: string;
-  description: string;
-  image_url?: string;
-  category: string;
-  location?: string;
-  created_by: string;
-  member_count?: number;
-  is_verified?: boolean;
-  created_at: string;
-}
-
-interface CommunityMember {
-  user_id: string;
-  community_id: string;
-  role: 'owner' | 'admin' | 'moderator' | 'member';
-  joined_at: string;
-  user?: {
-    id: string;
-    name: string;
-    username: string;
-    photo_url?: string;
-  };
+  id: string
+  name: string
+  nombre: string
+  description: string
+  descripcion: string
+  image_url?: string
+  icono_url?: string
+  avatar_url?: string
+  banner_url?: string
+  category: string
+  type: 'public' | 'private' | 'invite_only'
+  location?: string
+  created_by: string
+  member_count?: number
+  is_verified?: boolean
+  created_at: string
 }
 
 interface SettingSection {
-  id: string;
-  title: string;
-  description?: string;
-  items: SettingItem[];
+  id: string
+  title: string
+  description?: string
+  icon?: any
+  items: SettingItem[]
 }
 
 interface SettingItem {
-  id: string;
-  icon: any;
-  label: string;
-  description?: string;
-  type: 'toggle' | 'navigation' | 'action' | 'info' | 'number';
-  value?: boolean | string | number;
-  settingKey?: keyof CommunitySettings;
-  onPress?: () => void;
-  destructive?: boolean;
-  requiresOwner?: boolean;
-  requiresAdmin?: boolean;
+  id: string
+  icon: any
+  label: string
+  description?: string
+  type: 'toggle' | 'navigation' | 'action' | 'info' | 'number'
+  value?: boolean | string | number
+  settingKey?: keyof CommunitySettings
+  onPress?: () => void
+  destructive?: boolean
+  requiresOwner?: boolean
+  requiresAdmin?: boolean
+  badge?: string | number
+  badgeColor?: string
 }
 
 // ============================================================================
-// MAIN COMPONENT
+// COMPONENTE PRINCIPAL
 // ============================================================================
 
-export function CommunitySettingsScreen({ route, navigation }: any) {
-  const { communityId } = route.params;
-  const { user } = useAuth();
+export function CommunitySettingsScreen() {
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>()
+  const route = useRoute()
+  const { communityId, communityName } = route.params as {
+    communityId: string
+    communityName?: string
+  }
+
+  // Estados
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [community, setCommunity] = useState<Community | null>(null)
+  const [settings, setSettings] = useState<CommunitySettings | null>(null)
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [userRole, setUserRole] = useState<string>('member')
+  const [memberCount, setMemberCount] = useState(0)
+  const [pendingRequests, setPendingRequests] = useState(0)
+  const [activeMembers, setActiveMembers] = useState(0)
+  const [totalPosts, setTotalPosts] = useState(0)
+
+  // Edit mode
+  const [editMode, setEditMode] = useState(false)
+  const [editedName, setEditedName] = useState('')
+  const [editedDescription, setEditedDescription] = useState('')
+  const [editedCategory, setEditedCategory] = useState('')
+  const [editedLocation, setEditedLocation] = useState('')
 
   // ============================================================================
-  // STATE
-  // ============================================================================
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [community, setCommunity] = useState<Community | null>(null);
-  const [settings, setSettings] = useState<CommunitySettings | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [memberCount, setMemberCount] = useState(0);
-  const [pendingRequests, setPendingRequests] = useState(0);
-
-  // Edit mode states
-  const [editMode, setEditMode] = useState(false);
-  const [editedName, setEditedName] = useState('');
-  const [editedDescription, setEditedDescription] = useState('');
-  const [editedCategory, setEditedCategory] = useState('');
-  const [editedLocation, setEditedLocation] = useState('');
-
-  // ============================================================================
-  // FETCH DATA FROM BACKEND
+  // CARGAR DATOS
   // ============================================================================
 
-  const fetchCommunity = async () => {
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
     try {
-      const { data, error } = await supabase
-        .from('communities')
-        .select('*')
-        .eq('id', communityId)
-        .single();
+      setLoading(true)
 
-      if (error) throw error;
-      setCommunity(data);
-      setEditedName(data.name);
-      setEditedDescription(data.description || '');
-      setEditedCategory(data.category || '');
-      setEditedLocation(data.location || '');
-    } catch (error) {
-      console.error('Error fetching community:', error);
-      Alert.alert('Error', 'No se pudo cargar la comunidad');
-    }
-  };
+      const [user, communityData, settingsData, stats] = await Promise.all([
+        getCurrentUser(),
+        fetchCommunity(),
+        fetchCommunitySettings(),
+        fetchCommunityStats(),
+      ])
 
-  const fetchCommunitySettings = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('community_settings')
-        .select('*')
-        .eq('community_id', communityId)
-        .single();
+      setCurrentUser(user)
 
-      if (error) {
-        // If settings don't exist, create default ones
-        if (error.code === 'PGRST116') {
-          await createDefaultSettings();
-          return;
-        }
-        throw error;
+      // Obtener rol del usuario
+      if (communityData) {
+        const role = await fetchUserRole(user?.id, communityData.id)
+        setUserRole(role)
       }
-
-      setSettings(data);
     } catch (error) {
-      console.error('Error fetching community settings:', error);
+      console.error('Error loading data:', error)
+      Alert.alert('Error', 'No se pudo cargar la configuración')
+    } finally {
+      setLoading(false)
     }
-  };
+  }
+
+  const fetchCommunity = async (): Promise<Community | null> => {
+    try {
+      const response = await request('GET', '/communities', {
+        params: {
+          select: '*',
+          id: `eq.${communityId}`,
+        },
+      })
+
+      if (response && response.length > 0) {
+        const data = response[0]
+        setCommunity(data)
+        setEditedName(data.name || data.nombre)
+        setEditedDescription(data.description || data.descripcion || '')
+        setEditedCategory(data.category || '')
+        setEditedLocation(data.location || '')
+        return data
+      }
+      return null
+    } catch (error) {
+      console.error('Error fetching community:', error)
+      return null
+    }
+  }
+
+  const fetchCommunitySettings = async (): Promise<CommunitySettings | null> => {
+    try {
+      const response = await request('GET', '/community_settings', {
+        params: {
+          select: '*',
+          community_id: `eq.${communityId}`,
+        },
+      })
+
+      if (response && response.length > 0) {
+        setSettings(response[0])
+        return response[0]
+      } else {
+        // Crear configuración por defecto
+        await createDefaultSettings()
+        return null
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error)
+      return null
+    }
+  }
 
   const createDefaultSettings = async () => {
     try {
@@ -218,160 +271,159 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
         spam_filter: true,
         max_post_length: 5000,
         max_comment_length: 1000,
-      };
-
-      const { data, error } = await supabase
-        .from('community_settings')
-        .insert(defaultSettings)
-        .select()
-        .single();
-
-      if (error) throw error;
-      setSettings(data);
-    } catch (error) {
-      console.error('Error creating default settings:', error);
-    }
-  };
-
-  const fetchUserRole = async () => {
-    try {
-      console.log('🔍 Fetching role for user:', user?.id, 'in community:', communityId);
-      
-      const { data, error } = await supabase
-        .from('community_members')
-        .select('role')
-        .eq('community_id', communityId)
-        .eq('user_id', user?.id)
-        .single();
-
-      if (error) {
-        console.error('❌ Error fetching user role:', error);
-        // Si no encuentra el registro, el usuario no es miembro
-        setUserRole('member');
-        return;
       }
 
-      console.log('✅ User role fetched:', data.role);
-      setUserRole(data.role);
-    } catch (error) {
-      console.error('❌ Exception fetching user role:', error);
-      setUserRole('member');
-    }
-  };
+      const response = await request('POST', '/community_settings', {
+        body: defaultSettings,
+      })
 
-  const fetchMemberCount = async () => {
+      if (response && response.length > 0) {
+        setSettings(response[0])
+      }
+    } catch (error) {
+      console.error('Error creating default settings:', error)
+    }
+  }
+
+  const fetchUserRole = async (userId: string, commId: string): Promise<string> => {
     try {
-      const { count, error } = await supabase
-        .from('community_members')
-        .select('*', { count: 'exact', head: true })
-        .eq('community_id', communityId);
+      const response = await request('GET', '/user_communities', {
+        params: {
+          select: 'role',
+          user_id: `eq.${userId}`,
+          community_id: `eq.${commId}`,
+          status: 'eq.active',
+        },
+      })
 
-      if (error) throw error;
-      setMemberCount(count || 0);
+      if (response && response.length > 0) {
+        return response[0].role
+      }
+      return 'member'
     } catch (error) {
-      console.error('Error fetching member count:', error);
+      console.error('Error fetching user role:', error)
+      return 'member'
     }
-  };
+  }
 
-  const fetchPendingRequests = async () => {
+  const fetchCommunityStats = async () => {
     try {
-      const { count, error } = await supabase
-        .from('community_join_requests')
-        .select('*', { count: 'exact', head: true })
-        .eq('community_id', communityId)
-        .eq('status', 'pending');
+      // Contar miembros activos
+      const membersResponse = await request('GET', '/user_communities', {
+        params: {
+          select: 'id',
+          community_id: `eq.${communityId}`,
+          status: 'eq.active',
+        },
+      })
+      setMemberCount(membersResponse?.length || 0)
 
-      if (error) throw error;
-      setPendingRequests(count || 0);
+      // Contar miembros online (últimos 15 minutos)
+      const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString()
+      const activeMembersResponse = await request('GET', '/user_communities', {
+        params: {
+          select: 'user:users(is_online,last_seen_at)',
+          community_id: `eq.${communityId}`,
+          status: 'eq.active',
+        },
+      })
+      const active = activeMembersResponse?.filter((m: any) => 
+        m.user?.is_online || (m.user?.last_seen_at && m.user.last_seen_at > fifteenMinutesAgo)
+      ).length || 0
+      setActiveMembers(active)
+
+      // Contar solicitudes pendientes
+      const requestsResponse = await request('GET', '/community_join_requests', {
+        params: {
+          select: 'id',
+          community_id: `eq.${communityId}`,
+          status: 'eq.pending',
+        },
+      })
+      setPendingRequests(requestsResponse?.length || 0)
+
+      // Contar posts
+      const postsResponse = await request('GET', '/posts', {
+        params: {
+          select: 'id',
+          community_id: `eq.${communityId}`,
+        },
+      })
+      setTotalPosts(postsResponse?.length || 0)
     } catch (error) {
-      console.error('Error fetching pending requests:', error);
+      console.error('Error fetching stats:', error)
     }
-  };
+  }
 
-  const loadData = async () => {
-    setLoading(true);
-    await Promise.all([
-      fetchCommunity(),
-      fetchCommunitySettings(),
-      fetchUserRole(),
-      fetchMemberCount(),
-      fetchPendingRequests(),
-    ]);
-    setLoading(false);
-  };
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
-  };
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', onRefresh);
-    onRefresh();
-    return unsubscribe;
-  }, [navigation, communityId, user?.id]);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    await loadData()
+    setRefreshing(false)
+  }, [])
 
   // ============================================================================
-  // UPDATE FUNCTIONS
+  // ACTUALIZAR CONFIGURACIÓN
   // ============================================================================
+
   const updateSetting = async (
     key: keyof CommunitySettings,
     value: boolean | string | number
   ) => {
     try {
-      if (!settings) return;
+      if (!settings) return
 
-      setSaving(true);
+      setSaving(true)
 
-      const { error } = await supabase
-        .from('community_settings')
-        .update({ [key]: value, updated_at: new Date().toISOString() })
-        .eq('community_id', communityId);
+      await request('PATCH', '/community_settings', {
+        params: { community_id: `eq.${communityId}` },
+        body: { [key]: value, updated_at: new Date().toISOString() },
+      })
 
-      if (error) throw error;
-
-      setSettings({ ...settings, [key]: value });
+      setSettings({ ...settings, [key]: value })
     } catch (error) {
-      console.error('Error updating setting:', error);
-      Alert.alert('Error', 'No se pudo actualizar la configuración');
+      console.error('Error updating setting:', error)
+      Alert.alert('Error', 'No se pudo actualizar la configuración')
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
 
   const updateCommunityInfo = async () => {
     try {
-      setSaving(true);
+      setSaving(true)
 
-      const { error } = await supabase
-        .from('communities')
-        .update({
+      await request('PATCH', '/communities', {
+        params: { id: `eq.${communityId}` },
+        body: {
           name: editedName,
+          nombre: editedName,
           description: editedDescription,
+          descripcion: editedDescription,
           category: editedCategory,
           location: editedLocation,
           updated_at: new Date().toISOString(),
-        })
-        .eq('id', communityId);
+        },
+      })
 
-      if (error) throw error;
-
-      await fetchCommunity();
-      setEditMode(false);
-      Alert.alert('Éxito', 'Información actualizada correctamente');
+      await fetchCommunity()
+      setEditMode(false)
+      Alert.alert('Éxito', 'Información actualizada correctamente')
     } catch (error) {
-      console.error('Error updating community info:', error);
-      Alert.alert('Error', 'No se pudo actualizar la información');
+      console.error('Error updating community info:', error)
+      Alert.alert('Error', 'No se pudo actualizar la información')
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
+
+  // ============================================================================
+  // ACCIONES PELIGROSAS
+  // ============================================================================
 
   const deleteCommunity = async () => {
     Alert.alert(
-      'Eliminar comunidad',
-      '⚠️ Esta acción es irreversible. Se eliminarán todos los posts, miembros y datos de la comunidad.',
+      '⚠️ Eliminar comunidad',
+      'Esta acción es irreversible. Se eliminarán todos los posts, miembros y datos de la comunidad.\n\n¿Estás completamente seguro?',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -379,26 +431,31 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
           style: 'destructive',
           onPress: async () => {
             try {
-              const { error } = await supabase
-                .from('communities')
-                .delete()
-                .eq('id', communityId);
+              await request('DELETE', '/communities', {
+                params: { id: `eq.${communityId}` },
+              })
 
-              if (error) throw error;
-
-              Alert.alert('Comunidad eliminada', 'La comunidad ha sido eliminada exitosamente');
-              navigation.navigate('Communities');
+              Alert.alert('Comunidad eliminada', 'La comunidad ha sido eliminada exitosamente')
+              navigation.navigate('Communities')
             } catch (error) {
-              console.error('Error deleting community:', error);
-              Alert.alert('Error', 'No se pudo eliminar la comunidad');
+              console.error('Error deleting community:', error)
+              Alert.alert('Error', 'No se pudo eliminar la comunidad')
             }
           },
         },
       ]
-    );
-  };
+    )
+  }
 
   const leaveCommunity = async () => {
+    if (userRole === 'owner') {
+      Alert.alert(
+        'No puedes abandonar',
+        'Como propietario, debes transferir la propiedad o eliminar la comunidad primero.'
+      )
+      return
+    }
+
     Alert.alert(
       'Abandonar comunidad',
       '¿Estás seguro que deseas abandonar esta comunidad?',
@@ -409,83 +466,49 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
           style: 'destructive',
           onPress: async () => {
             try {
-              const { error } = await supabase
-                .from('community_members')
-                .delete()
-                .eq('community_id', communityId)
-                .eq('user_id', user?.id);
+              await request('DELETE', '/user_communities', {
+                params: {
+                  community_id: `eq.${communityId}`,
+                  user_id: `eq.${currentUser?.id}`,
+                },
+              })
 
-              if (error) throw error;
-
-              Alert.alert('Has abandonado la comunidad');
-              navigation.navigate('Communities');
+              Alert.alert('Has abandonado la comunidad')
+              navigation.navigate('Communities')
             } catch (error) {
-              console.error('Error leaving community:', error);
-              Alert.alert('Error', 'No se pudo abandonar la comunidad');
+              console.error('Error leaving community:', error)
+              Alert.alert('Error', 'No se pudo abandonar la comunidad')
             }
           },
         },
       ]
-    );
-  };
+    )
+  }
 
   // ============================================================================
-  // HANDLERS
+  // PERMISOS
   // ============================================================================
 
-  const handleToggleSetting = (
-    key: keyof CommunitySettings,
-    currentValue: boolean
-  ) => {
-    updateSetting(key, !currentValue);
-  };
-
-  const handleNavigateToMembers = () => {
-    navigation.navigate('CommunityMembers', { communityId });
-  };
-
-  const handleNavigateToPendingRequests = () => {
-    navigation.navigate('PendingRequests', { communityId });
-  };
-
-  const handleNavigateToModerators = () => {
-    navigation.navigate('CommunityModerators', { communityId });
-  };
-
-  const handleNavigateToBlockedUsers = () => {
-    navigation.navigate('BlockedUsers', { communityId });
-  };
-
-  const handleNavigateToReports = () => {
-    navigation.navigate('CommunityReports', { communityId });
-  };
-
-  const handleChangeImage = () => {
-    Alert.alert('Cambiar imagen', 'Funcionalidad de cambio de imagen próximamente');
-  };
+  const isOwner = userRole === 'owner'
+  const isAdmin = userRole === 'admin' || userRole === 'owner'
+  const isModerator = userRole === 'moderator' || isAdmin
 
   // ============================================================================
-  // PERMISSION CHECKS
-  // ============================================================================
-
-  const isOwner = userRole === 'admin'; // En DB solo existe 'admin', no 'owner'
-  const isAdmin = userRole === 'admin';
-  const isModerator = userRole === 'moderator' || isAdmin;
-
-  // ============================================================================
-  // SETTINGS SECTIONS (BACKEND DRIVEN)
+  // SECCIONES DE CONFIGURACIÓN
   // ============================================================================
 
   const settingsSections: SettingSection[] = [
-    // Community Info Section
+    // Información
     {
       id: 'info',
-      title: 'Información de la comunidad',
+      title: 'Información',
+      icon: Info,
       items: [
         {
           id: 'edit_info',
           icon: Edit3,
           label: 'Editar información',
+          description: 'Nombre, descripción, categoría',
           type: 'action',
           onPress: () => setEditMode(!editMode),
           requiresAdmin: true,
@@ -494,30 +517,62 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
           id: 'change_image',
           icon: Camera,
           label: 'Cambiar imagen',
+          description: 'Actualizar foto de la comunidad',
           type: 'action',
-          onPress: handleChangeImage,
+          onPress: () => Alert.alert('Próximamente', 'Función de cambio de imagen próximamente'),
           requiresAdmin: true,
-        },
-        {
-          id: 'member_count',
-          icon: Users,
-          label: `${memberCount} miembros`,
-          type: 'info',
-        },
-        {
-          id: 'category',
-          icon: Tag,
-          label: community?.category || 'Sin categoría',
-          type: 'info',
         },
       ],
     },
 
-    // Privacy & Access Section
+    // Estadísticas
+    {
+      id: 'stats',
+      title: 'Estadísticas',
+      icon: Zap,
+      items: [
+        {
+          id: 'member_count',
+          icon: Users,
+          label: 'Miembros totales',
+          type: 'info',
+          badge: memberCount.toString(),
+          badgeColor: '#2673f3',
+        },
+        {
+          id: 'active_members',
+          icon: CheckCircle,
+          label: 'Miembros activos',
+          description: 'Últimos 15 minutos',
+          type: 'info',
+          badge: activeMembers.toString(),
+          badgeColor: '#10b981',
+        },
+        {
+          id: 'total_posts',
+          icon: FileText,
+          label: 'Posts publicados',
+          type: 'info',
+          badge: totalPosts.toString(),
+          badgeColor: '#8b5cf6',
+        },
+        {
+          id: 'category',
+          icon: Tag,
+          label: 'Categoría',
+          type: 'info',
+          badge: community?.category || 'Sin categoría',
+          badgeColor: '#f59e0b',
+        },
+      ],
+    },
+
+    // Privacidad
     {
       id: 'privacy',
       title: 'Privacidad y acceso',
-      description: 'Controla quién puede ver y unirse a la comunidad',
+      description: 'Controla quién puede ver y unirse',
+      icon: Lock,
       items: [
         {
           id: 'is_private',
@@ -533,7 +588,7 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
           id: 'require_approval',
           icon: Shield,
           label: 'Requerir aprobación',
-          description: 'Los administradores deben aprobar nuevos miembros',
+          description: 'Aprobar nuevos miembros manualmente',
           type: 'toggle',
           value: settings?.require_approval || false,
           settingKey: 'require_approval',
@@ -544,7 +599,7 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
           icon: Users,
           label: 'Mostrar cantidad de miembros',
           type: 'toggle',
-          value: settings?.show_member_count || false,
+          value: settings?.show_member_count !== false,
           settingKey: 'show_member_count',
           requiresAdmin: true,
         },
@@ -553,26 +608,27 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
           icon: Eye,
           label: 'Mostrar lista de miembros',
           type: 'toggle',
-          value: settings?.show_member_list || false,
+          value: settings?.show_member_list !== false,
           settingKey: 'show_member_list',
           requiresAdmin: true,
         },
       ],
     },
 
-    // Member Permissions Section
+    // Permisos
     {
       id: 'permissions',
       title: 'Permisos de miembros',
       description: 'Define qué pueden hacer los miembros',
+      icon: Shield,
       items: [
         {
           id: 'allow_member_posts',
           icon: FileText,
-          label: 'Permitir publicaciones de miembros',
+          label: 'Permitir publicaciones',
           description: 'Los miembros pueden crear posts',
           type: 'toggle',
-          value: settings?.allow_member_posts || false,
+          value: settings?.allow_member_posts !== false,
           settingKey: 'allow_member_posts',
           requiresAdmin: true,
         },
@@ -582,43 +638,44 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
           label: 'Permitir invitaciones',
           description: 'Los miembros pueden invitar a otros',
           type: 'toggle',
-          value: settings?.allow_member_invites || false,
+          value: settings?.allow_member_invites !== false,
           settingKey: 'allow_member_invites',
           requiresAdmin: true,
         },
         {
           id: 'allow_comments',
-          icon: FileText,
+          icon: MessageSquare,
           label: 'Permitir comentarios',
           type: 'toggle',
-          value: settings?.allow_comments || false,
+          value: settings?.allow_comments !== false,
           settingKey: 'allow_comments',
           requiresAdmin: true,
         },
         {
           id: 'allow_reactions',
-          icon: Star,
+          icon: Heart,
           label: 'Permitir reacciones',
           type: 'toggle',
-          value: settings?.allow_reactions || false,
+          value: settings?.allow_reactions !== false,
           settingKey: 'allow_reactions',
           requiresAdmin: true,
         },
       ],
     },
 
-    // Notifications Section
+    // Notificaciones
     {
       id: 'notifications',
       title: 'Notificaciones',
-      description: 'Configura las notificaciones de la comunidad',
+      description: 'Configura las notificaciones',
+      icon: Bell,
       items: [
         {
           id: 'enable_notifications',
           icon: Bell,
           label: 'Activar notificaciones',
           type: 'toggle',
-          value: settings?.enable_notifications || false,
+          value: settings?.enable_notifications !== false,
           settingKey: 'enable_notifications',
           requiresAdmin: true,
         },
@@ -627,7 +684,7 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
           icon: UserPlus,
           label: 'Notificar nuevos miembros',
           type: 'toggle',
-          value: settings?.notify_new_members || false,
+          value: settings?.notify_new_members !== false,
           settingKey: 'notify_new_members',
           requiresAdmin: true,
         },
@@ -636,13 +693,13 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
           icon: FileText,
           label: 'Notificar nuevos posts',
           type: 'toggle',
-          value: settings?.notify_new_posts || false,
+          value: settings?.notify_new_posts !== false,
           settingKey: 'notify_new_posts',
           requiresAdmin: true,
         },
         {
           id: 'notify_new_comments',
-          icon: FileText,
+          icon: MessageSquare,
           label: 'Notificar nuevos comentarios',
           type: 'toggle',
           value: settings?.notify_new_comments || false,
@@ -652,15 +709,16 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
       ],
     },
 
-    // Moderation Section
+    // Moderación
     {
       id: 'moderation',
       title: 'Moderación',
       description: 'Herramientas de moderación y seguridad',
+      icon: Shield,
       items: [
         {
           id: 'auto_moderate',
-          icon: Shield,
+          icon: Zap,
           label: 'Moderación automática',
           description: 'Filtrado automático de contenido',
           type: 'toggle',
@@ -673,26 +731,27 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
           icon: AlertCircle,
           label: 'Filtro de lenguaje ofensivo',
           type: 'toggle',
-          value: settings?.profanity_filter || false,
+          value: settings?.profanity_filter !== false,
           settingKey: 'profanity_filter',
           requiresAdmin: true,
         },
         {
           id: 'spam_filter',
-          icon: Shield,
+          icon: Ban,
           label: 'Filtro de spam',
           type: 'toggle',
-          value: settings?.spam_filter || false,
+          value: settings?.spam_filter !== false,
           settingKey: 'spam_filter',
           requiresAdmin: true,
         },
       ],
     },
 
-    // Management Section
+    // Gestión
     {
       id: 'management',
       title: 'Gestión',
+      icon: Settings,
       items: [
         {
           id: 'members',
@@ -700,7 +759,7 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
           label: 'Gestionar miembros',
           description: `${memberCount} miembros`,
           type: 'navigation',
-          onPress: handleNavigateToMembers,
+          onPress: () => navigation.navigate('CommunityMembers', { communityId, communityName }),
           requiresAdmin: true,
         },
         {
@@ -709,36 +768,40 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
           label: 'Solicitudes pendientes',
           description: `${pendingRequests} pendientes`,
           type: 'navigation',
-          onPress: handleNavigateToPendingRequests,
+          onPress: () => Alert.alert('Próximamente', 'Pantalla de solicitudes próximamente'),
           requiresAdmin: true,
+          badge: pendingRequests > 0 ? pendingRequests.toString() : undefined,
+          badgeColor: '#ef4444',
         },
         {
           id: 'moderators',
           icon: Crown,
           label: 'Moderadores',
+          description: 'Gestionar moderadores',
           type: 'navigation',
-          onPress: handleNavigateToModerators,
+          onPress: () => Alert.alert('Próximamente', 'Pantalla de moderadores próximamente'),
           requiresAdmin: true,
         },
         {
           id: 'blocked_users',
-          icon: UserMinus,
+          icon: Ban,
           label: 'Usuarios bloqueados',
           type: 'navigation',
-          onPress: handleNavigateToBlockedUsers,
+          onPress: () => Alert.alert('Próximamente', 'Pantalla de bloqueados próximamente'),
           requiresAdmin: true,
         },
         {
           id: 'reports',
           icon: AlertCircle,
           label: 'Reportes',
+          description: 'Ver reportes de contenido',
           type: 'navigation',
-          onPress: handleNavigateToReports,
+          onPress: () => Alert.alert('Próximamente', 'Pantalla de reportes próximamente'),
           requiresAdmin: true,
         },
       ],
     },
-  ];
+  ]
 
   // ============================================================================
   // RENDER HELPERS
@@ -746,38 +809,38 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
 
   const renderSettingItem = (item: SettingItem) => {
     // Check permissions
-    if (item.requiresOwner && !isOwner) return null;
-    if (item.requiresAdmin && !isAdmin) return null;
+    if (item.requiresOwner && !isOwner) return null
+    if (item.requiresAdmin && !isAdmin) return null
 
-    const isDisabled = !settings || saving;
+    const isDisabled = !settings || saving
 
     switch (item.type) {
       case 'toggle':
         return (
           <View key={item.id} style={styles.settingItem}>
             <View style={styles.settingItemLeft}>
-              <item.icon size={22} color="#374151" />
+              <View style={styles.iconContainer}>
+                <item.icon size={20} color="#2673f3" />
+              </View>
               <View style={styles.settingItemContent}>
                 <Text style={styles.settingItemLabel}>{item.label}</Text>
                 {item.description && (
-                  <Text style={styles.settingItemDescription}>
-                    {item.description}
-                  </Text>
+                  <Text style={styles.settingItemDescription}>{item.description}</Text>
                 )}
               </View>
             </View>
             <Switch
               value={item.value as boolean}
               onValueChange={() =>
-                item.settingKey &&
-                handleToggleSetting(item.settingKey, item.value as boolean)
+                item.settingKey && updateSetting(item.settingKey, !(item.value as boolean))
               }
               disabled={isDisabled}
-              trackColor={{ false: '#D1D5DB', true: '#10B981' }}
-              thumbColor={item.value ? '#FFFFFF' : '#F3F4F6'}
+              trackColor={{ false: '#e5e5e5', true: '#2673f3' }}
+              thumbColor={item.value ? '#fff' : '#f4f4f4'}
+              ios_backgroundColor="#e5e5e5"
             />
           </View>
-        );
+        )
 
       case 'navigation':
         return (
@@ -785,31 +848,63 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
             key={item.id}
             style={styles.settingItem}
             onPress={item.onPress}
+            activeOpacity={0.7}
           >
             <View style={styles.settingItemLeft}>
-              <item.icon size={22} color="#374151" />
+              <View style={styles.iconContainer}>
+                <item.icon size={20} color="#2673f3" />
+              </View>
               <View style={styles.settingItemContent}>
                 <Text style={styles.settingItemLabel}>{item.label}</Text>
                 {item.description && (
-                  <Text style={styles.settingItemDescription}>
-                    {item.description}
-                  </Text>
+                  <Text style={styles.settingItemDescription}>{item.description}</Text>
                 )}
               </View>
             </View>
-            <ChevronRight size={20} color="#9CA3AF" />
+            <View style={styles.settingItemRight}>
+              {item.badge && (
+                <View
+                  style={[
+                    styles.badge,
+                    { backgroundColor: item.badgeColor || '#2673f3' },
+                  ]}
+                >
+                  <Text style={styles.badgeText}>{item.badge}</Text>
+                </View>
+              )}
+              <ChevronRight size={20} color="#999" />
+            </View>
           </TouchableOpacity>
-        );
+        )
 
       case 'info':
         return (
           <View key={item.id} style={styles.settingItem}>
             <View style={styles.settingItemLeft}>
-              <item.icon size={22} color="#374151" />
+              <View style={styles.iconContainer}>
+                <item.icon size={20} color="#666" />
+              </View>
               <Text style={styles.settingItemLabel}>{item.label}</Text>
             </View>
+            {item.badge && (
+              <View
+                style={[
+                  styles.badge,
+                  { backgroundColor: item.badgeColor || '#f0f0f0' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.badgeText,
+                    { color: item.badgeColor ? '#fff' : '#666' },
+                  ]}
+                >
+                  {item.badge}
+                </Text>
+              </View>
+            )}
           </View>
-        );
+        )
 
       case 'action':
         return (
@@ -817,61 +912,78 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
             key={item.id}
             style={styles.settingItem}
             onPress={item.onPress}
+            activeOpacity={0.7}
           >
             <View style={styles.settingItemLeft}>
-              <item.icon
-                size={22}
-                color={item.destructive ? '#EF4444' : '#374151'}
-              />
-              <Text
-                style={[
-                  styles.settingItemLabel,
-                  item.destructive && { color: '#EF4444' },
-                ]}
-              >
-                {item.label}
-              </Text>
+              <View style={styles.iconContainer}>
+                <item.icon size={20} color={item.destructive ? '#ef4444' : '#2673f3'} />
+              </View>
+              <View style={styles.settingItemContent}>
+                <Text
+                  style={[
+                    styles.settingItemLabel,
+                    item.destructive && { color: '#ef4444' },
+                  ]}
+                >
+                  {item.label}
+                </Text>
+                {item.description && (
+                  <Text style={styles.settingItemDescription}>{item.description}</Text>
+                )}
+              </View>
             </View>
-            <ChevronRight
-              size={20}
-              color={item.destructive ? '#EF4444' : '#9CA3AF'}
-            />
+            <ChevronRight size={20} color={item.destructive ? '#ef4444' : '#999'} />
           </TouchableOpacity>
-        );
+        )
 
       default:
-        return null;
+        return null
     }
-  };
+  }
 
   // ============================================================================
-  // RENDER
+  // RENDER LOADING
   // ============================================================================
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <ArrowLeft size={24} color="#111" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Configuración</Text>
+          <View style={styles.headerRight} />
+        </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#10B981" />
+          <ActivityIndicator size="large" color="#2673f3" />
           <Text style={styles.loadingText}>Cargando configuración...</Text>
         </View>
       </SafeAreaView>
-    );
+    )
   }
+
+  // ============================================================================
+  // RENDER PRINCIPAL
+  // ============================================================================
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <ArrowLeft size={24} color="#111827" />
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <ArrowLeft size={24} color="#111" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Configuración</Text>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Configuración</Text>
+          {communityName && (
+            <Text style={styles.headerSubtitle} numberOfLines={1}>
+              {communityName}
+            </Text>
+          )}
+        </View>
         <View style={styles.headerRight}>
-          {saving && <ActivityIndicator size="small" color="#10B981" />}
+          {saving && <ActivityIndicator size="small" color="#2673f3" />}
         </View>
       </View>
 
@@ -879,7 +991,12 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#2673f3']}
+            tintColor="#2673f3"
+          />
         }
       >
         {/* Community Header Card */}
@@ -887,29 +1004,69 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
           <View style={styles.communityCard}>
             <Image
               source={{
-                uri: community.image_url || 'https://via.placeholder.com/100',
+                uri:
+                  community.image_url ||
+                  community.icono_url ||
+                  community.avatar_url ||
+                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    community.name || community.nombre
+                  )}&background=2673f3&color=fff&size=200`,
               }}
               style={styles.communityImage}
             />
             <View style={styles.communityInfo}>
               <View style={styles.communityTitleRow}>
-                <Text style={styles.communityName}>{community.name}</Text>
-                {community.is_verified && (
-                  <Check size={18} color="#10B981" />
-                )}
+                <Text style={styles.communityName}>
+                  {community.name || community.nombre}
+                </Text>
+                {community.is_verified && <Check size={20} color="#2673f3" />}
               </View>
-              <Text style={styles.communityDescription} numberOfLines={2}>
-                {community.description}
+              <Text style={styles.communityDescription} numberOfLines={3}>
+                {community.description || community.descripcion}
               </Text>
               <View style={styles.communityMeta}>
                 <View style={styles.metaItem}>
-                  <Users size={14} color="#6B7280" />
+                  <Users size={14} color="#666" />
                   <Text style={styles.metaText}>{memberCount} miembros</Text>
                 </View>
                 {community.category && (
-                  <View style={styles.metaItem}>
-                    <Tag size={14} color="#6B7280" />
-                    <Text style={styles.metaText}>{community.category}</Text>
+                  <>
+                    <Text style={styles.metaDot}>•</Text>
+                    <View style={styles.metaItem}>
+                      <Tag size={14} color="#666" />
+                      <Text style={styles.metaText}>{community.category}</Text>
+                    </View>
+                  </>
+                )}
+                {community.location && (
+                  <>
+                    <Text style={styles.metaDot}>•</Text>
+                    <View style={styles.metaItem}>
+                      <MapPin size={14} color="#666" />
+                      <Text style={styles.metaText}>{community.location}</Text>
+                    </View>
+                  </>
+                )}
+              </View>
+
+              {/* Role Badge */}
+              <View style={styles.roleBadgeContainer}>
+                {userRole === 'owner' && (
+                  <View style={[styles.roleBadge, { backgroundColor: '#FFF3E0' }]}>
+                    <Star size={12} color="#FF6B00" fill="#FF6B00" />
+                    <Text style={[styles.roleBadgeText, { color: '#FF6B00' }]}>OWNER</Text>
+                  </View>
+                )}
+                {userRole === 'admin' && (
+                  <View style={[styles.roleBadge, { backgroundColor: '#FFFBEA' }]}>
+                    <Crown size={12} color="#FFD700" />
+                    <Text style={[styles.roleBadgeText, { color: '#FFD700' }]}>ADMIN</Text>
+                  </View>
+                )}
+                {userRole === 'moderator' && (
+                  <View style={[styles.roleBadge, { backgroundColor: '#EBF4FF' }]}>
+                    <Shield size={12} color="#2673f3" />
+                    <Text style={[styles.roleBadgeText, { color: '#2673f3' }]}>MODERATOR</Text>
                   </View>
                 )}
               </View>
@@ -920,16 +1077,16 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
         {/* Edit Mode */}
         {editMode && isAdmin && (
           <View style={styles.editSection}>
-            <Text style={styles.editTitle}>Editar información</Text>
+            <Text style={styles.editTitle}>✏️ Editar información</Text>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Nombre</Text>
+              <Text style={styles.inputLabel}>Nombre *</Text>
               <TextInput
                 style={styles.input}
                 value={editedName}
                 onChangeText={setEditedName}
                 placeholder="Nombre de la comunidad"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#999"
               />
             </View>
 
@@ -940,9 +1097,10 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
                 value={editedDescription}
                 onChangeText={setEditedDescription}
                 placeholder="Descripción de la comunidad"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#999"
                 multiline
                 numberOfLines={4}
+                textAlignVertical="top"
               />
             </View>
 
@@ -952,8 +1110,8 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
                 style={styles.input}
                 value={editedCategory}
                 onChangeText={setEditedCategory}
-                placeholder="Ej: Tecnología, Negocios, etc."
-                placeholderTextColor="#9CA3AF"
+                placeholder="Ej: Tecnología, Negocios, Finanzas"
+                placeholderTextColor="#999"
               />
             </View>
 
@@ -964,23 +1122,30 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
                 value={editedLocation}
                 onChangeText={setEditedLocation}
                 placeholder="Ej: Managua, Nicaragua"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#999"
               />
             </View>
 
             <View style={styles.editActions}>
               <TouchableOpacity
                 style={[styles.editButton, styles.cancelButton]}
-                onPress={() => setEditMode(false)}
+                onPress={() => {
+                  setEditMode(false)
+                  // Reset values
+                  setEditedName(community?.name || community?.nombre || '')
+                  setEditedDescription(community?.description || community?.descripcion || '')
+                  setEditedCategory(community?.category || '')
+                  setEditedLocation(community?.location || '')
+                }}
               >
-                <X size={18} color="#6B7280" />
+                <X size={18} color="#666" />
                 <Text style={styles.cancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.editButton, styles.saveButton]}
                 onPress={updateCommunityInfo}
-                disabled={saving}
+                disabled={saving || !editedName.trim()}
               >
                 {saving ? (
                   <ActivityIndicator size="small" color="white" />
@@ -998,82 +1163,89 @@ export function CommunitySettingsScreen({ route, navigation }: any) {
         {/* Settings Sections */}
         {settingsSections.map((section) => {
           const visibleItems = section.items.filter((item) => {
-            if (item.requiresOwner && !isOwner) return false;
-            if (item.requiresAdmin && !isAdmin) return false;
-            return true;
-          });
+            if (item.requiresOwner && !isOwner) return false
+            if (item.requiresAdmin && !isAdmin) return false
+            return true
+          })
 
-          if (visibleItems.length === 0) return null;
+          if (visibleItems.length === 0) return null
 
           return (
             <View key={section.id} style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>{section.title}</Text>
+                <View style={styles.sectionTitleRow}>
+                  {section.icon && <section.icon size={16} color="#666" />}
+                  <Text style={styles.sectionTitle}>{section.title}</Text>
+                </View>
                 {section.description && (
-                  <Text style={styles.sectionDescription}>
-                    {section.description}
-                  </Text>
+                  <Text style={styles.sectionDescription}>{section.description}</Text>
                 )}
               </View>
               {visibleItems.map((item) => renderSettingItem(item))}
             </View>
-          );
+          )
         })}
 
         {/* Danger Zone */}
         <View style={styles.dangerSection}>
-          <Text style={styles.dangerTitle}>Zona peligrosa</Text>
+          <View style={styles.dangerHeader}>
+            <AlertCircle size={18} color="#ef4444" />
+            <Text style={styles.dangerTitle}>Zona peligrosa</Text>
+          </View>
 
-          {!isOwner && (
-            <TouchableOpacity
-              style={styles.dangerButton}
-              onPress={leaveCommunity}
-            >
-              <UserMinus size={20} color="#EF4444" />
-              <Text style={styles.dangerButtonText}>Abandonar comunidad</Text>
+          {userRole !== 'owner' && (
+            <TouchableOpacity style={styles.dangerButton} onPress={leaveCommunity}>
+              <UserMinus size={20} color="#ef4444" />
+              <View style={styles.dangerButtonContent}>
+                <Text style={styles.dangerButtonText}>Abandonar comunidad</Text>
+                <Text style={styles.dangerButtonDescription}>
+                  Dejarás de ser miembro de esta comunidad
+                </Text>
+              </View>
+              <ChevronRight size={20} color="#ef4444" />
             </TouchableOpacity>
           )}
 
           {isOwner && (
-            <TouchableOpacity
-              style={styles.dangerButton}
-              onPress={deleteCommunity}
-            >
-              <Trash2 size={20} color="#EF4444" />
-              <Text style={styles.dangerButtonText}>Eliminar comunidad</Text>
+            <TouchableOpacity style={styles.dangerButton} onPress={deleteCommunity}>
+              <Trash2 size={20} color="#ef4444" />
+              <View style={styles.dangerButtonContent}>
+                <Text style={styles.dangerButtonText}>Eliminar comunidad</Text>
+                <Text style={styles.dangerButtonDescription}>
+                  Esta acción es irreversible
+                </Text>
+              </View>
+              <ChevronRight size={20} color="#ef4444" />
             </TouchableOpacity>
           )}
         </View>
 
-        {/* Role Badge */}
-        <View style={styles.roleSection}>
-          <Text style={styles.roleText}>
-            Tu rol: <Text style={styles.roleBadge}>{userRole?.toUpperCase() || 'MEMBER'}</Text>
-          </Text>
-        </View>
+        {/* Footer Spacing */}
+        <View style={styles.footer} />
       </ScrollView>
     </SafeAreaView>
-  );
+  )
 }
 
 // ============================================================================
-// STYLES
+// ESTILOS
 // ============================================================================
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#f7f8fa',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 12,
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#6B7280',
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
   },
   header: {
     flexDirection: 'row',
@@ -1081,43 +1253,69 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: 'white',
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    borderBottomColor: '#e5e5e5',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   backButton: {
-    width: 40,
+    padding: 4,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 8,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827',
+    color: '#111',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
   },
   headerRight: {
-    width: 40,
+    width: 32,
     alignItems: 'flex-end',
   },
   scrollView: {
     flex: 1,
   },
   communityCard: {
-    backgroundColor: 'white',
+    backgroundColor: '#fff',
     padding: 20,
-    marginBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    marginBottom: 12,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   communityImage: {
     width: 100,
     height: 100,
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 16,
     alignSelf: 'center',
+    backgroundColor: '#e5e5e5',
   },
   communityInfo: {
     alignItems: 'center',
@@ -1131,18 +1329,21 @@ const styles = StyleSheet.create({
   communityName: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
+    color: '#111',
   },
   communityDescription: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#666',
     textAlign: 'center',
     marginBottom: 12,
-    paddingHorizontal: 20,
+    lineHeight: 20,
   },
   communityMeta: {
     flexDirection: 'row',
-    gap: 16,
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   },
   metaItem: {
     flexDirection: 'row',
@@ -1151,18 +1352,38 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 13,
-    color: '#6B7280',
+    color: '#666',
+  },
+  metaDot: {
+    fontSize: 12,
+    color: '#ccc',
+  },
+  roleBadgeContainer: {
+    marginTop: 12,
+  },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  roleBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   editSection: {
-    backgroundColor: 'white',
+    backgroundColor: '#fff',
     padding: 20,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   editTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827',
-    marginBottom: 16,
+    color: '#111',
+    marginBottom: 20,
   },
   inputGroup: {
     marginBottom: 16,
@@ -1174,13 +1395,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#f9fafb',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#111827',
+    borderColor: '#e5e5e5',
+    borderRadius: 10,
+    padding: 14,
+    fontSize: 15,
+    color: '#111',
   },
   textArea: {
     height: 100,
@@ -1197,45 +1418,61 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 10,
   },
   cancelButton: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#f3f4f6',
   },
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#666',
   },
   saveButton: {
-    backgroundColor: '#10B981',
+    backgroundColor: '#2673f3',
   },
   saveButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: 'white',
+    color: '#fff',
   },
   section: {
-    backgroundColor: 'white',
-    paddingVertical: 8,
-    marginBottom: 8,
+    backgroundColor: '#fff',
+    marginBottom: 12,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
   },
   sectionHeader: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
   },
   sectionTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#6B7280',
+    color: '#666',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 4,
   },
   sectionDescription: {
     fontSize: 13,
-    color: '#9CA3AF',
+    color: '#999',
     marginTop: 4,
   },
   settingItem: {
@@ -1244,8 +1481,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderTopWidth: 1,
+    borderTopColor: '#f5f5f5',
   },
   settingItemLeft: {
     flexDirection: 'row',
@@ -1253,58 +1490,86 @@ const styles = StyleSheet.create({
     gap: 12,
     flex: 1,
   },
+  iconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#f0f0f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   settingItemContent: {
     flex: 1,
   },
   settingItemLabel: {
-    fontSize: 16,
-    color: '#111827',
+    fontSize: 15,
+    color: '#111',
     fontWeight: '500',
   },
   settingItemDescription: {
     fontSize: 13,
-    color: '#6B7280',
+    color: '#666',
     marginTop: 2,
   },
+  settingItemRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    minWidth: 24,
+    alignItems: 'center',
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
+  },
   dangerSection: {
-    backgroundColor: 'white',
+    backgroundColor: '#fff',
     padding: 16,
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  dangerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
   },
   dangerTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#EF4444',
+    color: '#ef4444',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 12,
   },
   dangerButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#FEE2E2',
+    borderTopWidth: 1,
+    borderTopColor: '#fee2e2',
+  },
+  dangerButtonContent: {
+    flex: 1,
   },
   dangerButtonText: {
-    fontSize: 16,
-    color: '#EF4444',
-    fontWeight: '500',
+    fontSize: 15,
+    color: '#ef4444',
+    fontWeight: '600',
   },
-  roleSection: {
-    padding: 20,
-    alignItems: 'center',
+  dangerButtonDescription: {
+    fontSize: 13,
+    color: '#f87171',
+    marginTop: 2,
   },
-  roleText: {
-    fontSize: 14,
-    color: '#6B7280',
+  footer: {
+    height: 40,
   },
-  roleBadge: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#10B981',
-  },
-});
+})
 
-export default CommunitySettingsScreen;
+export default CommunitySettingsScreen

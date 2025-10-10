@@ -1910,7 +1910,7 @@ export const getVideoDetails = async (videoId: string) => {
         *,
         instructor:users!videos_instructor_id_fkey(id, nombre, full_name, username, avatar_url, photo_url, bio, role),
         course:courses(id, title, description, thumbnail_url, instructor_id),
-        lesson:lessons(id, title, description, order_index, duration)
+        lesson:lessons(id, titulo, descripcion, orden, duration)
       `)
       .eq('id', videoId)
       .eq('is_published', true)
@@ -1955,9 +1955,12 @@ export const getVideoProgress = async (userId: string, videoId: string) => {
       .select('*')
       .eq('user_id', userId)
       .eq('video_id', videoId)
-      .single()
+      .maybeSingle()
 
-    if (error && error.code !== 'PGRST116') throw error
+    if (error) {
+      console.warn('Error fetching video progress:', error)
+      return null
+    }
     return data || null
   } catch (error) {
     console.error('Error fetching video progress:', error)
@@ -2044,9 +2047,12 @@ export const isVideoLiked = async (userId: string, videoId: string) => {
       .select('id')
       .eq('user_id', userId)
       .eq('video_id', videoId)
-      .single()
+      .maybeSingle()
 
-    if (error && error.code !== 'PGRST116') throw error
+    if (error) {
+      console.warn('Error checking if video is liked:', error)
+      return false
+    }
     return !!data
   } catch (error) {
     console.error('Error checking if video is liked:', error)
@@ -2095,9 +2101,12 @@ export const isVideoBookmarked = async (userId: string, videoId: string) => {
       .select('id')
       .eq('user_id', userId)
       .eq('video_id', videoId)
-      .single()
+      .maybeSingle()
 
-    if (error && error.code !== 'PGRST116') throw error
+    if (error) {
+      console.warn('Error checking if video is bookmarked:', error)
+      return false
+    }
     return !!data
   } catch (error) {
     console.error('Error checking if video is bookmarked:', error)
@@ -2233,8 +2242,13 @@ export const getCourseDetails = async (courseId: string) => {
         *,
         instructor:users!courses_instructor_id_fkey(id, nombre, full_name, username, avatar_url, photo_url, bio, role),
         lessons:lessons(
-          *,
-          video:videos(id, title, duration, thumbnail_url, video_url)
+          id,
+          titulo,
+          descripcion,
+          orden,
+          duration,
+          tipo,
+          contenido_md
         )
       `)
       .eq('id', courseId)
@@ -2252,7 +2266,7 @@ export const getCourseDetails = async (courseId: string) => {
         bio: data.instructor?.bio,
         role: data.instructor?.role
       },
-      lessons: (data.lessons || []).sort((a: any, b: any) => a.order_index - b.order_index)
+      lessons: (data.lessons || []).sort((a: any, b: any) => a.orden - b.orden)
     }
   } catch (error) {
     console.error('Error fetching course details:', error)
@@ -2266,7 +2280,7 @@ export const getCourseVideos = async (courseId: string) => {
       .from('videos')
       .select(`
         *,
-        lesson:lessons(id, title, description, order_index, duration)
+        lesson:lessons(id, titulo, descripcion, orden, duration)
       `)
       .eq('course_id', courseId)
       .eq('is_published', true)

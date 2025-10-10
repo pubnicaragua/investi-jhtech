@@ -6,7 +6,8 @@ import * as Linking from "expo-linking"
 import i18n from "./src/i18n/i18n"
 import { AuthProvider } from "./src/contexts/AuthContext"
 import { LanguageProvider } from "./src/contexts/LanguageContext"
-import { TESTING_CONFIG, TestingScreen } from "./src/utils/screenTesting"  
+// DESHABILITADO: Causa error TurboModuleRegistry al cargar todas las pantallas
+// import { TESTING_CONFIG, TestingScreen } from "./src/utils/screenTesting"  
 
 const prefix = Linking.createURL("/")  
 
@@ -57,24 +58,7 @@ const linking = {
 }
 
 export default function App() {  
-  // 🧪 Modo testing activado
-  if (TESTING_CONFIG.ENABLED) {
-    return (
-      <SafeAreaProvider>  
-        <LanguageProvider>
-          <I18nextProvider i18n={i18n}>  
-            <AuthProvider>
-              <NavigationContainer linking={linking}>
-                <TestingScreen />
-              </NavigationContainer>
-            </AuthProvider>
-          </I18nextProvider>
-        </LanguageProvider>
-      </SafeAreaProvider>
-    );
-  }
-
-  // 🚀 Modo producción normal
+  // 🚀 Modo producción normal (Testing deshabilitado para evitar error TurboModuleRegistry)
   return (  
     <SafeAreaProvider>  
       <LanguageProvider>

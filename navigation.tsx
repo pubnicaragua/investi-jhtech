@@ -133,72 +133,52 @@ export function RootStack() {
   const [loading, setLoading] = useState(true)
   const { isAuthenticated, isLoading: authLoading } = useAuth()
   
+  // 🔧 Detectar si estamos en una ruta específica (deep link)
+  const [hasDeepLink, setHasDeepLink] = useState(false)
+  
+  useEffect(() => {
+    // Verificar si hay una ruta específica en la URL (solo en web)
+    const checkDeepLink = async () => {
+      try {
+        const url = await Linking.getInitialURL()
+        const isDeepLink = url && url !== prefix && !url.includes('/welcome') && !url.includes('/signin')
+        
+        console.log('🔗 Navigation: Initial URL:', url)
+        console.log('🔗 Navigation: Is deep link:', isDeepLink)
+        setHasDeepLink(!!isDeepLink)
+      } catch (error) {
+        console.log('🔗 Navigation: Error checking deep link:', error)
+        setHasDeepLink(false)
+      }
+    }
+    
+    checkDeepLink()
+  }, [])
+  
   useEffect(() => {  
     determineInitialRoute()  
-  }, [isAuthenticated])  
+  }, [isAuthenticated, hasDeepLink])  
   
   const determineInitialRoute = async () => {
     try {
       console.log('🚀 Navigation: Determinando ruta inicial...')
       console.log('🔐 Navigation: isAuthenticated:', isAuthenticated)
       
-      // Si ya está autenticado, verificar onboarding
-      if (isAuthenticated) {
-        console.log('✅ Navigation: Usuario autenticado, verificando onboarding...')
-        
-        try {
-          const user = await getCurrentUser()
-          console.log('👤 Navigation: Usuario obtenido:', user?.id)
-          
-          if (user) {
-            // Verificar si completó el onboarding (orden correcto del flujo)
-            const hasAvatar = !!(user.photo_url || user.avatar_url)
-            const hasGoals = Array.isArray(user.metas) && user.metas.length > 0
-            const hasInterests = Array.isArray(user.intereses) && user.intereses.length > 0
-            const hasKnowledge = user.nivel_finanzas && user.nivel_finanzas !== "none"
-            
-            console.log('📊 Navigation: Estado del onboarding:', {
-              hasAvatar,
-              photo_url: user.photo_url,
-              avatar_url: user.avatar_url,
-              hasGoals,
-              metas: user.metas,
-              hasInterests,
-              intereses: user.intereses,
-              hasKnowledge,
-              nivel_finanzas: user.nivel_finanzas
-            })
-            
-            // Flujo correcto del onboarding: Avatar → Goals → Interests → Knowledge → HomeFeed
-            if (!hasAvatar) {
-              console.log('📸 Navigation: Sin avatar, yendo a UploadAvatar')
-              setInitialRoute("UploadAvatar")
-            } else if (!hasGoals) {
-              console.log('🎯 Navigation: Sin metas, yendo a PickGoals')
-              setInitialRoute("PickGoals")
-            } else if (!hasInterests) {
-              console.log('💡 Navigation: Sin intereses, yendo a PickInterests')
-              setInitialRoute("PickInterests")
-            } else if (!hasKnowledge) {
-              console.log('🎓 Navigation: Sin nivel de conocimiento, yendo a PickKnowledge')
-              setInitialRoute("PickKnowledge")
-            } else {
-              // Onboarding completo - usar HomeFeed como default
-              // El deep linking manejará la navegación a rutas específicas
-              console.log('✅ Navigation: Onboarding completo, usando HomeFeed como default')
-              setInitialRoute("HomeFeed")
-            }
-          } else {
-            // Si no se pudo obtener el usuario, ir a UploadAvatar por seguridad
-            console.log('⚠️ Navigation: No se pudo obtener usuario, yendo a UploadAvatar')
-            setInitialRoute("UploadAvatar")
-          }
-        } catch (userError) {
-          console.error('❌ Navigation: Error obteniendo usuario:', userError)
-          console.error('❌ Navigation: Error details:', JSON.stringify(userError, null, 2))
-          // Si hay error, ir a UploadAvatar por seguridad
-          setInitialRoute("UploadAvatar")
-        }
+      // 🔧 Verificar token en AsyncStorage (más confiable que el contexto)
+      const authToken = await AsyncStorage.getItem('@auth_token')
+      const userId = await AsyncStorage.getItem('userId')
+      console.log('🔑 Navigation: Auth token exists:', !!authToken)
+      console.log('👤 Navigation: UserId exists:', !!userId)
+      
+      // Considerar autenticado si hay token O si el contexto dice que sí
+      const isActuallyAuthenticated = isAuthenticated || !!authToken
+      console.log('✅ Navigation: Actually authenticated:', isActuallyAuthenticated)
+      
+      // Si ya está autenticado, simplemente ir a HomeFeed
+      // React Navigation manejará automáticamente las rutas específicas
+      if (isActuallyAuthenticated) {
+        console.log('✅ Navigation: Usuario autenticado, yendo a HomeFeed')
+        setInitialRoute("HomeFeed")
       } else {
         // Verificar si ya se seleccionó un idioma
         const languageSelected = await AsyncStorage.getItem('user_language')

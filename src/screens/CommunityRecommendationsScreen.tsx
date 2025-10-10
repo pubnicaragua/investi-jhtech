@@ -1156,9 +1156,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
     marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.9)',
-    textShadowOffset: { width: 0, height: 3 },
-    textShadowRadius: 6,
+    textShadow: '0px 3px 6px rgba(0, 0, 0, 0.9)',
   },
   doorWelcomeText: {
     fontSize: 16,
@@ -1166,9 +1164,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     opacity: 0.95,
     fontWeight: '600',
-    textShadowColor: 'rgba(0, 0, 0, 0.8)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    textShadow: '0px 2px 4px rgba(0, 0, 0, 0.8)',
   },
   doorCheckmark: {
     marginTop: 20,

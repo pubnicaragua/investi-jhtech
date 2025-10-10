@@ -1,27 +1,41 @@
 // ============================================================================
-// SavedPostsScreen.tsx - Publicaciones Guardadas
+// SavedPostsScreen.tsx - Posts Guardados
 // ============================================================================
-// 100% Backend Driven + UI Moderna
-// Accesible desde: ProfileScreen o menú principal
+// 100% Backend Driven + UI Ultra Profesional
+// Accesible desde: ProfileScreen, MenuScreen
 // ============================================================================
 
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   View,
   Text,
-  StyleSheet,
-  FlatList,
   TouchableOpacity,
+  StyleSheet,
   SafeAreaView,
-  ActivityIndicator,
-  RefreshControl,
+  FlatList,
   Image,
-  Alert
+  ActivityIndicator,
+  Alert,
+  Platform,
+  RefreshControl,
 } from 'react-native'
-import { ArrowLeft, Bookmark, Clock, Eye, MessageCircle, ThumbsUp, Share2, Trash2 } from 'lucide-react-native'
 import { useNavigation, NavigationProp } from '@react-navigation/native'
 import type { RootStackParamList } from '../types/navigation'
-import { getSavedPosts, unsavePost, getCurrentUser } from '../rest/api'
+import {
+  ArrowLeft,
+  Bookmark,
+  Heart,
+  MessageCircle,
+  Share2,
+  Trash2,
+  Eye,
+  Clock,
+  Users,
+  MapPin,
+  MoreVertical,
+} from 'lucide-react-native'
+import { request } from '../rest/client'
+import { getCurrentUser } from '../rest/api'
 
 // ============================================================================
 // INTERFACES
@@ -30,20 +44,30 @@ import { getSavedPosts, unsavePost, getCurrentUser } from '../rest/api'
 interface SavedPost {
   id: string
   post_id: string
-  saved_at: string
-  post: {
+  user_id: string
+  created_at: string
+  post?: {
     id: string
     contenido: string
-    created_at: string
-    image_url?: string
+    content: string
+    image_url: string
+    media_url: any[]
     likes_count: number
     comment_count: number
-    user: {
+    shares_count: number
+    created_at: string
+    user?: {
       id: string
-      nombre: string
       full_name: string
+      nombre: string
+      username: string
       avatar_url: string
-      role: string
+      photo_url: string
+    }
+    community?: {
+      id: string
+      name: string
+      nombre: string
     }
   }
 }
@@ -54,71 +78,108 @@ interface SavedPost {
 
 export function SavedPostsScreen() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>()
-  
+
   // Estados
-  const [savedPosts, setSavedPosts] = useState<SavedPost[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [savedPosts, setSavedPosts] = useState<SavedPost[]>([])
   const [currentUser, setCurrentUser] = useState<any>(null)
+  const [removingId, setRemovingId] = useState<string | null>(null)
 
   // ============================================================================
   // CARGAR DATOS
   // ============================================================================
 
   useEffect(() => {
-    loadSavedPosts()
+    loadData()
   }, [])
 
-  const loadSavedPosts = async () => {
+  const loadData = async () => {
     try {
       setLoading(true)
-      const user = await getCurrentUser()
+      const [user, savedPostsData] = await Promise.all([
+        getCurrentUser(),
+        fetchSavedPosts(),
+      ])
       setCurrentUser(user)
-      
-      if (user) {
-        const posts = await getSavedPosts(user.id)
-        setSavedPosts(posts || [])
-      }
     } catch (error) {
-      console.error('Error loading saved posts:', error)
-      Alert.alert('Error', 'No se pudieron cargar las publicaciones guardadas')
+      console.error('Error loading data:', error)
+      Alert.alert('Error', 'No se pudieron cargar los posts guardados')
     } finally {
       setLoading(false)
-      setRefreshing(false)
     }
   }
 
-  const onRefresh = useCallback(() => {
+  const fetchSavedPosts = async () => {
+    try {
+      const user = await getCurrentUser()
+      if (!user) return []
+
+      const response = await request('GET', '/post_saves', {
+        params: {
+          select: `
+            *,
+            post:posts(
+              *,
+              user:users!posts_user_id_fkey(id,full_name,nombre,username,avatar_url,photo_url),
+              community:communities(id,name,nombre)
+            )
+          `,
+          user_id: `eq.${user.id}`,
+          order: 'created_at.desc',
+        },
+      })
+
+      if (response) {
+        setSavedPosts(response)
+        return response
+      }
+      return []
+    } catch (error) {
+      console.error('Error fetching saved posts:', error)
+      return []
+    }
+  }
+
+  const onRefresh = useCallback(async () => {
     setRefreshing(true)
-    loadSavedPosts()
+    await loadData()
+    setRefreshing(false)
   }, [])
 
   // ============================================================================
   // ACCIONES
   // ============================================================================
 
-  const handleUnsavePost = async (postId: string) => {
+  const handleRemove = async (saveId: string, postId: string) => {
     Alert.alert(
-      'Quitar de guardados',
-      '¿Deseas eliminar esta publicación de tus guardados?',
+      'Remover post guardado',
+      '¿Deseas eliminar este post de tus guardados?',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Quitar',
+          text: 'Eliminar',
           style: 'destructive',
           onPress: async () => {
             try {
-              if (currentUser) {
-                await unsavePost(currentUser.id, postId)
-                setSavedPosts(prev => prev.filter(item => item.post_id !== postId))
-                Alert.alert('Éxito', 'Publicación eliminada de guardados')
-              }
+              setRemovingId(saveId)
+
+              await request('DELETE', '/post_saves', {
+                params: {
+                  id: `eq.${saveId}`,
+                },
+              })
+
+              setSavedPosts((prev) => prev.filter((item) => item.id !== saveId))
+              Alert.alert('✓', 'Post removido de guardados')
             } catch (error) {
-              console.error('Error unsaving post:', error)
-              Alert.alert('Error', 'No se pudo quitar la publicación')
+              console.error('Error removing saved post:', error)
+              Alert.alert('Error', 'No se pudo remover el post')
+            } finally {
+              setRemovingId(null)
             }
-          }
-        }
+          },
+        },
       ]
     )
   }
@@ -131,7 +192,7 @@ export function SavedPostsScreen() {
   // FORMATEAR TIEMPO
   // ============================================================================
 
-  const getTimeAgo = (dateString: string) => {
+  const formatTime = (dateString: string) => {
     const date = new Date(dateString)
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
@@ -140,12 +201,11 @@ export function SavedPostsScreen() {
     const diffDays = Math.floor(diffMs / 86400000)
 
     if (diffMins < 1) return 'Ahora'
-    if (diffMins < 60) return `Hace ${diffMins}m`
-    if (diffHours < 24) return `Hace ${diffHours}h`
-    if (diffDays < 7) return `Hace ${diffDays}d`
-    if (diffDays < 30) return `Hace ${Math.floor(diffDays / 7)} semanas`
-    
-    return date.toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' })
+    if (diffMins < 60) return `${diffMins}m`
+    if (diffHours < 24) return `${diffHours}h`
+    if (diffDays < 7) return `${diffDays}d`
+
+    return date.toLocaleDateString('es', { day: '2-digit', month: 'short' })
   }
 
   // ============================================================================
@@ -153,8 +213,10 @@ export function SavedPostsScreen() {
   // ============================================================================
 
   const renderPostItem = ({ item }: { item: SavedPost }) => {
+    if (!item.post) return null
+
     const post = item.post
-    const author = post.user
+    const imageUrl = post.image_url || (post.media_url && post.media_url[0])
 
     return (
       <TouchableOpacity
@@ -162,57 +224,79 @@ export function SavedPostsScreen() {
         onPress={() => handlePostPress(post.id)}
         activeOpacity={0.7}
       >
-        {/* Header del Post */}
+        {/* Header */}
         <View style={styles.postHeader}>
           <Image
-            source={{ uri: author.avatar_url || 'https://i.pravatar.cc/100' }}
-            style={styles.authorAvatar}
+            source={{
+              uri:
+                post.user?.avatar_url ||
+                post.user?.photo_url ||
+                `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                  post.user?.full_name || post.user?.nombre || 'U'
+                )}&background=2673f3&color=fff`,
+            }}
+            style={styles.avatar}
           />
           <View style={styles.authorInfo}>
             <Text style={styles.authorName}>
-              {author.full_name || author.nombre || 'Usuario'}
+              {post.user?.full_name || post.user?.nombre}
             </Text>
-            <Text style={styles.postMeta}>
-              {author.role || 'Miembro'} • {getTimeAgo(post.created_at)}
-            </Text>
+            <View style={styles.postMeta}>
+              <Text style={styles.postTime}>{formatTime(post.created_at)}</Text>
+              {post.community && (
+                <>
+                  <Text style={styles.metaDot}>•</Text>
+                  <Users size={12} color="#666" />
+                  <Text style={styles.metaText}>
+                    {post.community.name || post.community.nombre}
+                  </Text>
+                </>
+              )}
+            </View>
           </View>
           <TouchableOpacity
-            style={styles.unsaveButton}
-            onPress={() => handleUnsavePost(post.id)}
+            style={styles.removeButton}
+            onPress={() => handleRemove(item.id, post.id)}
+            disabled={removingId === item.id}
           >
-            <Bookmark size={20} color="#2673f3" fill="#2673f3" />
+            {removingId === item.id ? (
+              <ActivityIndicator size="small" color="#ef4444" />
+            ) : (
+              <Bookmark size={22} color="#2673f3" fill="#2673f3" />
+            )}
           </TouchableOpacity>
         </View>
 
-        {/* Contenido del Post */}
-        <Text style={styles.postContent} numberOfLines={4}>
-          {post.contenido}
+        {/* Contenido */}
+        <Text style={styles.postContent} numberOfLines={3}>
+          {post.contenido || post.content}
         </Text>
 
-        {/* Imagen del Post */}
-        {post.image_url && (
-          <Image
-            source={{ uri: post.image_url }}
-            style={styles.postImage}
-            resizeMode="cover"
-          />
+        {/* Imagen */}
+        {imageUrl && (
+          <Image source={{ uri: imageUrl }} style={styles.postImage} />
         )}
 
-        {/* Footer con estadísticas */}
-        <View style={styles.postFooter}>
-          <View style={styles.postStats}>
-            <View style={styles.statItem}>
-              <ThumbsUp size={16} color="#666" />
-              <Text style={styles.statText}>{post.likes_count || 0}</Text>
-            </View>
-            <View style={styles.statItem}>
-              <MessageCircle size={16} color="#666" />
-              <Text style={styles.statText}>{post.comment_count || 0}</Text>
-            </View>
+        {/* Stats */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statItem}>
+            <Heart size={16} color="#ef4444" />
+            <Text style={styles.statText}>{post.likes_count || 0}</Text>
           </View>
-          <Text style={styles.savedDate}>
-            Guardado {getTimeAgo(item.saved_at)}
-          </Text>
+          <View style={styles.statItem}>
+            <MessageCircle size={16} color="#666" />
+            <Text style={styles.statText}>{post.comment_count || 0}</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Share2 size={16} color="#666" />
+            <Text style={styles.statText}>{post.shares_count || 0}</Text>
+          </View>
+          <View style={styles.savedBadge}>
+            <Clock size={12} color="#2673f3" />
+            <Text style={styles.savedText}>
+              Guardado {formatTime(item.created_at)}
+            </Text>
+          </View>
         </View>
       </TouchableOpacity>
     )
@@ -226,18 +310,15 @@ export function SavedPostsScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
+          <TouchableOpacity onPress={() => navigation.goBack()}>
             <ArrowLeft size={24} color="#111" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Guardados</Text>
-          <View style={styles.headerRight} />
+          <Text style={styles.headerTitle}>Posts Guardados</Text>
+          <View style={{ width: 32 }} />
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2673f3" />
-          <Text style={styles.loadingText}>Cargando publicaciones...</Text>
+          <Text style={styles.loadingText}>Cargando posts...</Text>
         </View>
       </SafeAreaView>
     )
@@ -251,32 +332,19 @@ export function SavedPostsScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
+        <TouchableOpacity onPress={() => navigation.goBack()}>
           <ArrowLeft size={24} color="#111" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Guardados</Text>
-        <View style={styles.headerRight} />
+        <Text style={styles.headerTitle}>Posts Guardados</Text>
+        <View style={{ width: 32 }} />
       </View>
 
-      {/* Contador */}
-      {savedPosts.length > 0 && (
-        <View style={styles.counterContainer}>
-          <Bookmark size={18} color="#2673f3" />
-          <Text style={styles.counterText}>
-            {savedPosts.length} {savedPosts.length === 1 ? 'publicación guardada' : 'publicaciones guardadas'}
-          </Text>
-        </View>
-      )}
-
-      {/* Lista de Posts */}
+      {/* Lista */}
       <FlatList
         data={savedPosts}
-        keyExtractor={(item) => item.id}
         renderItem={renderPostItem}
-        contentContainerStyle={styles.listContainer}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -287,19 +355,23 @@ export function SavedPostsScreen() {
           />
         }
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Bookmark size={64} color="#e5e5e5" />
-            <Text style={styles.emptyTitle}>No hay publicaciones guardadas</Text>
-            <Text style={styles.emptyDescription}>
-              Guarda publicaciones interesantes para leerlas más tarde
+          <View style={styles.emptyContainer}>
+            <Bookmark size={64} color="#ccc" />
+            <Text style={styles.emptyTitle}>No tienes posts guardados</Text>
+            <Text style={styles.emptyText}>
+              Los posts que guardes aparecerán aquí
             </Text>
-            <TouchableOpacity
-              style={styles.exploreButton}
-              onPress={() => navigation.navigate('HomeFeed')}
-            >
-              <Text style={styles.exploreButtonText}>Explorar publicaciones</Text>
-            </TouchableOpacity>
           </View>
+        }
+        ListHeaderComponent={
+          savedPosts.length > 0 ? (
+            <View style={styles.headerInfo}>
+              <Bookmark size={20} color="#2673f3" />
+              <Text style={styles.headerInfoText}>
+                {savedPosts.length} {savedPosts.length === 1 ? 'post guardado' : 'posts guardados'}
+              </Text>
+            </View>
+          ) : null
         }
       />
     </SafeAreaView>
@@ -315,27 +387,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f7f8fa',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e5e5',
-  },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111',
-  },
-  headerRight: {
-    width: 28,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -345,131 +396,162 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 14,
     color: '#666',
+    marginTop: 8,
   },
-  counterContainer: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e5e5',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
-  counterText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111',
+    flex: 1,
+    textAlign: 'center',
   },
-  listContainer: {
+  listContent: {
+    paddingBottom: 20,
+  },
+  headerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     padding: 16,
+    backgroundColor: '#eff6ff',
+    marginBottom: 8,
+  },
+  headerInfoText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2673f3',
   },
   postCard: {
     backgroundColor: '#fff',
-    borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+    marginBottom: 8,
   },
   postHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
   },
-  authorAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 10,
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#e5e5e5',
+    marginRight: 12,
   },
   authorInfo: {
     flex: 1,
   },
   authorName: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#111',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   postMeta: {
-    fontSize: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  postTime: {
+    fontSize: 13,
     color: '#666',
   },
-  unsaveButton: {
+  metaDot: {
+    fontSize: 12,
+    color: '#ccc',
+  },
+  metaText: {
+    fontSize: 13,
+    color: '#666',
+  },
+  removeButton: {
     padding: 4,
   },
   postContent: {
     fontSize: 15,
-    color: '#111',
     lineHeight: 22,
+    color: '#111',
     marginBottom: 12,
   },
   postImage: {
     width: '100%',
     height: 200,
-    borderRadius: 8,
+    borderRadius: 12,
+    backgroundColor: '#e5e5e5',
     marginBottom: 12,
-    backgroundColor: '#f0f0f0',
   },
-  postFooter: {
+  statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 16,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-  },
-  postStats: {
-    flexDirection: 'row',
-    gap: 16,
+    borderTopColor: '#f5f5f5',
   },
   statItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   statText: {
-    fontSize: 13,
+    fontSize: 14,
+    fontWeight: '600',
     color: '#666',
   },
-  savedDate: {
-    fontSize: 12,
-    color: '#999',
+  savedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginLeft: 'auto',
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
-  emptyState: {
+  savedText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2673f3',
+  },
+  emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 80,
-    paddingHorizontal: 32,
+    paddingHorizontal: 40,
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#111',
+    fontWeight: '700',
+    color: '#666',
     marginTop: 16,
     marginBottom: 8,
   },
-  emptyDescription: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  exploreButton: {
-    backgroundColor: '#2673f3',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  exploreButtonText: {
-    color: '#fff',
+  emptyText: {
     fontSize: 15,
-    fontWeight: '600',
+    color: '#999',
+    textAlign: 'center',
   },
 })
 

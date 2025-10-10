@@ -214,6 +214,8 @@ export function HomeFeedScreen({ navigation }: any) {
       } else {
         setSavedPosts(prev => new Set(prev).add(postId))
         await savePost(postId, userId, { source: 'home_feed' })
+        // Navegar a saved posts después de guardar
+        navigation.navigate('SavedPosts')
       }
     } catch (err) {
       console.error("Error saving post:", err)
