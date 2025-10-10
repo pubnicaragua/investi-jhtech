@@ -28,7 +28,8 @@ export default {
       'expo-localization',
       'expo-secure-store',
       'expo-router',
-      'expo-dev-client'
+      'expo-dev-client',
+      './plugins/withKotlinVersion'
     ],
     ios: {
       supportsTablet: true,
