@@ -100,8 +100,8 @@ export function PromotionsScreen() {
       setPosts(postsRes || [])
       
       // Extraer posts con like
-      const liked = new Set(
-        (postsRes || []).filter((p: any) => p.is_liked).map((p: any) => p.id)
+      const liked = new Set<string>(
+        (postsRes || []).filter((p: any) => p.is_liked).map((p: any) => p.id as string)
       )
       setLikedPosts(liked)
       
