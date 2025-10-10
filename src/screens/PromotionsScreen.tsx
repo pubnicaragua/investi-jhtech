@@ -45,115 +45,43 @@ export function PromotionsScreen() {
   useAuthGuard()
 
   const loadData = useCallback(async () => {
-    try {
       if (!refreshing) setLoading(true)
       
       const uid = await getCurrentUserId()
       setUserId(uid)
       
       const [promos, peopleRes, commRes, postsRes] = await Promise.all([
-        getPromotions(uid, searchQuery),
-        getSuggestedPeople(uid),
-        getSuggestedCommunities(uid),
-        getRecentPosts(uid, selectedPostFilter)
+        getPromotions(uid || '', searchQuery),
+        getSuggestedPeople(uid || ''),
+        getSuggestedCommunities(uid || ''),
+        getRecentPosts(uid || '', selectedPostFilter)
       ])
 
       setPromotions(promos || [])
       setPeople(peopleRes || [])
       setCommunities(commRes || [])
-      setPosts(postsRes || [])
-      
-      const liked = new Set((postsRes || []).filter((p: any) => p.is_liked).map((p: any) => p.id))
-      setLikedPosts(liked)
-    } catch (err) {
-      console.error("Error loading data:", err)
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
-  }, [searchQuery, selectedPostFilter, refreshing])
-
-  useEffect(() => {
-    loadData()
-  }, [searchQuery, selectedPostFilter])
-
-  const onRefresh = () => {
-    setRefreshing(true)
-    loadData()
-  }
-
-  const handleNavigation = (screen: string) => {
-    setCurrentRoute(screen)
-    navigation.navigate(screen as never)
-  }
-
-  const handleDismissPerson = (personId: string) => {
-    setDismissedPeople(prev => new Set(prev).add(personId))
-  }
-
-  const handleConnect = async (personId: string) => {
-    if (!userId) return
-    try {
-      await connectWithUser(userId, personId)
-      Alert.alert("Éxito", "Solicitud enviada")
-    } catch (error) {
-      Alert.alert("Error", "No se pudo enviar la solicitud")
-    }
-  }
-
-  const handleJoinCommunity = async (communityId: string) => {
-    if (!userId) return
-    try {
-      await joinCommunity(userId, communityId)
-      Alert.alert("Éxito", "Te has unido a la comunidad")
-      loadData()
-    } catch (error) {
-      Alert.alert("Error", "No se pudo unir a la comunidad")
-    }
-  }
-
-  const handleLike = async (postId: string) => {
-    if (!userId) return
-    try {
-      const isLiked = likedPosts.has(postId)
-      
-      if (isLiked) {
-        setLikedPosts(prev => {
-          const newSet = new Set(prev)
-          newSet.delete(postId)
-          return newSet
-        })
-        setPosts(prev => prev.map(p => 
-          p.id === postId ? { ...p, likes: Math.max((p.likes || 0) - 1, 0) } : p
-        ))
-        await unlikePost(postId, userId)
-      } else {
-        setLikedPosts(prev => new Set(prev).add(postId))
-        setPosts(prev => prev.map(p => 
-          p.id === postId ? { ...p, likes: (p.likes || 0) + 1 } : p
-        ))
-        await likePost(postId, userId)
-      }
+{{ ... }}
     } catch (error) {
       console.error("Error liking post:", error)
     }
   }
 
   const handleComment = (postId: string) => {
-    navigation.navigate("PostDetail" as never, { postId } as never)
+    (navigation as any).navigate("PostDetail", { postId })
   }
 
   const handleShare = async (postId: string, content: string) => {
-    navigation.navigate("SharePost" as never, { postId, content } as never)
+    (navigation as any).navigate("SharePost", { postId, content })
   }
 
   const handleSend = (postId: string) => {
-    navigation.navigate("ChatScreen" as never, { postId } as never)
+    (navigation as any).navigate("ChatScreen", { postId })
   }
 
   const filteredPeople = people.filter(p => !dismissedPeople.has(p.id))
 
   return (
+{{ ... }}
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       

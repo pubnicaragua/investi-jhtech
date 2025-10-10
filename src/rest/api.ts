@@ -935,6 +935,33 @@ export async function likePost(post_id: string, user_id: string, is_like = true)
     return null  
   }  
 }  
+
+/**
+ * Elimina un like de un post
+ * 
+ * @param post_id - ID del post
+ * @param user_id - ID del usuario
+ * @returns Resultado de la operación
+ * 
+ * USADO EN:
+ * - PostCard component
+ * - PromotionsScreen
+ */
+export async function unlikePost(post_id: string, user_id: string) {  
+  try {  
+    const { error } = await supabase
+      .from('post_likes')
+      .delete()
+      .eq('post_id', post_id)
+      .eq('user_id', user_id)
+    
+    if (error) throw error
+    return { success: true }
+  } catch (error: any) {  
+    console.error('Error unliking post:', error)
+    return null  
+  }  
+}  
   
 /**
  * Crea un comentario en un post

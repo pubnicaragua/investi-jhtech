@@ -31,7 +31,7 @@ module.exports = function (api) {
           },
         },
       ],
-      // Reanimated SIEMPRE al final
+      // Reanimated habilitado para Dev Client
       'react-native-reanimated/plugin',
     ],
     // Cache agresivo

@@ -9,53 +9,8 @@ import { LanguageProvider } from "./src/contexts/LanguageContext"
 // DESHABILITADO: Causa error TurboModuleRegistry al cargar todas las pantallas
 // import { TESTING_CONFIG, TestingScreen } from "./src/utils/screenTesting"  
 
-const prefix = Linking.createURL("/")  
-
-const linking = {
-  prefixes: [prefix],
-  config: {  
-    screens: {  
-      Welcome: "/welcome",  
-      LanguageSelection: "/language-selection",
-      SignIn: "/signin",  
-      SignUp: "/signup",  
-      UploadAvatar: "/upload-avatar",  
-      PickGoals: "/pick-goals",  
-      PickInterests: "/pick-interests",  
-      PickKnowledge: "/pick-knowledge",  
-      CommunityRecommendations: "/community-recommendations",  
-      HomeFeed: "/home",
-      Home: "/feed",  
-      CreatePost: "/create-post",  
-      PostDetail: "/post/:postId",  
-      Profile: "/profile/:userId?",  
-      Communities: "/communities",  
-      Settings: "/settings",  
-      MarketInfo: "/market-info",  
-      Educacion: "/educacion",  
-      Promotions: "/promotions",  
-      PromotionDetail: "/promotion/:promotionId",  
-      Inversiones: "/inversiones",  
-      Inversionista: "/inversionista",  
-      ChatList: "/chats",  
-      ChatScreen: "/chat/:chatId?",  
-      Messages: "/messages",  
-      Notifications: "/notifications",  
-      News: "/news",  
-      NewsDetail: "/news/:newsId",  
-      DevMenu: "/dev-menu",  
-      Payment: "/payment",  
-      CourseDetail: "/course/:courseId",  
-      LearningPaths: "/learning-paths",  
-      GroupChat: "/group-chat/:groupId",  
-      SharePost: "/share-post",  
-      SavedPosts: "/saved-posts",  
-      CommunityDetail: "/community/:communityId",
-      PlanificadorFinanciero: "/planificador-financiero",
-      CazaHormigas: "/caza-hormigas",
-    },  
-  },  
-}
+// Deshabilitar linking temporalmente para Expo Go
+const linking = undefined;
 
 export default function App() {  
   // 🚀 Modo producción normal (Testing deshabilitado para evitar error TurboModuleRegistry)
