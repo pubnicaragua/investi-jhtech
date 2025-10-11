@@ -234,8 +234,10 @@ export function ChatScreen({ navigation, route }: any) {
           return m;
         }));
       }
-      
-      
+
+      // Mark messages as read after sending
+      await markMessagesAsRead(conversationId, uid);
+
     } catch (err) {
       console.error("Error sending message:", err);
       Alert.alert("Error", "No se pudo enviar el mensaje");
@@ -295,10 +297,10 @@ export function ChatScreen({ navigation, route }: any) {
   
   return (  
     <SafeAreaView style={styles.container}>  
-      <View style={styles.header}>  
-        <TouchableOpacity onPress={() => navigation.goBack()}>  
-          <ArrowLeft size={24} color="#111" />  
-        </TouchableOpacity>  
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.navigate('ChatList')}>
+          <ArrowLeft size={24} color="#111" />
+        </TouchableOpacity>
         <View style={styles.headerInfo}>  
           <Image  
             source={{  

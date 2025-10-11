@@ -418,7 +418,7 @@ export function ChatListScreen({ navigation }: any) {
         return (
           <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
             <View style={styles.headerLeft}>
-              <TouchableOpacity onPress={() => navigation.goBack()} accessibilityLabel="Volver" style={styles.backButton}>
+              <TouchableOpacity onPress={() => navigation.navigate('HomeFeed')} accessibilityLabel="Volver" style={styles.backButton}>
                 <ArrowLeft size={24} color="#666" />
               </TouchableOpacity>
               <Text style={styles.headerTitle}>Mensajes</Text>
