@@ -129,10 +129,21 @@ export function ChatListScreen({ navigation }: any) {
       const transformedChats = conversations.map((conv: any) => {
         const otherParticipant = conv.participants?.find((p: any) => p.id !== uid);
         const isDirect = conv.type === 'direct';
+        let lastMessageText = '';
         const rawLast = conv.last_message;
-        const lastMessageText = rawLast && typeof rawLast === 'object'
-          ? (rawLast.content || rawLast.contenido || '')
-          : (typeof rawLast === 'string' ? rawLast : '');
+        if (rawLast && typeof rawLast === 'object') {
+          if (rawLast.message_type === 'image') {
+            lastMessageText = 'Imagen';
+          } else if (rawLast.message_type === 'video') {
+            lastMessageText = 'Video';
+          } else if (rawLast.message_type === 'file') {
+            lastMessageText = 'Documento';
+          } else {
+            lastMessageText = rawLast.content || rawLast.contenido || '';
+          }
+        } else {
+          lastMessageText = typeof rawLast === 'string' ? rawLast : '';
+        }
         const lastMessageAt = rawLast && typeof rawLast === 'object'
           ? (rawLast.created_at || rawLast.createdAt || conv.updated_at)
           : (conv.last_message_at || conv.updated_at);

@@ -648,10 +648,72 @@ export const uploadAvatar = async (userId: string, file: any) => {
   
   return { url: publicUrl, path: fileName }  
 }  
-  
-  
-  
-  
+
+// ===== CHAT FILE UPLOAD =====
+export const uploadChatFile = async (conversationId: string, userId: string, file: any) => {
+  try {
+    console.log('📤 Uploading chat file:', file.uri)
+    console.log('👤 User ID:', userId)
+
+    // Verificar autenticación
+    const { data: { session } } = await supabase.auth.getSession()
+    console.log('🔐 Session exists:', !!session)
+
+    if (!session) {
+      throw new Error('No hay sesión activa. Por favor inicia sesión nuevamente.')
+    }
+
+    const fileExt = file.uri.split('.').pop() || 'jpg'
+    const timestamp = Date.now()
+    const random = Math.random().toString(36).substr(2, 9)
+    const fileName = `chat/${conversationId}/${userId}/${timestamp}_${random}.${fileExt}`
+
+    // Determine bucket based on file type
+    let bucket = "community-media" // Default for images and videos
+    const mimeType = file.type || file.mimeType
+
+    if (mimeType?.startsWith('application/') || fileExt === 'pdf') {
+      bucket = "chat-documents" // New bucket for documents/PDFs
+    }
+
+    console.log('📁 File name:', fileName)
+    console.log('📦 Bucket:', bucket)
+
+    // Read file as ArrayBuffer (más compatible con React Native)
+    console.log('📥 Fetching file...')
+    const response = await fetch(file.uri)
+    const arrayBuffer = await response.arrayBuffer()
+    console.log('✅ ArrayBuffer created:', arrayBuffer.byteLength, 'bytes')
+
+    // Upload to Supabase Storage
+    console.log('⬆️ Starting upload...')
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .upload(fileName, arrayBuffer, {
+        contentType: mimeType || 'image/png',
+        upsert: false,
+      })
+
+    if (error) {
+      console.error('❌ Supabase upload error:', error)
+      throw error
+    }
+
+    console.log('✅ Upload successful:', data)
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(fileName)
+
+    console.log('✅ Public URL:', publicUrl)
+    return { url: publicUrl, path: fileName, bucket }
+
+  } catch (error: any) {
+    console.error('❌ Error uploading chat file:', error.message || error)
+    throw new Error(`Error al subir archivo: ${error.message || 'Desconocido'}`)
+  }
+}
   
 // ===== NOTIFICATIONS =====  
 export const getNotifications = async (userId: string) => {  
@@ -1668,7 +1730,7 @@ export const sendMessage = async (messageData: {
   chat_id?: string,
   other_user_id: string,
   content: string
-  message_type?: 'text' | 'image' | 'file' | 'voice'
+  message_type?: 'text' | 'image' | 'file' | 'voice' | 'video'
   media_url?: string
 }) => {
   try {
