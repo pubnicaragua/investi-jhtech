@@ -14,6 +14,7 @@ import { WelcomeScreen } from "./src/screens/WelcomeScreen"
 import { LanguageSelectionScreen } from "./src/screens/LanguageSelectionScreen"
 import { SignInScreen } from "./src/screens/SignInScreen"  
 import { SignUpScreen } from "./src/screens/SignUpScreen"  
+import AuthCallbackScreen from "./src/screens/AuthCallbackScreen"
 import { HomeFeedScreen } from "./src/screens/HomeFeedScreen"  
 import { UploadAvatarScreen } from "./src/screens/UploadAvatarScreen"  
 import { PickGoalsScreen } from "./src/screens/PickGoalsScreen"  
@@ -84,7 +85,8 @@ const linking: LinkingOptions<any> = {
       Welcome: "/welcome",  
       LanguageSelection: "/language-selection",
       SignIn: "/signin",  
-      SignUp: "/signup",  
+  SignUp: "/signup",  
+  AuthCallback: "/auth/callback",
       UploadAvatar: "/upload-avatar",  
       PickGoals: "/pick-goals",  
       PickInterests: "/pick-interests",  
@@ -174,8 +176,35 @@ export function RootStack() {
       const isActuallyAuthenticated = isAuthenticated || !!authToken
       console.log('✅ Navigation: Actually authenticated:', isActuallyAuthenticated)
       
+      // If we have an initial deep link pointing to the OAuth callback, navigate there first
+      try {
+        // On web sometimes Linking.getInitialURL() is not populated; check window.location
+        let initialUrl = null
+        try {
+          if (typeof window !== 'undefined' && window.location && window.location.href) {
+            initialUrl = window.location.href
+          }
+        } catch (err) {
+          // ignore
+        }
+
+        if (!initialUrl) {
+          initialUrl = await Linking.getInitialURL()
+        }
+
+        console.log(`url: ${initialUrl}`);
+        
+        if (initialUrl && initialUrl.includes('/auth/callback')) {
+          console.log('🔗 Navigation: Initial URL is auth callback, routing to AuthCallback')
+          setInitialRoute('AuthCallback')
+          setLoading(false)
+          return
+        }
+      } catch (err) {
+        console.warn('🔗 Navigation: Error reading initial URL for auth callback check', err)
+      }
+
       // Si ya está autenticado, simplemente ir a HomeFeed
-      // React Navigation manejará automáticamente las rutas específicas
       if (isActuallyAuthenticated) {
         console.log('✅ Navigation: Usuario autenticado, yendo a HomeFeed')
         setInitialRoute("HomeFeed")
@@ -283,6 +312,13 @@ export function RootStack() {
             animationTypeForReplace: isAuthenticated ? 'push' : 'pop' 
           }}  
         />  
+
+        {/* OAuth callback handler (deep link target) */}
+        <Stack.Screen
+          name="AuthCallback"
+          component={AuthCallbackScreen}
+          options={{ headerShown: false }}
+        />
   
         {/* Onboarding Flow */}  
         <Stack.Screen  

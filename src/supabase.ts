@@ -1,5 +1,6 @@
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { createClient } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
 
@@ -41,7 +42,9 @@ if (supabaseUrl && supabaseAnonKey) {
         storage: AsyncStorage,
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: false,
+        // Allow the client to detect session in URL when running on web so
+        // OAuth redirects containing access_token in the URL are processed.
+        detectSessionInUrl: Platform.OS === 'web',
       },
     });
     console.log('✅ Supabase client initialized successfully');

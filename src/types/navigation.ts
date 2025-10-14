@@ -14,6 +14,7 @@ export type RootStackParamList = {
     onSignUpSuccess: () => void;
     onBack: () => void;
   };
+  AuthCallback: undefined;
   
   // Onboarding Flow
   Onboarding: undefined;
