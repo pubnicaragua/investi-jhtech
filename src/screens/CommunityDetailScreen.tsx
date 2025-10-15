@@ -132,7 +132,7 @@ export function CommunityDetailScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [isJoined, setIsJoined] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'posts' | 'chats' | 'photos' | 'files' | 'search'>('posts')
+  const [activeTab, setActiveTab] = useState<'posts' | 'userPosts' | 'chats' | 'multimedia' | 'search'>('posts')
   const [postContent, setPostContent] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [currentUser, setCurrentUser] = useState<any>(null)
@@ -684,7 +684,13 @@ export function CommunityDetailScreen() {
               style={[styles.tab, activeTab === 'posts' && styles.activeTab]}
               onPress={() => setActiveTab('posts')}
             >
-              <Text style={[styles.tabText, activeTab === 'posts' && styles.activeTabText]}>Tú</Text>
+              <Text style={[styles.tabText, activeTab === 'posts' && styles.activeTabText]}>Publicaciones</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'userPosts' && styles.activeTab]}
+              onPress={() => setActiveTab('userPosts')}
+            >
+              <Text style={[styles.tabText, activeTab === 'userPosts' && styles.activeTabText]}>Tus Publicaciones</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.tab, activeTab === 'chats' && styles.activeTab]}
@@ -694,18 +700,11 @@ export function CommunityDetailScreen() {
               <Text style={[styles.tabText, activeTab === 'chats' && styles.activeTabText]}>Chats</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.tab, activeTab === 'photos' && styles.activeTab]}
-              onPress={() => setActiveTab('photos')}
+              style={[styles.tab, activeTab === 'multimedia' && styles.activeTab]}
+              onPress={() => setActiveTab('multimedia')}
             >
-              <ImageIcon size={16} color={activeTab === 'photos' ? '#2673f3' : '#666'} />
-              <Text style={[styles.tabText, activeTab === 'photos' && styles.activeTabText]}>Fotos</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'files' && styles.activeTab]}
-              onPress={() => setActiveTab('files')}
-            >
-              <FileText size={16} color={activeTab === 'files' ? '#2673f3' : '#666'} />
-              <Text style={[styles.tabText, activeTab === 'files' && styles.activeTabText]}>Archivos</Text>
+              <ImageIcon size={16} color={activeTab === 'multimedia' ? '#2673f3' : '#666'} />
+              <Text style={[styles.tabText, activeTab === 'multimedia' && styles.activeTabText]}>Multimedia</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.tab, activeTab === 'search' && styles.activeTab]}
@@ -824,7 +823,7 @@ export function CommunityDetailScreen() {
             </View>
           )}
   
-          {activeTab === 'photos' && (
+          {activeTab === 'multimedia' && (
             <View style={styles.photosContent}>
               {photos.length > 0 ? (
                 <FlatList
@@ -837,17 +836,7 @@ export function CommunityDetailScreen() {
                     </TouchableOpacity>
                   )}
                 />
-              ) : (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>No hay fotos disponibles</Text>
-                  <Text style={styles.emptyStateSubtext}>Las fotos compartidas aparecerán aquí</Text>
-                </View>
-              )}
-            </View>
-          )}
-  
-          {activeTab === 'files' && (
-            <View style={styles.filesContent}>
+              ) : null}
               {files.length > 0 ? (
                 files.map(file => (
                   <TouchableOpacity key={file.id} style={styles.fileItem}>
@@ -860,10 +849,11 @@ export function CommunityDetailScreen() {
                     </View>
                   </TouchableOpacity>
                 ))
-              ) : (
+              ) : null}
+              {photos.length === 0 && files.length === 0 && (
                 <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>No hay archivos disponibles</Text>
-                  <Text style={styles.emptyStateSubtext}>Los documentos compartidos aparecerán aquí</Text>
+                  <Text style={styles.emptyStateText}>No hay multimedia disponible</Text>
+                  <Text style={styles.emptyStateSubtext}>Las fotos y archivos compartidos aparecerán aquí</Text>
                 </View>
               )}
             </View>
@@ -1156,7 +1146,7 @@ export function CommunityDetailScreen() {
       flexDirection: "row",
       alignItems: "center",
       paddingVertical: 14,
-      paddingHorizontal: 16,
+      paddingHorizontal: 20,
       marginRight: 12,
       gap: 6,
     },
