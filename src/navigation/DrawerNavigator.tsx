@@ -5,6 +5,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
 import { useNavigation } from '@react-navigation/native';
 import { User, Settings, HelpCircle, LogOut, Home } from 'lucide-react-native';
+import { authSignOut } from '../rest/api'
 
 const Drawer = createDrawerNavigator();
 
@@ -55,9 +56,15 @@ function CustomDrawerContent(props: any) {
       <View style={styles.drawerFooter}>
         <TouchableOpacity 
           style={styles.logoutButton}
-          onPress={() => {
-            // Aquí iría la lógica de cierre de sesión
-            navigation.navigate('Auth' as never);
+          onPress={async () => {
+            try {
+              await authSignOut()
+            } catch (err) {
+              console.warn('Drawer logout error:', err)
+            }
+            // Reset navigation to public welcome screen
+            // @ts-ignore
+            navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] })
           }}
         >
           <LogOut size={20} color="#DC2626" style={{ marginRight: 8 }} />

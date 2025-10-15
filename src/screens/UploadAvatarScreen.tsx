@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next"
 import { ArrowLeft, Camera } from "lucide-react-native"  
 import * as ImagePicker from "expo-image-picker"  
 import { getCurrentUserId, updateUser } from "../api"  
-import { supabase } from "../supabase"  
+import { supabase, supabaseUrl, supabaseAnonKey } from "../supabase"  
 import { LanguageToggle } from "../components/LanguageToggle"  
   
 export function UploadAvatarScreen({ navigation }: any) {  
@@ -44,17 +44,60 @@ export function UploadAvatarScreen({ navigation }: any) {
       const blob = await response.blob()  
 
       // Subir el archivo (el bucket 'avatars' debe existir en Supabase)
-      const { data, error } = await supabase.storage  
-        .from("avatars")  
-        .upload(fileName, blob, {  
-          cacheControl: '3600',  
-          upsert: true  
-        })  
+        let uploadError: any = null
+        try {
+          const { data, error } = await supabase.storage
+            .from("avatars")
+            .upload(fileName, blob, {
+              cacheControl: '3600',
+              upsert: true,
+            })
+          uploadError = error
+        } catch (e) {
+          uploadError = e
+        }
 
-      if (error) {  
-        console.error('Storage upload error:', error)  
-        throw error  
-      }  
+        if (uploadError) {
+          console.error('Storage upload error (supabase client):', uploadError)
+          // Try manual PUT to storage REST
+          try {
+            const url = `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/avatars/${encodeURIComponent(fileName)}`
+            let authToken = supabaseAnonKey
+            try {
+              const sessionRes = await supabase.auth.getSession()
+              const session = sessionRes?.data?.session
+              if (session?.access_token) authToken = session.access_token
+            } catch (tokenErr) {
+              console.warn('[UploadAvatar] could not read session token, falling back to anon key')
+            }
+
+            await new Promise<void>((resolve, reject) => {
+              const xhr = new XMLHttpRequest()
+              xhr.open('PUT', url)
+              xhr.setRequestHeader('Authorization', `Bearer ${authToken}`)
+              xhr.setRequestHeader('x-upsert', 'true')
+              xhr.setRequestHeader('Content-Type', 'image/jpeg')
+              xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                  if (xhr.status >= 200 && xhr.status < 300) {
+                    resolve()
+                  } else {
+                    reject(new Error(`Manual upload failed: ${xhr.status} ${xhr.responseText}`))
+                  }
+                }
+              }
+              try {
+                xhr.send(blob)
+              } catch (sendErr) {
+                reject(sendErr)
+              }
+            })
+            console.log('UploadAvatar: manual PUT upload succeeded')
+          } catch (manualErr) {
+            console.error('UploadAvatar: manual PUT upload also failed:', manualErr)
+            throw uploadError
+          }
+        }
 
       // Obtener la URL pública  
       const { data: { publicUrl } } = supabase.storage  

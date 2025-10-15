@@ -1,4 +1,5 @@
 import { storage } from "../utils/storage"  
+import { supabase } from "../supabase"
   
 export const urls = {  
   REST_URL: "https://paoliakwfoczcallnecf.supabase.co/rest/v1",  
@@ -357,7 +358,16 @@ export async function authSignOut() {
     console.warn("Error during server logout:", error)  
   }  
   
-  await clearTokens()  
+  // Also call supabase-js to ensure client session is cleared and listeners fire
+  try {
+    if (supabase && supabase.auth && typeof supabase.auth.signOut === 'function') {
+      await supabase.auth.signOut().catch(() => {})
+    }
+  } catch (err) {
+    console.warn('Error calling supabase.auth.signOut():', err)
+  }
+
+  await clearTokens()
 }  
   
 export async function getCurrentUserId(): Promise<string | null> {  

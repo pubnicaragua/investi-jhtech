@@ -38,11 +38,11 @@ import {
   Modal,
   Alert,
 } from "react-native";  
-import {  
-  ArrowLeft,  
-  MoreVertical,  
-  Search,  
-  Edit3,
+import {
+  ArrowLeft,
+  MoreVertical,
+  Search,
+  MessageSquare,
   Settings,
   Archive,
   Users,
@@ -127,8 +127,21 @@ export function ChatListScreen({ navigation }: any) {
       
       // Transform conversations
       const transformedChats = conversations.map((conv: any) => {
-        const otherParticipant = conv.participants?.find((p: any) => p.id !== uid);
         const isDirect = conv.type === 'direct';
+        let otherParticipant = null;
+
+        if (isDirect) {
+          // Handle participant_one and participant_two structure
+          if (conv.participant_one?.id === uid) {
+            otherParticipant = conv.participant_two;
+          } else if (conv.participant_two?.id === uid) {
+            otherParticipant = conv.participant_one;
+          } else {
+            // Fallback for participants array if exists
+            otherParticipant = conv.participants?.find((p: any) => p.id !== uid);
+          }
+        }
+
         let lastMessageText = '';
         const rawLast = conv.last_message;
         if (rawLast && typeof rawLast === 'object') {
@@ -229,26 +242,30 @@ export function ChatListScreen({ navigation }: any) {
     loadData();  
   }, []);  
   
-  const filterChats = () => {  
-    let filtered = chats;  
+  const filterChats = () => {
+    let filtered = chats;
 
-    if (activeFilter === "No leídos") {  
-      filtered = filtered.filter(chat => chat.unread_count > 0);  
-    } else if (activeFilter === "Comunidades") {  
-      filtered = filtered.filter(chat => chat.type === "community");  
-    }  
+    if (activeFilter === "No leídos") {
+      filtered = filtered.filter(chat => chat.unread_count > 0);
+    } else if (activeFilter === "Comunidades") {
+      filtered = filtered.filter(chat => chat.type === "community");
+    }
 
-    if (searchQuery.trim()) {  
-      filtered = filtered.filter(chat => {  
-        const name = chat.type === "community"   
-          ? chat.community?.nombre   
-          : chat.user?.nombre;  
-        return name?.toLowerCase().includes(searchQuery.toLowerCase());  
-      });  
-    }  
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(chat => {
+        const name = chat.type === "community"
+          ? chat.community?.nombre
+          : chat.user?.nombre;
+        return name?.toLowerCase().includes(searchQuery.toLowerCase());
+      });
+    }
 
-    setFilteredChats(filtered);  
-  };  
+    // Always include community chats that have messages
+    const communityChats = chats.filter(chat => chat.type === "community" && chat.last_message !== 'Sin mensajes aún');
+    const uniqueFiltered = [...filtered, ...communityChats.filter(c => !filtered.find(f => f.id === c.id))];
+
+    setFilteredChats(uniqueFiltered);
+  };
 
   // Format time like in the design
   const formatTime = (dateString: string) => {
@@ -435,9 +452,6 @@ export function ChatListScreen({ navigation }: any) {
               <Text style={styles.headerTitle}>Mensajes</Text>
             </View>
             <View style={styles.headerActions}>
-              <TouchableOpacity onPress={() => navigation.navigate('NewMessageScreen')} accessibilityLabel="Nuevo mensaje" style={styles.composeButton}>
-                <Edit3 size={18} color="#111" />
-              </TouchableOpacity>
               <TouchableOpacity onPress={() => setShowMenu(true)} accessibilityLabel="Menú">
                 <MoreVertical size={24} color="#111" />
               </TouchableOpacity>
@@ -566,57 +580,68 @@ export function ChatListScreen({ navigation }: any) {
         </TouchableOpacity>
       </Modal>
 
+      {/* Floating Action Button for New Message */}
+      <TouchableOpacity
+        style={styles.floatingActionButton}
+        onPress={() => navigation.navigate('NewMessageScreen')}
+        activeOpacity={0.8}
+      >
+        <View style={styles.fab}>
+          <MessageSquare size={24} color="#FFFFFF" />
+        </View>
+      </TouchableOpacity>
+
       <View style={styles.bottomNavigation}>
-        <TouchableOpacity 
-          style={styles.navItem} 
-          onPress={() => handleNavigation("HomeFeed")} 
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => handleNavigation("HomeFeed")}
         >
-          <Ionicons 
+          <Ionicons
             name={currentRoute === "HomeFeed" ? "home" : "home-outline"}
-            size={26} 
-            color={currentRoute === "HomeFeed" ? "#2673f3" : "#9CA3AF"} 
+            size={26}
+            color={currentRoute === "HomeFeed" ? "#2673f3" : "#9CA3AF"}
           />
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.navItem} 
-          onPress={() => handleNavigation("MarketInfo")} 
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => handleNavigation("MarketInfo")}
         >
-          <Ionicons 
+          <Ionicons
             name={currentRoute === "MarketInfo" ? "trending-up" : "trending-up-outline"}
-            size={26} 
-            color={currentRoute === "MarketInfo" ? "#2673f3" : "#9CA3AF"} 
+            size={26}
+            color={currentRoute === "MarketInfo" ? "#2673f3" : "#9CA3AF"}
           />
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.fabContainer} 
-          onPress={() => handleNavigation("CreatePost")} 
+        <TouchableOpacity
+          style={styles.fabContainer}
+          onPress={() => handleNavigation("CreatePost")}
         >
           <View style={styles.fabButton}>
             <Ionicons name="add" size={28} color="#FFFFFF" />
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.navItem} 
-          onPress={() => handleNavigation("News")} 
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => handleNavigation("News")}
         >
-          <Ionicons 
+          <Ionicons
             name={currentRoute === "News" ? "newspaper" : "newspaper-outline"}
-            size={26} 
-            color={currentRoute === "News" ? "#2673f3" : "#9CA3AF"} 
+            size={26}
+            color={currentRoute === "News" ? "#2673f3" : "#9CA3AF"}
           />
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.navItem} 
-          onPress={() => handleNavigation("Educacion")} 
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => handleNavigation("Educacion")}
         >
-          <Ionicons 
+          <Ionicons
             name={currentRoute === "Educacion" ? "school" : "school-outline"}
-            size={26} 
-            color={currentRoute === "Educacion" ? "#2673f3" : "#9CA3AF"} 
+            size={26}
+            color={currentRoute === "Educacion" ? "#2673f3" : "#9CA3AF"}
           />
         </TouchableOpacity>
       </View>
@@ -665,12 +690,6 @@ const styles = StyleSheet.create({
 
   backButton: {
     padding: 4,
-  },
-
-  composeButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
   },
 
   topSection: {
@@ -926,6 +945,27 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 12,
+    backgroundColor: '#2673f3',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#2673f3',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+
+  floatingActionButton: {
+    position: 'absolute',
+    bottom: 100,
+    right: 20,
+    zIndex: 10,
+  },
+
+  fab: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: '#2673f3',
     justifyContent: 'center',
     alignItems: 'center',

@@ -204,6 +204,23 @@ export function NewMessageScreen({ navigation }: any) {
         <View style={{ width: 40 }} />
       </View>
 
+      {/* Crear Comunidad Button */}
+      <View style={styles.createCommunityContainer}>
+        <TouchableOpacity
+          style={styles.createCommunityButton}
+          onPress={() => navigation.navigate('CreateCommunity')}
+          activeOpacity={0.8}
+        >
+          <Users size={20} color="#2673f3" />
+          <Text style={styles.createCommunityText}>Crear Comunidad</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Personas de interes Section */}
+      <View style={styles.sectionContainer}>
+        <Text style={styles.sectionTitle}>Personas de interes</Text>
+      </View>
+
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
@@ -354,6 +371,43 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#999',
     textAlign: 'center',
+  },
+
+  createCommunityContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+  },
+
+  createCommunityButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f0f8ff',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#2673f3',
+  },
+
+  createCommunityText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2673f3',
+    marginLeft: 8,
+  },
+
+  sectionContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#fff',
+  },
+
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111',
   },
 });
 

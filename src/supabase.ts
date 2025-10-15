@@ -58,4 +58,4 @@ if (supabaseUrl && supabaseAnonKey) {
   console.log('Key:', supabaseAnonKey ? '✓' : '✗');
 }
 
-export { supabase };
+export { supabase, supabaseUrl, supabaseAnonKey };
