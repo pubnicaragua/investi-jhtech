@@ -142,6 +142,9 @@ export function CommunityDetailScreen() {
   const [showPostOptions, setShowPostOptions] = useState<string | null>(null)
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set())
 
+  // Tabs: rely on native onPress behavior so horizontal swipes on the ScrollView
+  // are handled by the ScrollView and taps activate the tab.
+
   // ✅ Avatar predeterminado
   const getDefaultAvatar = (name: string) => {
     const initial = name?.charAt(0)?.toUpperCase() || 'U'
@@ -612,7 +615,102 @@ export function CommunityDetailScreen() {
             </TouchableOpacity>
           </View>
         </View>
-  
+
+        {/* Community Header con imagen de portada */}
+        <View style={styles.communityHeader}>
+          {community.cover_image_url ? (
+            <Image
+              source={{ uri: community.cover_image_url }}
+              style={styles.coverImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.coverImage, styles.coverImageFallback]} />
+          )}
+
+          {/* Avatar circular encima */}
+          <View style={styles.avatarContainer}>
+            <Image
+              source={{ uri: community.image_url || getDefaultAvatar(community.name) }}
+              style={styles.communityAvatar}
+            />
+          </View>
+        </View>
+
+        {/* Community Info */}
+        <View style={styles.communityInfo}>
+          <Text style={styles.communityName}>{community.name}</Text>
+          <View style={styles.communityMeta}>
+            <Text style={styles.communityMetaText}>
+              {community.members_count || 0}k miembros · Comunidad pública
+            </Text>
+          </View>
+
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[styles.joinButton, isJoined && styles.joinedButton]}
+              onPress={handleJoinCommunity}
+              disabled={isJoined}
+            >
+              <Text style={[styles.joinButtonText, isJoined && styles.joinedButtonText]}>
+                {isJoined ? 'Unido' : 'Unirse'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.inviteButton}
+              onPress={handleInvite}
+            >
+              <Text style={styles.inviteButtonText}>Invitar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Tabs */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.tabsScrollView}
+          contentContainerStyle={styles.tabsContainer}
+        >
+            <Pressable
+              style={[styles.tab, activeTab === 'posts' && styles.activeTab]}
+              onPress={() => setActiveTab('posts')}
+            >
+              <Text style={[styles.tabText, activeTab === 'posts' && styles.activeTabText]}>Publicaciones</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.tab, activeTab === 'userPosts' && styles.activeTab]}
+              onPress={() => setActiveTab('userPosts')}
+            >
+              <Text style={[styles.tabText, activeTab === 'userPosts' && styles.activeTabText]}>Tus Publicaciones</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.tab, activeTab === 'chats' && styles.activeTab]}
+              onPress={() => setActiveTab('chats')}
+            >
+              <MessageCircle size={16} color={activeTab === 'chats' ? '#2673f3' : '#666'} />
+              <Text style={[styles.tabText, activeTab === 'chats' && styles.activeTabText]}>Chats</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.tab, activeTab === 'multimedia' && styles.activeTab]}
+              onPress={() => setActiveTab('multimedia')}
+            >
+              <ImageIcon size={16} color={activeTab === 'multimedia' ? '#2673f3' : '#666'} />
+              <Text style={[styles.tabText, activeTab === 'multimedia' && styles.activeTabText]}>Multimedia</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.tab, activeTab === 'search' && styles.activeTab]}
+              onPress={() => setActiveTab('search')}
+            >
+              <Search size={16} color={activeTab === 'search' ? '#2673f3' : '#666'} />
+              <Text style={[styles.tabText, activeTab === 'search' && styles.activeTabText]}>Buscar inversores</Text>
+            </Pressable>
+        </ScrollView>
+
         <ScrollView
           style={styles.scrollView}
           refreshControl={
@@ -624,122 +722,10 @@ export function CommunityDetailScreen() {
             />
           }
         >
-          {/* Community Header con imagen de portada */}
-          <View style={styles.communityHeader}>
-            {community.cover_image_url ? (
-              <Image
-                source={{ uri: community.cover_image_url }}
-                style={styles.coverImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={[styles.coverImage, styles.coverImageFallback]} />
-            )}
-  
-            {/* Avatar circular encima */}
-            <View style={styles.avatarContainer}>
-              <Image
-                source={{ uri: community.image_url || getDefaultAvatar(community.name) }}
-                style={styles.communityAvatar}
-              />
-            </View>
-          </View>
-  
-          {/* Community Info */}
-          <View style={styles.communityInfo}>
-            <Text style={styles.communityName}>{community.name}</Text>
-            <View style={styles.communityMeta}>
-              <Text style={styles.communityMetaText}>
-                {community.members_count || 0}k miembros · Comunidad pública
-              </Text>
-            </View>
-  
-            <View style={styles.actionButtons}>
-              <TouchableOpacity
-                style={[styles.joinButton, isJoined && styles.joinedButton]}
-                onPress={handleJoinCommunity}
-                disabled={isJoined}
-              >
-                <Text style={[styles.joinButtonText, isJoined && styles.joinedButtonText]}>
-                  {isJoined ? 'Unido' : 'Unirse'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.inviteButton}
-                onPress={handleInvite}
-              >
-                <Text style={styles.inviteButtonText}>Invitar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-  
-          {/* Tabs */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.tabsScrollView}
-            contentContainerStyle={styles.tabsContainer}
-          >
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'posts' && styles.activeTab]}
-              onPress={() => setActiveTab('posts')}
-            >
-              <Text style={[styles.tabText, activeTab === 'posts' && styles.activeTabText]}>Publicaciones</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'userPosts' && styles.activeTab]}
-              onPress={() => setActiveTab('userPosts')}
-            >
-              <Text style={[styles.tabText, activeTab === 'userPosts' && styles.activeTabText]}>Tus Publicaciones</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'chats' && styles.activeTab]}
-              onPress={() => setActiveTab('chats')}
-            >
-              <MessageCircle size={16} color={activeTab === 'chats' ? '#2673f3' : '#666'} />
-              <Text style={[styles.tabText, activeTab === 'chats' && styles.activeTabText]}>Chats</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'multimedia' && styles.activeTab]}
-              onPress={() => setActiveTab('multimedia')}
-            >
-              <ImageIcon size={16} color={activeTab === 'multimedia' ? '#2673f3' : '#666'} />
-              <Text style={[styles.tabText, activeTab === 'multimedia' && styles.activeTabText]}>Multimedia</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.tab, activeTab === 'search' && styles.activeTab]}
-              onPress={() => setActiveTab('search')}
-            >
-              <Search size={16} color={activeTab === 'search' ? '#2673f3' : '#666'} />
-              <Text style={[styles.tabText, activeTab === 'search' && styles.activeTabText]}>Buscar inversores</Text>
-            </TouchableOpacity>
-          </ScrollView>
-  
           {/* Content based on active tab */}
           {activeTab === 'posts' && (
             <View style={styles.postsContent}>
-              {/* Post Creation */}
-              <View style={styles.postCreationCompact}>
-                <Image
-                  source={{ uri: currentUser?.avatar_url || currentUser?.photo_url || getDefaultAvatar(currentUser?.nombre || 'Usuario') }}
-                  style={styles.userAvatarSmall}
-                />
-                <TextInput
-                  style={styles.postInputCompact}
-                  placeholder={isJoined ? "Escribe algo..." : "Únete para publicar..."}
-                  placeholderTextColor="#999"
-                  value={postContent}
-                  onChangeText={setPostContent}
-                  multiline
-                  editable={isJoined}
-                />
-                {postContent.trim() && (
-                  <TouchableOpacity onPress={handleCreatePost} style={styles.postButton}>
-                    <Text style={styles.postButtonText}>Publicar</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-  
+
               {/* Quick Actions */}
               <ScrollView
                 horizontal
@@ -766,12 +752,12 @@ export function CommunityDetailScreen() {
                   </Text>
                 </TouchableOpacity>
               </ScrollView>
-  
+
               {/* Posts Filter */}
               <View style={styles.postsFilter}>
                 <Text style={styles.filterText}>Más relevantes</Text>
               </View>
-  
+
               {/* Posts List */}
               {posts.length > 0 ? (
                 posts.map(post => (
@@ -781,8 +767,33 @@ export function CommunityDetailScreen() {
                 <View style={styles.emptyState}>
                   <Text style={styles.emptyStateText}>No hay publicaciones aún</Text>
                   <Text style={styles.emptyStateSubtext}>Sé el primero en compartir algo</Text>
+                  <TouchableOpacity style={styles.publishButton} onPress={() => {}}>
+                    <Text style={styles.publishButtonText}>Publicar</Text>
+                  </TouchableOpacity>
                 </View>
               )}
+            </View>
+          )}
+
+          {activeTab === 'userPosts' && (
+            <View style={styles.postsContent}>
+
+              {/* User Posts List */}
+              {(() => {
+                const userPosts = posts.filter(post => post.user_id === currentUser?.id)
+                return userPosts.length > 0 ? (
+                  userPosts.map(post => (
+                    <PostCard key={post.id} post={post} />
+                  ))
+                ) : (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateText}>No has publicado nada aun</Text>
+                    <TouchableOpacity style={styles.publishButton} onPress={() => {}}>
+                      <Text style={styles.publishButtonText}>Crea tu primera publicación</Text>
+                    </TouchableOpacity>
+                  </View>
+                )
+              })()}
             </View>
           )}
   
@@ -1541,6 +1552,18 @@ export function CommunityDetailScreen() {
     emptyStateSubtext: {
       fontSize: 14,
       color: "#999",
+    },
+    publishButton: {
+      backgroundColor: "#2673f3",
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderRadius: 8,
+      marginTop: 16,
+    },
+    publishButtonText: {
+      color: "#fff",
+      fontSize: 16,
+      fontWeight: "600",
     },
     modalOverlay: {
       flex: 1,
