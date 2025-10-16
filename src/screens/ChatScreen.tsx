@@ -67,15 +67,37 @@ export function ChatScreen({ navigation, route }: any) {
     // Configurar Supabase Realtime para mensajes en tiempo real
     const channel = supabase
       .channel(`conversation_${conversationId}`)
-      .on('postgres_changes', 
-        { 
-          event: 'INSERT', 
-          schema: 'public', 
+      .on('postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
           table: 'messages',
           filter: `conversation_id=eq.${conversationId}`
-        }, 
-        (payload: any) => {
+        },
+        async (payload: any) => {
+          console.log('Nuevo mensaje recibido en tiempo real:', payload);
           const newMessage = payload.new as any;
+
+          // Obtener datos completos del usuario remitente
+          let userData = null;
+          try {
+            const { data, error } = await supabase
+              .from('users')
+              .select('id, nombre, full_name, avatar_url, photo_url')
+              .eq('id', newMessage.sender_id || newMessage.user_id)
+              .single();
+
+            if (!error && data) {
+              userData = {
+                id: data.id,
+                nombre: data.full_name || data.nombre || 'Usuario',
+                avatar: data.avatar_url || data.photo_url || 'https://i.pravatar.cc/100'
+              };
+            }
+          } catch (error) {
+            console.warn('Error obteniendo datos del usuario:', error);
+          }
+
           // Transform the message to match our interface
           const transformedMessage = {
             id: newMessage.id,
@@ -84,16 +106,29 @@ export function ChatScreen({ navigation, route }: any) {
             sender_id: newMessage.sender_id || newMessage.user_id,
             media_url: newMessage.media_url,
             message_type: newMessage.message_type,
-            user: {
+            user: userData || {
               id: newMessage.user_id || newMessage.sender_id,
-              nombre: 'Usuario', // Will be populated by loadMessages
+              nombre: 'Usuario',
               avatar: 'https://i.pravatar.cc/100'
             }
           };
+
           setMessages(prev => [...prev, transformedMessage]);
+
+          // Auto-scroll al final
           setTimeout(() => {
             flatListRef.current?.scrollToEnd({ animated: true });
           }, 100);
+
+          // Marcar como leído si no es nuestro mensaje
+          const currentUid = await getCurrentUserId();
+          if (currentUid && newMessage.sender_id !== currentUid) {
+            try {
+              await markMessagesAsRead(conversationId, currentUid);
+            } catch (error) {
+              console.warn('Error marcando mensaje como leído:', error);
+            }
+          }
         }
       )
       .subscribe();
@@ -561,15 +596,15 @@ export function ChatScreen({ navigation, route }: any) {
             {pendingMedia.type === 'image' && (
               <Image source={{ uri: pendingMedia.uri }} style={styles.previewImage} />
             )}
-    {(pendingMedia.type === 'video' || pendingMedia.type === 'document') && (
-      <View style={styles.previewTextContainer}>
-        {pendingMedia.type === 'document' && <FileText size={20} color="#2673f3" />}
-        <Text style={styles.previewText}>
-          {pendingMedia.type === 'video' ? 'Video: ' : 'Documento: '}
-          {pendingMedia.file.fileName?.split(' ')[0] || pendingMedia.type}
-        </Text>
-      </View>
-    )}
+            {(pendingMedia.type === 'video' || pendingMedia.type === 'document') && (
+              <View style={styles.previewTextContainer}>
+                {pendingMedia.type === 'document' && <FileText size={20} color="#2673f3" />}
+                <Text style={styles.previewText}>
+                  {pendingMedia.type === 'video' ? 'Video: ' : 'Documento: '}
+                  {pendingMedia.file.fileName?.split(' ')[0] || pendingMedia.type}
+                </Text>
+              </View>
+            )}
             <TouchableOpacity onPress={handleCancelMedia} style={styles.cancelButton}>
               <Text style={styles.cancelText}>✕</Text>
             </TouchableOpacity>

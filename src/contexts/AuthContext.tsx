@@ -3,6 +3,7 @@ import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '../supabase';
 import { storage } from '../utils/storage';
 import { migrateStorageKeys } from '../utils/storageMigration';
+import { setupNotificationChannel, showWelcomeNotification } from '../utils/notifications';
 
 // Helper function to load complete user data from public.users
 async function loadCompleteUserData(userId: string): Promise<User | null> {
@@ -66,9 +67,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const setupAuth = async () => {
       try {
         console.log('[AuthProvider] Setting up auth listener');
-        
+
         // 🔄 MIGRACIÓN: Migrar claves antiguas con '@' a claves válidas
         await migrateStorageKeys();
+
+        // Configurar canal de notificaciones
+        await setupNotificationChannel();
         
         // 🔧 PRIMERO: Verificar si hay token guardado en AsyncStorage
         const savedToken = await storage.getItem('auth_token');
@@ -262,10 +266,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(data.user as unknown as User);
         }
         setIsAuthenticated(true);
-        
+
         console.log('[AuthContext] ✅ All tokens saved and state updated');
+
+        // Mostrar notificación de bienvenida después del login exitoso
+        await showWelcomeNotification();
       }
-      
+
       return data;
     } catch (error: any) {
       console.error('[AuthContext] Error signing in:', error);

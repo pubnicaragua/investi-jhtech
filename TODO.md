@@ -1,23 +1,22 @@
-# TODO: Conectar VideoPlayerScreen con API Real
+# TODO - Implementación de Notificaciones Push
 
-## Estado: En Progreso
+## ✅ Completado
+- [x] Instalar expo-notifications
+- [x] Crear utilidad de notificaciones (src/utils/notifications.ts)
+- [x] Configurar handler de notificaciones
+- [x] Implementar función para solicitar permisos
+- [x] Crear función para mostrar notificación de bienvenida
+- [x] Configurar canal de notificaciones para Android
+- [x] Integrar notificaciones en AuthContext
+- [x] Mostrar notificación de bienvenida después del login exitoso
 
-### ✅ Completado
-- [x] Crear plan de integración
-- [x] Obtener aprobación del usuario
+## 🧪 Próximos pasos
+- [ ] Probar la funcionalidad en dispositivo/emulador
+- [ ] Verificar permisos de notificación
+- [ ] Probar notificación de bienvenida al iniciar sesión
+- [ ] Agregar más tipos de notificaciones según necesidades futuras
 
-### 🔄 En Progreso
-- [ ] Importar funciones de API necesarias
-- [ ] Agregar estados para loading, datos del video, progreso, likes, bookmarks
-- [ ] Implementar useEffect para cargar datos del video
-- [ ] Conectar acciones de like/bookmark con API
-- [ ] Implementar seguimiento de progreso del video
-- [ ] Agregar funcionalidad de comentarios
-- [ ] Actualizar navegación al siguiente video
-- [ ] Manejar estados de error y loading
-
-### 📋 Pendiente
-- [ ] Probar la integración completa
-- [ ] Agregar indicadores de carga visuales
-- [ ] Manejar casos edge (video no encontrado, errores de red)
-- [ ] Optimizar rendimiento (lazy loading de comentarios)
+## 📝 Notas
+- Las notificaciones se muestran automáticamente cuando el usuario inicia sesión exitosamente
+- Se configuró el canal de notificaciones para Android con vibración y color personalizado
+- La notificación incluye título, cuerpo y sonido por defecto
