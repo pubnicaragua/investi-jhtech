@@ -42,8 +42,8 @@ const INTERESTS = [
 ]
 
 const PRIVACY_OPTIONS = [
-  { label: 'Pública', value: 'public', description: 'Cualquiera puede unirse' },
-  { label: 'Privada', value: 'private', description: 'Solo por invitación' },
+  { label: '🔓e sPública', value: 'public', description: 'Cualquiera puede unirse' },
+  { label: '🔒Privada', value: 'private', description: 'Solo por invitación' },
   { label: 'Colegio', value: 'restricted', description: 'Moderada por administradores' },
 ]
 

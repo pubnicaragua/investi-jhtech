@@ -86,8 +86,8 @@ export function EducacionScreen() {
 
   const onRefresh = () => { setRefreshing(true); loadData(); };
   const handleTabChange = (tab: string) => { setActiveTab(tab); setSearchQuery(''); };
-  const handleVideoPress = (video: Video) => navigation.navigate('VideoPlayer' as never, { videoId: video.id } as never);
-  const handleCoursePress = (course: Course) => navigation.navigate('CourseDetail' as never, { courseId: course.id } as never);
+  const handleVideoPress = (video: Video) => (navigation.navigate as any)('VideoPlayer', { videoId: video.id });
+  const handleCoursePress = (course: Course) => (navigation.navigate as any)('CourseDetail', { courseId: course.id });
   const handleToolPress = (tool: Tool) => navigation.navigate(tool.route as never);
   const handleNavigation = (screen: string) => navigation.navigate(screen as never);
 
@@ -195,6 +195,19 @@ export function EducacionScreen() {
           <Text style={styles.toolDescription} numberOfLines={2}>{tool.description}</Text>
         </View>
         <ChevronRight size={20} color="#ccc" />
+      </TouchableOpacity>
+    );
+  };
+
+  const renderToolGridItem = (tool: Tool) => {
+    const IconComponent = getIconForTool(tool.icon);
+    return (
+      <TouchableOpacity key={tool.id} style={styles.toolGridCard} onPress={() => handleToolPress(tool)} activeOpacity={0.7}>
+        <View style={styles.toolGridIconContainer}>
+          <IconComponent size={40} color="#4A90E2" />
+        </View>
+        <Text style={styles.toolGridTitle} numberOfLines={1}>{tool.name}</Text>
+        <Text style={styles.toolGridDescription} numberOfLines={2}>{tool.description}</Text>
       </TouchableOpacity>
     );
   };
@@ -334,7 +347,11 @@ export function EducacionScreen() {
                 <Text style={styles.sectionTitle}>Herramientas Financieras</Text>
                 <Text style={styles.sectionSubtitle}>Utiliza estas herramientas para mejorar tu educación financiera</Text>
                 <View style={styles.toolsGrid}>
-                  {tools.length > 0 ? tools.map(renderToolItem) : (
+                  {tools.length > 0 ? (
+                    <View style={styles.toolsGridContainer}>
+                      {tools.map(renderToolGridItem)}
+                    </View>
+                  ) : (
                     <View style={styles.emptyState}>
                       <Wrench size={48} color="#ccc" />
                       <Text style={styles.emptyStateText}>No hay herramientas disponibles</Text>
@@ -435,6 +452,7 @@ const styles = StyleSheet.create({
   videosGrid: { paddingHorizontal: 16, gap: 12 },
   coursesGrid: { paddingHorizontal: 16, gap: 12 },
   toolsGrid: { paddingHorizontal: 16, gap: 12 },
+  toolsGridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   videoCard: { width: 280, backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
   videoThumbnail: { width: '100%', height: 160, backgroundColor: '#eee' },
   videoDurationBadge: { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
@@ -468,6 +486,10 @@ const styles = StyleSheet.create({
   toolInfo: { flex: 1 },
   toolTitle: { fontSize: 15, fontWeight: '600', color: '#333', marginBottom: 4 },
   toolDescription: { fontSize: 13, color: '#666', lineHeight: 18 },
+  toolGridCard: { width: '48%', backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1, alignItems: 'center' },
+  toolGridIconContainer: { width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(74, 144, 226, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  toolGridTitle: { fontSize: 14, fontWeight: '600', color: '#333', textAlign: 'center', marginBottom: 4 },
+  toolGridDescription: { fontSize: 12, color: '#666', textAlign: 'center', lineHeight: 16 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 },
   loadingText: { marginTop: 12, fontSize: 16, color: '#666' },
   emptyState: { alignItems: 'center', paddingVertical: 40 },
