@@ -30,6 +30,8 @@ import {
   Users,
   MessageCircle,
   Image as ImageIcon,
+  Video,
+  FileText,
 
   Search,
   MoreHorizontal,
@@ -127,12 +129,14 @@ export function CommunityDetailScreen() {
   const [channels, setChannels] = useState<Channel[]>([])
   const [users, setUsers] = useState<CommunityUser[]>([])
   const [photos, setPhotos] = useState<any[]>([])
+  const [videos, setVideos] = useState<any[]>([])
   const [files, setFiles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [isJoined, setIsJoined] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'userPosts' | 'posts' | 'chats' | 'multimedia' | 'search'>('userPosts')
+  const [activeMultimediaTab, setActiveMultimediaTab] = useState<'photos' | 'videos' | 'files'>('photos')
   const [postContent, setPostContent] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [currentUser, setCurrentUser] = useState<any>(null)
@@ -679,6 +683,7 @@ export function CommunityDetailScreen() {
             showsHorizontalScrollIndicator={false}
             style={styles.tabsScrollView}
             contentContainerStyle={styles.tabsContainer}
+            scrollEnabled={true}
           >
             
             <Pressable
@@ -841,22 +846,104 @@ export function CommunityDetailScreen() {
           )}
   
           {activeTab === 'multimedia' && (
-            <View style={styles.photosContent}>
-              {photos.length > 0 ? (
-                <FlatList
-                  data={photos}
-                  numColumns={3}
-                  keyExtractor={(item) => item.id}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity style={styles.photoItem}>
-                      <Image source={{ uri: item.image_url }} style={styles.photoImage} />
-                    </TouchableOpacity>
+            <View style={styles.multimediaContent}>
+              {/* Multimedia Sub-tabs */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.multimediaTabsScroll}
+                contentContainerStyle={styles.multimediaTabsContainer}
+              >
+                <Pressable
+                  style={[styles.multimediaTab, activeMultimediaTab === 'photos' && styles.activeMultimediaTab]}
+                  onPress={() => setActiveMultimediaTab('photos')}
+                >
+                  <ImageIcon size={16} color={activeMultimediaTab === 'photos' ? '#2673f3' : '#666'} />
+                  <Text style={[styles.multimediaTabText, activeMultimediaTab === 'photos' && styles.activeMultimediaTabText]}>Fotos</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.multimediaTab, activeMultimediaTab === 'videos' && styles.activeMultimediaTab]}
+                  onPress={() => setActiveMultimediaTab('videos')}
+                >
+                  <Video size={16} color={activeMultimediaTab === 'videos' ? '#2673f3' : '#666'} />
+                  <Text style={[styles.multimediaTabText, activeMultimediaTab === 'videos' && styles.activeMultimediaTabText]}>Videos</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.multimediaTab, activeMultimediaTab === 'files' && styles.activeMultimediaTab]}
+                  onPress={() => setActiveMultimediaTab('files')}
+                >
+                  <FileText size={16} color={activeMultimediaTab === 'files' ? '#2673f3' : '#666'} />
+                  <Text style={[styles.multimediaTabText, activeMultimediaTab === 'files' && styles.activeMultimediaTabText]}>Archivos</Text>
+                </Pressable>
+              </ScrollView>
+
+              {/* Multimedia Content */}
+              {activeMultimediaTab === 'photos' && (
+                <View style={styles.photosContent}>
+                  {photos.length > 0 ? (
+                    <FlatList
+                      data={photos}
+                      numColumns={3}
+                      keyExtractor={(item) => item.id}
+                      renderItem={({ item }) => (
+                        <TouchableOpacity style={styles.photoItem}>
+                          <Image source={{ uri: item.image_url }} style={styles.photoImage} />
+                        </TouchableOpacity>
+                      )}
+                    />
+                  ) : (
+                    <View style={styles.emptyState}>
+                      <Text style={styles.emptyStateText}>No hay fotos disponibles</Text>
+                      <Text style={styles.emptyStateSubtext}>Las fotos compartidas aparecerán aquí</Text>
+                    </View>
                   )}
-                />
-              ) : (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>No hay Multimedia disponible</Text>
-                  <Text style={styles.emptyStateSubtext}>Toda la multimedia compartida aparecera aquí</Text>
+                </View>
+              )}
+
+              {activeMultimediaTab === 'videos' && (
+                <View style={styles.videosContent}>
+                  {videos.length > 0 ? (
+                    <FlatList
+                      data={videos}
+                      numColumns={3}
+                      keyExtractor={(item) => item.id}
+                      renderItem={({ item }) => (
+                        <TouchableOpacity style={styles.videoItem}>
+                          <View style={styles.videoThumbnail}>
+                            <Video size={24} color="#666" />
+                          </View>
+                        </TouchableOpacity>
+                      )}
+                    />
+                  ) : (
+                    <View style={styles.emptyState}>
+                      <Text style={styles.emptyStateText}>No hay videos disponibles</Text>
+                      <Text style={styles.emptyStateSubtext}>Los videos compartidos aparecerán aquí</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {activeMultimediaTab === 'files' && (
+                <View style={styles.filesContent}>
+                  {files.length > 0 ? (
+                    files.map(file => (
+                      <View key={file.id} style={styles.fileItem}>
+                        <View style={styles.fileIcon}>
+                          <FileText size={20} color="#2673f3" />
+                        </View>
+                        <View style={styles.fileInfo}>
+                          <Text style={styles.fileName}>{file.name}</Text>
+                          <Text style={styles.fileSize}>{file.size}</Text>
+                        </View>
+                      </View>
+                    ))
+                  ) : (
+                    <View style={styles.emptyState}>
+                      <Text style={styles.emptyStateText}>No hay archivos disponibles</Text>
+                      <Text style={styles.emptyStateSubtext}>Los archivos compartidos aparecerán aquí</Text>
+                    </View>
+                  )}
                 </View>
               )}
             </View>
@@ -1589,6 +1676,58 @@ export function CommunityDetailScreen() {
     },
     dangerText: {
       color: "#ef4444",
+    },
+    multimediaContent: {
+      backgroundColor: "#f5f5f5",
+      padding: 16,
+    },
+    multimediaTabsScroll: {
+      marginBottom: 16,
+    },
+    multimediaTabsContainer: {
+      paddingHorizontal: 0,
+    },
+    multimediaTab: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      marginRight: 12,
+      gap: 6,
+      backgroundColor: "#fff",
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: "#e5e5e5",
+    },
+    activeMultimediaTab: {
+      backgroundColor: "#2673f3",
+      borderColor: "#2673f3",
+    },
+    multimediaTabText: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: "#666",
+    },
+    activeMultimediaTabText: {
+      color: "#fff",
+      fontWeight: "600",
+    },
+    videosContent: {
+      backgroundColor: "#fff",
+      padding: 4,
+    },
+    videoItem: {
+      flex: 1/3,
+      aspectRatio: 1,
+      padding: 2,
+    },
+    videoThumbnail: {
+      width: "100%",
+      height: "100%",
+      borderRadius: 4,
+      backgroundColor: "#f5f5f5",
+      alignItems: "center",
+      justifyContent: "center",
     },
   })
   
