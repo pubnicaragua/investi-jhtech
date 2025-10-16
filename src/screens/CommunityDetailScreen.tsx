@@ -618,7 +618,6 @@ export function CommunityDetailScreen() {
         </View>
   
         <ScrollView
-          style={styles.scrollView}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -628,52 +627,45 @@ export function CommunityDetailScreen() {
             />
           }
         >
-          {/* Community Header con imagen de portada */}
-          <View style={styles.communityHeader}>
-            {community.cover_image_url ? (
-              <Image
-                source={{ uri: community.cover_image_url }}
-                style={styles.coverImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={[styles.coverImage, styles.coverImageFallback]} />
-            )}
-  
-            {/* Avatar circular encima */}
-            <View style={styles.avatarContainer}>
-              <Image
-                source={{ uri: community.image_url || getDefaultAvatar(community.name) }}
-                style={styles.communityAvatar}
-              />
-            </View>
-          </View>
-  
-          {/* Community Info */}
-          <View style={styles.communityInfo}>
-            <Text style={styles.communityName}>{community.name}</Text>
-            <View style={styles.communityMeta}>
-              <Text style={styles.communityMetaText}>
-                {community.members_count || 0}k miembros · Comunidad pública
-              </Text>
-            </View>
-  
-            <View style={styles.actionButtons}>
-              <TouchableOpacity
-                style={[styles.joinButton, isJoined && styles.joinedButton]}
-                onPress={handleJoinCommunity}
-                disabled={isJoined}
-              >
-                <Text style={[styles.joinButtonText, isJoined && styles.joinedButtonText]}>
-                  {isJoined ? 'Unido' : 'Unirse'}
+          {/* Nueva sección con fondo predeterminado */}
+          <View style={styles.communitySection}>
+            {/* Avatar circular de la comunidad */}
+            <Image
+              source={{ uri: community.image_url || getDefaultAvatar(community.name) }}
+              style={styles.communityAvatar}
+            />
+
+            {/* Detalles de la comunidad */}
+            <View style={styles.communityDetails}>
+              {/* Nombre de la comunidad */}
+              <Text style={styles.communityName}>{community.name}</Text>
+
+              {/* Cantidad de miembros y tipo en una fila */}
+              <View style={styles.communityMetaRow}>
+                <Text style={styles.communityMetaText}>
+                  {community.members_count || 0}k miembros
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.inviteButton}
-                onPress={handleInvite}
-              >
-                <Text style={styles.inviteButtonText}>Invitar</Text>
-              </TouchableOpacity>
+                <Text style={styles.communityTypeText}>Comunidad pública</Text>
+              </View>
+
+              {/* Botones de unirse e invitar */}
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  style={[styles.joinButton, isJoined && styles.joinedButton]}
+                  onPress={handleJoinCommunity}
+                  disabled={isJoined}
+                >
+                  <Text style={[styles.joinButtonText, isJoined && styles.joinedButtonText]}>
+                    {isJoined ? 'Unido' : 'Unirse'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.inviteButton}
+                  onPress={handleInvite}
+                >
+                  <Text style={styles.inviteButtonText}>Invitar</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
   
@@ -684,6 +676,7 @@ export function CommunityDetailScreen() {
             style={styles.tabsScrollView}
             contentContainerStyle={styles.tabsContainer}
             scrollEnabled={true}
+            
           >
             
             <Pressable
@@ -706,8 +699,7 @@ export function CommunityDetailScreen() {
             >
               <MessageCircle size={16} color={activeTab === 'chats' ? '#2673f3' : '#666'} />
               <Text style={[styles.tabText, activeTab === 'chats' && styles.activeTabText]}>Chats</Text>
-            </Pressable
-            >
+            </Pressable>
             <Pressable
               style={[styles.tab, activeTab === 'multimedia' && styles.activeTab]}
               onPress={() => setActiveTab('multimedia')}
@@ -1163,6 +1155,16 @@ export function CommunityDetailScreen() {
       height: 110,
       borderRadius: 55,
     },
+    communitySection: {
+      backgroundColor: "#1B2A4A",
+      padding: 20,
+      alignItems: "center",
+      borderBottomWidth: 1,
+      borderBottomColor: "#e5e5e5",
+    },
+    communityDetails: {
+      alignItems: "center",
+    },
     communityInfo: {
       backgroundColor: "#fff",
       padding: 20,
@@ -1174,11 +1176,12 @@ export function CommunityDetailScreen() {
     communityName: {
       fontSize: 18,
       fontWeight: "700",
-      color: "#111",
+      color: "#fff",
       marginBottom: 6,
       textAlign: "center",
+      paddingTop:10,
     },
-    communityMeta: {
+    communityMetaRow: {
       flexDirection: "row",
       alignItems: "center",
       gap: 6,
@@ -1186,31 +1189,36 @@ export function CommunityDetailScreen() {
     },
     communityMetaText: {
       fontSize: 13,
-      color: "#666",
+      color: "#fff",
+    },
+    communityTypeText: {
+      paddingLeft:14,
+      fontSize: 13,
+      color: "#fff",
     },
     actionButtons: {
       flexDirection: "row",
       gap: 12,
       width: "100%",
-      maxWidth: 400,
+      maxWidth: 300,
     },
     joinButton: {
       flex: 1,
-      backgroundColor: "#2673f3",
+      backgroundColor: "#1877F2",
       paddingVertical: 10,
       borderRadius: 20,
       alignItems: "center",
     },
     joinedButton: {
-      backgroundColor: "#e5e5e5",
+      backgroundColor: "#1877F2",
     },
     joinButtonText: {
-      color: "#fff",
+      color: "#F5F5F5",
       fontSize: 15,
       fontWeight: "600",
     },
     joinedButtonText: {
-      color: "#666",
+      color: "#F5F5F5",
     },
     inviteButton: {
       flex: 1,
@@ -1232,7 +1240,9 @@ export function CommunityDetailScreen() {
       borderBottomColor: "#e5e5e5",
     },
     tabsContainer: {
-      paddingHorizontal: 16,
+      alignItems: 'center',
+      paddingHorizontal: 10,
+      minHeight: 60, // igual o mayor que tabsScrollView
     },
     tab: {
       flexDirection: "row",

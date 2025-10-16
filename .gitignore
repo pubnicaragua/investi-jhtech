@@ -3,6 +3,7 @@
 *.log
 dist/
 build/
+/Ejemplos
 
 # Expo
 .expo/
