@@ -11,8 +11,8 @@ import {
   Newspaper, Search, Play, GraduationCap, Video as VideoIcon, Wrench,
   Star, CheckCircle, Target, DollarSign, BarChart3, FileText
 } from 'lucide-react-native';
-import { 
-  getCourses, getVideos, getVideoThemes, getCourseTopics, getEducationalTools
+import {
+  getCourses, getVideos, getVideoThemes, getCourseTopics, getEducationalTools, getCurrentUserId
 } from '../rest/api';
 import { useAuthGuard } from '../hooks/useAuthGuard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -200,11 +200,10 @@ export function EducacionScreen() {
   };
 
   const renderToolGridItem = (tool: Tool) => {
-    const IconComponent = getIconForTool(tool.icon);
     return (
       <TouchableOpacity key={tool.id} style={styles.toolGridCard} onPress={() => handleToolPress(tool)} activeOpacity={0.7}>
         <View style={styles.toolGridIconContainer}>
-          <IconComponent size={40} color="#4A90E2" />
+          <Text style={styles.toolGridEmoji}>{tool.icon}</Text>
         </View>
         <Text style={styles.toolGridTitle} numberOfLines={1}>{tool.name}</Text>
         <Text style={styles.toolGridDescription} numberOfLines={2}>{tool.description}</Text>
@@ -345,12 +344,9 @@ export function EducacionScreen() {
             {activeTab === 'herramientas' && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Herramientas Financieras</Text>
-                <Text style={styles.sectionSubtitle}>Utiliza estas herramientas para mejorar tu educación financiera</Text>
                 <View style={styles.toolsGrid}>
                   {tools.length > 0 ? (
-                    <View style={styles.toolsGridContainer}>
-                      {tools.map(renderToolGridItem)}
-                    </View>
+                    tools.map(renderToolGridItem)
                   ) : (
                     <View style={styles.emptyState}>
                       <Wrench size={48} color="#ccc" />
@@ -438,11 +434,11 @@ const styles = StyleSheet.create({
   content: { flex: 1 },
   section: { paddingVertical: 20 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingHorizontal: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#333' },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#333', textAlign: 'center',paddingBottom: 12},
   sectionSubtitle: { fontSize: 13, color: '#666', marginTop: 2 },
   seeAllText: { fontSize: 14, color: '#4A90E2', fontWeight: '600' },
   topicHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  topicIconContainer: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  topicIconContainer: { flexDirection: 'row', alignItems: 'center' },
   horizontalScrollContent: { paddingHorizontal: 16, gap: 12 },
   filtersScrollContent: { paddingHorizontal: 16, gap: 8, marginBottom: 16 },
   filterChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f5f5f5' },
@@ -451,8 +447,7 @@ const styles = StyleSheet.create({
   filterChipTextActive: { color: '#fff', fontWeight: '600' },
   videosGrid: { paddingHorizontal: 16, gap: 12 },
   coursesGrid: { paddingHorizontal: 16, gap: 12 },
-  toolsGrid: { paddingHorizontal: 16, gap: 12 },
-  toolsGridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  toolsGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 12 },
   videoCard: { width: 280, backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
   videoThumbnail: { width: '100%', height: 160, backgroundColor: '#eee' },
   videoDurationBadge: { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
@@ -486,10 +481,11 @@ const styles = StyleSheet.create({
   toolInfo: { flex: 1 },
   toolTitle: { fontSize: 15, fontWeight: '600', color: '#333', marginBottom: 4 },
   toolDescription: { fontSize: 13, color: '#666', lineHeight: 18 },
-  toolGridCard: { width: '48%', backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1, alignItems: 'center' },
-  toolGridIconContainer: { width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(74, 144, 226, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-  toolGridTitle: { fontSize: 14, fontWeight: '600', color: '#333', textAlign: 'center', marginBottom: 4 },
-  toolGridDescription: { fontSize: 12, color: '#666', textAlign: 'center', lineHeight: 16 },
+  toolGridCard: { width: '30%', backgroundColor: '#fff', padding: 12, borderRadius: 12, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1, alignItems: 'center' },
+  toolGridIconContainer: { width: 50, height: 50, borderRadius: 15, backgroundColor: 'rgba(74, 144, 226, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  toolGridTitle: { fontSize: 12, fontWeight: '600', color: '#333', textAlign: 'center', marginBottom: 2 },
+  toolGridDescription: { fontSize: 10, color: '#666', textAlign: 'center', lineHeight: 14 },
+  toolGridEmoji: { fontSize: 35, textAlign: 'center' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 },
   loadingText: { marginTop: 12, fontSize: 16, color: '#666' },
   emptyState: { alignItems: 'center', paddingVertical: 40 },
