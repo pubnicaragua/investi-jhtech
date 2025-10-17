@@ -461,8 +461,8 @@ export function CommunityDetailScreen() {
     }
   }
 
-  const handleComment = (postId: string) => {
-    navigation.navigate('PostDetail', { postId })
+  const handleComment = (post: Post) => {
+    navigation.navigate('CommunityPostDetail', { postId: post.id })
   }
 
   const handleSharePost = async (post: Post) => {
@@ -550,7 +550,7 @@ export function CommunityDetailScreen() {
             {post.contenido}
           </Text>
           {post.contenido?.length > 150 && (
-            <TouchableOpacity onPress={() => handleComment(post.id)}>
+            <TouchableOpacity onPress={() => handleComment(post)}>
               <Text style={styles.seeMore}>...Ver más</Text>
             </TouchableOpacity>
           )}
@@ -583,7 +583,7 @@ export function CommunityDetailScreen() {
   
             <TouchableOpacity
               style={styles.postAction}
-              onPress={() => handleComment(post.id)}
+              onPress={() => handleComment(post)}
             >
               <MessageCircle size={18} color="#666" />
               <Text style={styles.postActionText}>Comentar</Text>

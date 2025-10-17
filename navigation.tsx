@@ -27,6 +27,7 @@ import { PostDetailScreen } from "./src/screens/PostDetailScreen"
 import { CommunitiesScreen } from "./src/screens/CommunitiesScreen"  
 import { ProfileScreen } from "./src/screens/ProfileScreen"  
 import { SettingsScreen } from "./src/screens/SettingsScreen"  
+import CommunityPostDetailScreen from './src/screens/CommunityPostDetailScreen'
 import { MarketInfoScreen } from "./src/screens/MarketInfoScreen"  
 import { EducacionScreen } from "./src/screens/EducacionScreen"  
 import { PromotionsScreen } from "./src/screens/PromotionsScreen"  
@@ -387,6 +388,7 @@ export function RootStack() {
           name="PostDetail"
           component={PostDetailScreen}
         />
+          <Stack.Screen name="CommunityPostDetail" component={CommunityPostDetailScreen} />
         <Stack.Screen  
           name="VideoPlayer"  
           component={VideoPlayerScreen}
