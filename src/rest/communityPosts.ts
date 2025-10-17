@@ -55,7 +55,7 @@ export async function getCommunityPosts(communityId: string, limit = 20) {
       author: {
         id: post.user_id,
         name: post.users?.full_name || post.users?.nombre || post.users?.username || 'Usuario',
-        avatar: post.users?.avatar_url || post.users?.photo_url || 'https://i.pravatar.cc/100',
+        avatar: post.users?.avatar_url || post.users?.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.users?.full_name || post.users?.nombre || post.users?.username || 'U')}&background=2673f3&color=fff&size=200`,
         role: post.users?.role || 'Financiero'
       }
     }))

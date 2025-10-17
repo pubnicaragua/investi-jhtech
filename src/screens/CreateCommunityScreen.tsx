@@ -1,4 +1,4 @@
-﻿﻿ import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect, useRef } from 'react'
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
   Keyboard,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { ArrowLeft, Camera, Check, Users, ChevronRight } from 'lucide-react-native'
+import { ArrowLeft, Camera, Check, Users, ChevronRight, Monitor, DollarSign, Rocket, Trophy, Palette, Music, Microscope, GraduationCap, Heart, Map } from 'lucide-react-native'
 import * as ImagePicker from 'expo-image-picker'
 import * as FileSystem from 'expo-file-system'
 import { useAuth } from '../contexts/AuthContext'
@@ -41,8 +41,35 @@ const INTERESTS = [
   'Viajes',
 ]
 
+// 🎯 ICONOS LUCIDE - Mapeo por interés
+const INTEREST_ICON_COMPONENTS: Record<string, any> = {
+  'Tecnología': Monitor,
+  'Finanzas': DollarSign,
+  'Emprendimiento': Rocket,
+  'Deportes': Trophy,
+  'Arte': Palette,
+  'Música': Music,
+  'Ciencia': Microscope,
+  'Educación': GraduationCap,
+  'Salud': Heart,
+  'Viajes': Map,
+}
+
+const INTEREST_ICON_COLORS: Record<string, string> = {
+  'Tecnología': '#EF4444',
+  'Finanzas': '#F59E0B',
+  'Emprendimiento': '#3B82F6',
+  'Deportes': '#10B981',
+  'Arte': '#8B5CF6',
+  'Música': '#EC4899',
+  'Ciencia': '#06B6D4',
+  'Educación': '#6366F1',
+  'Salud': '#F97316',
+  'Viajes': '#84CC16',
+}
+
 const PRIVACY_OPTIONS = [
-  { label: '🔓e sPública', value: 'public', description: 'Cualquiera puede unirse' },
+  { label: '🔓Pública', value: 'public', description: 'Cualquiera puede unirse' },
   { label: '🔒Privada', value: 'private', description: 'Solo por invitación' },
   { label: 'Colegio', value: 'restricted', description: 'Moderada por administradores' },
 ]
@@ -50,6 +77,7 @@ const PRIVACY_OPTIONS = [
 export default function CreateCommunityScreen({ navigation }: any) {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
+  const [keyboardHeight, setKeyboardHeight] = useState(0)
   const [formData, setFormData] = useState({
     photo: null as string | null,
     name: '',
@@ -61,8 +89,25 @@ export default function CreateCommunityScreen({ navigation }: any) {
   const [suggestedUsers, setSuggestedUsers] = useState<User[]>([])
   const [showAllUsers, setShowAllUsers] = useState(false)
 
+  const scrollViewRef = useRef<ScrollView>(null)
+  const nameInputRef = useRef<TextInput>(null)
+  const descriptionInputRef = useRef<TextInput>(null)
+
   useEffect(() => {
     loadSuggestedUsers()
+
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height)
+    })
+
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0)
+    })
+
+    return () => {
+      keyboardDidShowListener.remove()
+      keyboardDidHideListener.remove()
+    }
   }, [])
 
   const loadSuggestedUsers = async () => {
@@ -442,11 +487,19 @@ export default function CreateCommunityScreen({ navigation }: any) {
         <View style={styles.stepContainer}>
           <Text style={styles.stepTitle}>Nombre de la comunidad</Text>
           <TextInput
+            ref={nameInputRef}
             style={styles.input}
             placeholder="Ej: Emprendedores Tech"
             placeholderTextColor="#9CA3AF"
             value={formData.name}
             onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
+            onFocus={() => {
+              setTimeout(() => {
+                nameInputRef.current?.measure((x, y, width, height, pageX, pageY) => {
+                  scrollViewRef.current?.scrollTo({ y: pageY - keyboardHeight - 100, animated: true })
+                })
+              }, 100)
+            }}
             onSubmitEditing={Keyboard.dismiss}
             blurOnSubmit={false}
             maxLength={100}
@@ -457,11 +510,19 @@ export default function CreateCommunityScreen({ navigation }: any) {
         <View style={styles.stepContainer}>
           <Text style={styles.stepTitle}>Descripción</Text>
           <TextInput
+            ref={descriptionInputRef}
             style={[styles.input, styles.textArea]}
             placeholder="Describe de qué trata tu comunidad..."
             placeholderTextColor="#9CA3AF"
             value={formData.description}
             onChangeText={(text) => setFormData(prev => ({ ...prev, description: text }))}
+            onFocus={() => {
+              setTimeout(() => {
+                descriptionInputRef.current?.measure((x, y, width, height, pageX, pageY) => {
+                  scrollViewRef.current?.scrollTo({ y: pageY - keyboardHeight - 100, animated: true })
+                })
+              }, 100)
+            }}
             multiline
             numberOfLines={4}
             maxLength={500}
@@ -473,26 +534,35 @@ export default function CreateCommunityScreen({ navigation }: any) {
           <Text style={styles.stepTitle}>Intereses</Text>
           <Text style={styles.stepSubtitle}>Selecciona los intereses de tu comunidad</Text>
           <View style={styles.interestsContainer}>
-            {INTERESTS.map((interest) => (
-              <TouchableOpacity
-                key={interest}
-                style={[
-                  styles.interestChip,
-                  formData.interests.includes(interest) && styles.interestChipSelected
-                ]}
-                onPress={() => toggleInterest(interest)}
-              >
-                <Text style={[
-                  styles.interestText,
-                  formData.interests.includes(interest) && styles.interestTextSelected
-                ]}>
-                  {interest}
-                </Text>
-                {formData.interests.includes(interest) && (
-                  <Check size={16} color="#3B82F6" />
-                )}
-              </TouchableOpacity>
-            ))}
+            {INTERESTS.map((interest) => {
+              const IconComponent = INTEREST_ICON_COMPONENTS[interest]
+              const iconColor = INTEREST_ICON_COLORS[interest] || '#2673f3'
+              const isSelected = formData.interests.includes(interest)
+
+              return (
+                <TouchableOpacity
+                  key={interest}
+                  style={[
+                    styles.interestChip,
+                    isSelected && styles.interestChipSelected
+                  ]}
+                  onPress={() => toggleInterest(interest)}
+                >
+                  <View style={[styles.iconContainer, isSelected && { backgroundColor: iconColor + '20' }]}>
+                    {IconComponent && <IconComponent size={20} color={isSelected ? iconColor : '#6B7280'} />}
+                  </View>
+                  <Text style={[
+                    styles.interestText,
+                    isSelected && styles.interestTextSelected
+                  ]}>
+                    {interest}
+                  </Text>
+                  {isSelected && (
+                    <Check size={16} color="#3B82F6" />
+                  )}
+                </TouchableOpacity>
+              )
+            })}
           </View>
         </View>
 
@@ -721,6 +791,14 @@ const styles = StyleSheet.create({
   interestChipSelected: {
     backgroundColor: '#DBEAFE',
     borderColor: '#3B82F6',
+  },
+  iconContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
   },
   interestText: {
     fontSize: 14,

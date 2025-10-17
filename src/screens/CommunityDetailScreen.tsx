@@ -58,7 +58,8 @@ import {
   getCommunityPosts,
   createCommunityPost,
   likeCommunityPost,
-  unlikeCommunityPost
+  unlikeCommunityPost,
+  deleteCommunityPost
 } from "../rest/communityPosts"
 
 import {
@@ -136,7 +137,7 @@ export function CommunityDetailScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [isJoined, setIsJoined] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'userPosts' | 'posts' | 'chats' | 'multimedia' | 'search'>('userPosts')
+  const [activeTab, setActiveTab] = useState<'userPosts' | 'posts' | 'chats' | 'multimedia' | 'search'>('posts')
   const [activeMultimediaTab, setActiveMultimediaTab] = useState<'photos' | 'videos' | 'files'>('photos')
   const [postContent, setPostContent] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
@@ -151,6 +152,15 @@ export function CommunityDetailScreen() {
   const getDefaultAvatar = (name: string) => {
     const initial = name?.charAt(0)?.toUpperCase() || 'U'
     return `https://ui-avatars.com/api/?name=${initial}&background=2673f3&color=fff&size=200`
+  }
+
+  // ✅ Shared avatar resolver: prefers avatar_url -> photo_url -> avatar -> generated ui-avatar
+  const getAvatarForUser = (user?: any, fallbackName?: string) => {
+    if (!user) return getDefaultAvatar(fallbackName || 'Usuario')
+    const name = user.full_name || user.nombre || user.name || fallbackName || 'Usuario'
+    const avatar = user.avatar_url || user.photo_url || user.avatar || ''
+    if (typeof avatar === 'string' && avatar.trim().length > 0) return avatar
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=2673f3&color=fff&size=200`
   }
 
   // --- Load Data 100% Backend ---
@@ -168,21 +178,54 @@ export function CommunityDetailScreen() {
       if (communityData) {
         setCommunity(communityData)
 
-        // ✅ Transformar posts del backend
-        const transformedPosts = (communityPosts || []).map((post: any) => ({
-          id: post.id,
-          contenido: post.contenido,
-          user_id: post.user_id,
-          community_id: post.community_id,
-          image_url: post.image_url,
-          likes_count: post.likes_count || 0,
-          comment_count: post.comment_count || 0,
-          shares_count: post.shares_count || 0,
-          created_at: post.created_at,
-          users: post.users
-        }))
+        // ✅ Normalize posts returned by API into the shape this screen expects
+  const normalizedPosts = (communityPosts || []).map((post: any) => {
+          // Handle two shapes:
+          // 1) communityPosts.ts returns { id, content, created_at, likes, comments, shares, media, author }
+          // 2) Raw backend may return { id, contenido, created_at, likes_count, comment_count, shares_count, user_id, users }
+          if (post.content || post.author) {
+            return {
+              id: post.id,
+              contenido: post.content || post.contenido || '',
+              user_id: post.author?.id || post.user_id || null,
+              community_id: post.community_id || communityData.id,
+              image_url: Array.isArray(post.media) ? post.media[0] : (post.media || post.image_url || null),
+              likes_count: post.likes ?? post.likes_count ?? 0,
+              comment_count: post.comments ?? post.comment_count ?? 0,
+              shares_count: post.shares ?? post.shares_count ?? 0,
+              created_at: post.created_at,
+              users: post.author ? {
+                id: post.author.id,
+                nombre: post.author.name,
+                full_name: post.author.name,
+                avatar_url: post.author.avatar,
+                role: post.author.role,
+              } : post.users || null,
+            }
+          }
 
-        setPosts(transformedPosts)
+          // Fallback mapping for unexpected shapes
+          return {
+            id: post.id,
+            contenido: post.contenido || post.content || '',
+            user_id: post.user_id || post.author?.id || null,
+            community_id: post.community_id || communityData.id,
+            image_url: post.image_url || (Array.isArray(post.media) ? post.media[0] : null) || null,
+            likes_count: post.likes_count || post.likes || 0,
+            comment_count: post.comment_count || post.comments || 0,
+            shares_count: post.shares_count || post.shares || 0,
+            created_at: post.created_at,
+            users: post.users || (post.author ? {
+              id: post.author.id,
+              nombre: post.author.name,
+              full_name: post.author.name,
+              avatar_url: post.author.avatar,
+              role: post.author.role,
+            } : null),
+          }
+        })
+
+        setPosts(normalizedPosts)
         setChannels(communityChannels || [])
         setCurrentUser(user)
 
@@ -200,9 +243,7 @@ export function CommunityDetailScreen() {
         // ✅ Datos reales del backend para estadísticas
         const now = new Date()
         const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000)
-        const activeUsers = posts.filter(post =>
-          new Date(post.created_at) > last24h
-        ).length + (channels?.length || 0)
+  const activeUsers = normalizedPosts.filter((p: any) => new Date(p.created_at) > last24h).length + (channels?.length || 0)
 
         setActiveUsersCount(activeUsers)
         setOnlineMembers(community?.members_count || 0)
@@ -230,6 +271,14 @@ export function CommunityDetailScreen() {
   useEffect(() => {
     loadCommunityData()
   }, [loadCommunityData])
+
+  // Reload data when screen gains focus (e.g. after creating a post)
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadCommunityData()
+    })
+    return unsubscribe
+  }, [navigation, loadCommunityData])
 
   useEffect(() => {
     if (searchQuery.trim()) {
@@ -355,7 +404,29 @@ export function CommunityDetailScreen() {
         setPosts(posts.filter(p => p.id !== postId))
         Alert.alert('Oculto', 'Publicación ocultada')
         break
+      case 'delete':
+        // handled by confirmDeletePost
+        break
     }
+  }
+
+  const confirmDeletePost = (postId: string) => {
+    Alert.alert('Eliminar publicación', '¿Estás seguro de que quieres eliminar esta publicación?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar', style: 'destructive', onPress: async () => {
+          try {
+            await deleteCommunityPost(postId)
+            setPosts(prev => prev.filter(p => p.id !== postId))
+            setShowPostOptions(null)
+            Alert.alert('Eliminada', 'La publicación ha sido eliminada')
+          } catch (error) {
+            console.error('Error deleting post:', error)
+            Alert.alert('Error', 'No se pudo eliminar la publicación')
+          }
+        }
+      }
+    ])
   }
 
   const handleLike = async (postId: string) => {
@@ -440,10 +511,18 @@ export function CommunityDetailScreen() {
 
     // --- PostCard Component ---
     const PostCard = ({ post }: { post: Post }) => {
-      const author = post.users
-      const authorName = author?.full_name || author?.nombre || 'Usuario'
-      const authorAvatar = author?.avatar_url || author?.photo_url || getDefaultAvatar(authorName)
-      const authorRole = author?.role || 'Usuario'
+      if (!post) return null
+      const authorData = post.users || (post as any).author || null
+      if (!authorData) {
+        console.warn(`[CommunityDetailScreen] Post ${post.id} missing author data. user_id=${post.user_id}`)
+      }
+  const authorName = authorData?.full_name || authorData?.nombre || authorData?.name || 'Usuario'
+  let authorAvatar = getAvatarForUser(authorData, authorName)
+      // If the author's avatar accidentally equals the post image (some API shapes mix fields), don't show the large media as avatar
+      if (post.image_url && authorAvatar && post.image_url === authorAvatar) {
+        authorAvatar = getDefaultAvatar(authorName)
+      }
+      const authorRole = authorData?.role || 'Usuario'
   
       return (
         <View style={styles.postCard}>
@@ -562,6 +641,17 @@ export function CommunityDetailScreen() {
                   <UserX size={20} color="#111" />
                   <Text style={styles.optionText}>Ocultar publicación</Text>
                 </TouchableOpacity>
+
+                {/* Eliminar - solo autor o admins/moderadores */}
+                {(currentUser?.id === post.user_id || isAdmin) && (
+                  <TouchableOpacity
+                    style={styles.optionItem}
+                    onPress={() => confirmDeletePost(post.id)}
+                  >
+                    <UserX size={20} color="#d9534f" />
+                    <Text style={[styles.optionText, { color: '#d9534f' }]}>Eliminar publicación</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </Pressable>
           </Modal>
@@ -723,16 +813,19 @@ export function CommunityDetailScreen() {
           {activeTab === 'posts' && (
             <View style={styles.postsContent}>
               {/* Post Creation Input - Solo para miembros cuando hay publicaciones */}
-              {isJoined && posts.length > 0 && (
+              {isJoined && (
                 <TouchableOpacity
-                  style={styles.postCreationCompact}
+                  style={styles.fbComposer}
+                  activeOpacity={0.8}
                   onPress={() => navigation.navigate('CreateCommunityPost', { communityId: community?.id })}
                 >
                   <Image
-                    source={{ uri: currentUser?.avatar_url || getDefaultAvatar(currentUser?.full_name || currentUser?.nombre || 'Usuario') }}
+                    source={{ uri: getAvatarForUser(currentUser) }}
                     style={styles.userAvatarSmall}
                   />
-                  <Text style={styles.postInputCompact}>¿Qué estás pensando?</Text>
+                  <View style={styles.fbComposerInput}>
+                    <Text style={styles.fbComposerPlaceholder}>¿Qué estás pensando, {currentUser?.nombre || 'Usuario'}?</Text>
+                  </View>
                 </TouchableOpacity>
               )}
 
@@ -798,8 +891,8 @@ export function CommunityDetailScreen() {
               </View>
 
               {/* User Posts List */}
-              {posts.filter(post => post.user_id === currentUser?.id).length > 0 ? (
-                posts.filter(post => post.user_id === currentUser?.id).map(post => (
+              {(currentUser && posts.filter(post => post.user_id === currentUser.id).length > 0) ? (
+                posts.filter(post => post.user_id === currentUser.id).map(post => (
                   <PostCard key={post.id} post={post} />
                 ))
               ) : (
@@ -976,7 +1069,7 @@ export function CommunityDetailScreen() {
               {users.length > 0 ? (
                 users.map(user => {
                   const userName = user.full_name || user.nombre || 'Usuario'
-                  const userAvatar = user.avatar_url || user.photo_url || getDefaultAvatar(userName)
+                  const userAvatar = getAvatarForUser(user, userName)
   
                   return (
                     <View key={user.id} style={styles.userItem}>
@@ -1296,6 +1389,30 @@ export function CommunityDetailScreen() {
       backgroundColor: "#fff",
       borderRadius: 8,
     },
+    fbComposer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#fff',
+      borderRadius: 12,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: '#E5E7EB',
+    },
+    fbComposerInput: {
+      flex: 1,
+      marginLeft: 10,
+      backgroundColor: '#F3F4F6',
+      borderRadius: 20,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      justifyContent: 'center',
+    },
+    fbComposerPlaceholder: {
+      color: '#6B7280',
+      fontSize: 14,
+    },
     userAvatarSmall: {
       width: 40,
       height: 40,
@@ -1439,14 +1556,19 @@ export function CommunityDetailScreen() {
     },
     postActions: {
       flexDirection: "row",
-      justifyContent: "space-around",
+      justifyContent: "space-between",
+      paddingHorizontal: 8,
+      flexWrap: 'wrap',
+      rowGap: 8,
     },
     postAction: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
+      gap: 4,
       paddingVertical: 6,
-      paddingHorizontal: 8,
+      paddingHorizontal: 6,
+      minWidth: '23%',
+      justifyContent: 'center',
     },
     postActionText: {
       fontSize: 13,

@@ -3196,7 +3196,7 @@ export async function uploadPostMedia(userId: string, file: any) {
       name: fileName
     } as any)
     
-    const response = await fetch(`${urls.STORAGE_URL}/object/post-media/${fileName}`, {
+    const response = await fetch(`${urls.STORAGE_URL}/object/community-media/${fileName}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -3210,7 +3210,7 @@ export async function uploadPostMedia(userId: string, file: any) {
     }
     
     // Obtener URL pública
-    const publicUrl = `${urls.STORAGE_URL}/object/public/post-media/${fileName}`
+  const publicUrl = `${urls.STORAGE_URL}/object/public/community-media/${fileName}`
     return publicUrl
   } catch (error: any) {
     console.error('Error uploading post media:', error)
@@ -3254,8 +3254,8 @@ export async function uploadMedia(
       name: fileName.split('/').pop(),
     } as any)
 
-    // Upload to Supabase Storage
-    const response = await fetch(`${urls.STORAGE_URL}/object/media/${fileName}`, {
+    // Upload to Supabase Storage (community-media bucket)
+    const response = await fetch(`${urls.STORAGE_URL}/object/community-media/${fileName}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -3280,8 +3280,8 @@ export async function uploadMedia(
       fileSize = 0
     }
 
-    // Return public URL
-    const publicUrl = `${urls.STORAGE_URL}/object/public/media/${fileName}`
+  // Return public URL (community-media bucket)
+  const publicUrl = `${urls.STORAGE_URL}/object/public/community-media/${fileName}`
     
     return {
       url: publicUrl,
