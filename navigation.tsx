@@ -1,28 +1,29 @@
-"use client"  
-  
-import { useEffect, useState } from "react"  
-import { NavigationContainer, type LinkingOptions } from "@react-navigation/native"  
-import { createStackNavigator } from "@react-navigation/stack"  
-import * as Linking from "expo-linking"  
+"use client"
+
+import { useEffect, useState } from "react"
+import { NavigationContainer, type LinkingOptions } from "@react-navigation/native"
+import { createStackNavigator } from "@react-navigation/stack"
+import * as Linking from "expo-linking"
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { ActivityIndicator, View, Text, Image } from "react-native"  
+import { ActivityIndicator, View, Text, Image } from "react-native"
 import { useAuth } from "./src/contexts/AuthContext"
 import { useNavigation, NavigationProp } from "@react-navigation/native"
-  
+
 // Import screens normalmente (sin lazy loading por ahora)
-import { WelcomeScreen } from "./src/screens/WelcomeScreen"  
+import { WelcomeScreen } from "./src/screens/WelcomeScreen"
 import { LanguageSelectionScreen } from "./src/screens/LanguageSelectionScreen"
-import { SignInScreen } from "./src/screens/SignInScreen"  
-import { SignUpScreen } from "./src/screens/SignUpScreen"  
+import { SignInScreen } from "./src/screens/SignInScreen"
+import { SignUpScreen } from "./src/screens/SignUpScreen"
 import AuthCallbackScreen from "./src/screens/AuthCallbackScreen"
-import { HomeFeedScreen } from "./src/screens/HomeFeedScreen"  
-import { UploadAvatarScreen } from "./src/screens/UploadAvatarScreen"  
-import { PickGoalsScreen } from "./src/screens/PickGoalsScreen"  
-import { PickInterestsScreen } from "./src/screens/PickInterestsScreen"  
-import { PickKnowledgeScreen } from "./src/screens/PickKnowledgeScreen"  
-import { CommunityRecommendationsScreen } from "./src/screens/CommunityRecommendationsScreen"  
-import { CreatePostScreen } from "./src/screens/CreatePostScreen"  
-import { PostDetailScreen } from "./src/screens/PostDetailScreen"  
+import { HomeFeedScreen } from "./src/screens/HomeFeedScreen"
+import { UploadAvatarScreen } from "./src/screens/UploadAvatarScreen"
+import { PickGoalsScreen } from "./src/screens/PickGoalsScreen"
+import { PickInterestsScreen } from "./src/screens/PickInterestsScreen"
+import { PickKnowledgeScreen } from "./src/screens/PickKnowledgeScreen"
+import { CommunityRecommendationsScreen } from "./src/screens/CommunityRecommendationsScreen"
+import { CreatePostScreen } from "./src/screens/CreatePostScreen"
+import { CreateCommunityPostScreen } from "./src/screens/CreateCommunityPostScreen"
+import { PostDetailScreen } from "./src/screens/PostDetailScreen"
 import { CommunitiesScreen } from "./src/screens/CommunitiesScreen"  
 import { ProfileScreen } from "./src/screens/ProfileScreen"  
 import { SettingsScreen } from "./src/screens/SettingsScreen"  
@@ -366,18 +367,26 @@ export function RootStack() {
           component={HomeFeedScreen}  
           options={{ gestureEnabled: false }}  
         />  
-        <Stack.Screen  
-          name="CreatePost"  
-          component={CreatePostScreen}  
-          options={{  
-            presentation: "modal",  
-            gestureDirection: "vertical",  
-          }}  
-        />  
-        <Stack.Screen  
-          name="PostDetail"  
-          component={PostDetailScreen}  
-        />  
+        <Stack.Screen
+          name="CreatePost"
+          component={CreatePostScreen}
+          options={{
+            presentation: "modal",
+            gestureDirection: "vertical",
+          }}
+        />
+        <Stack.Screen
+          name="CreateCommunityPost"
+          component={CreateCommunityPostScreen}
+          options={{
+            presentation: "modal",
+            gestureDirection: "vertical",
+          }}
+        />
+        <Stack.Screen
+          name="PostDetail"
+          component={PostDetailScreen}
+        />
         <Stack.Screen  
           name="VideoPlayer"  
           component={VideoPlayerScreen}

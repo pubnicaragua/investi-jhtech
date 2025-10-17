@@ -4,6 +4,7 @@ import { PickGoalsScreen } from '../screens/PickGoalsScreen';
 import { InvestmentKnowledgeScreen } from '../screens/InvestmentKnowledgeScreen';
 import { PickInterestsScreen } from '../screens/PickInterestsScreen';
 import { OnboardingCompleteScreen } from '../screens/OnboardingCompleteScreen';
+import { CreateCommunityPostScreen } from '../screens/CreateCommunityPostScreen';
 import { CommunityRecommendationsScreen } from '../screens/CommunityRecommendationsScreen';
 import type { OnboardingStackParamList } from '../types/navigation';
 
@@ -29,6 +30,7 @@ export function OnboardingNavigator({ onComplete }: OnboardingNavigatorProps) {
           gestureEnabled: false,
         }}
       />
+      
       <Stack.Screen 
         name="InvestmentGoals" 
         component={PickGoalsScreen} 
@@ -43,6 +45,7 @@ export function OnboardingNavigator({ onComplete }: OnboardingNavigatorProps) {
           gestureEnabled: true,
         }}
       />
+      
       <Stack.Screen 
         name="InvestmentInterests" 
         component={PickInterestsScreen} 
@@ -50,6 +53,15 @@ export function OnboardingNavigator({ onComplete }: OnboardingNavigatorProps) {
           gestureEnabled: true,
         }}
       />
+
+      <Stack.Screen 
+        name="CreateCommunityPost" 
+        component={CreateCommunityPostScreen} 
+        options={{
+          gestureEnabled: true,
+        }}
+      />
+      
 <Stack.Screen 
         name="OnboardingComplete" 
         options={{
@@ -58,6 +70,7 @@ export function OnboardingNavigator({ onComplete }: OnboardingNavigatorProps) {
       >
         {() => <OnboardingCompleteScreen onComplete={onComplete} />}
       </Stack.Screen>
+      
     </Stack.Navigator>
   );
 }

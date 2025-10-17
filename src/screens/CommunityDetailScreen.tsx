@@ -56,9 +56,10 @@ import {
 
 import {
   getCommunityPosts,
-  createPost,
-  likePost
-} from "../rest/posts"
+  createCommunityPost,
+  likeCommunityPost,
+  unlikeCommunityPost
+} from "../rest/communityPosts"
 
 import {
   searchUsers
@@ -263,7 +264,7 @@ export function CommunityDetailScreen() {
     }
 
     try {
-      await createPost({
+      await createCommunityPost({
         user_id: currentUser.id,
         community_id: community.id,
         contenido: postContent,
@@ -282,7 +283,7 @@ export function CommunityDetailScreen() {
       Alert.alert('Atención', 'Debes unirte a la comunidad para realizar esta acción')
       return
     }
-    navigation.navigate('CreatePost', {
+    navigation.navigate('CreateCommunityPost', {
       type: actionType,
       communityId: community?.id
     })
@@ -374,6 +375,7 @@ export function CommunityDetailScreen() {
             ? { ...post, likes_count: Math.max((post.likes_count || 0) - 1, 0) }
             : post
         ))
+        await unlikeCommunityPost(postId, currentUser.id)
       } else {
         setLikedPosts(prev => new Set(prev).add(postId))
         setPosts(prev => prev.map(post =>
@@ -381,7 +383,7 @@ export function CommunityDetailScreen() {
             ? { ...post, likes_count: (post.likes_count || 0) + 1 }
             : post
         ))
-        await likePost(postId, currentUser.id)
+        await likeCommunityPost(postId, currentUser.id)
       }
     } catch (err) {
       console.error("Error liking post:", err)
@@ -720,7 +722,19 @@ export function CommunityDetailScreen() {
           {/* Content based on active tab */}
           {activeTab === 'posts' && (
             <View style={styles.postsContent}>
-
+              {/* Post Creation Input - Solo para miembros cuando hay publicaciones */}
+              {isJoined && posts.length > 0 && (
+                <TouchableOpacity
+                  style={styles.postCreationCompact}
+                  onPress={() => navigation.navigate('CreateCommunityPost', { communityId: community?.id })}
+                >
+                  <Image
+                    source={{ uri: currentUser?.avatar_url || getDefaultAvatar(currentUser?.full_name || currentUser?.nombre || 'Usuario') }}
+                    style={styles.userAvatarSmall}
+                  />
+                  <Text style={styles.postInputCompact}>¿Qué estás pensando?</Text>
+                </TouchableOpacity>
+              )}
 
               {/* Quick Actions */}
               <ScrollView
@@ -766,7 +780,7 @@ export function CommunityDetailScreen() {
                   {isJoined && (
                     <TouchableOpacity
                       style={styles.createPostButton}
-                      onPress={() => navigation.navigate('CreatePost', { communityId: community?.id })}
+                      onPress={() => navigation.navigate('CreateCommunityPost', { communityId: community?.id })}
                     >
                       <Text style={styles.createPostButtonText}>Crear publicación</Text>
                     </TouchableOpacity>
@@ -792,7 +806,10 @@ export function CommunityDetailScreen() {
                 <View style={styles.emptyState}>
                   <Text style={styles.emptyStateText}>No has publicado nada aún</Text>
                   <Text style={styles.emptyStateSubtext}>Publica algo por primera vez</Text>
-                  <TouchableOpacity style={styles.createPostButton}>
+                  <TouchableOpacity
+                    style={styles.createPostButton}
+                    onPress={() => navigation.navigate('CreateCommunityPost', { communityId: community?.id })}
+                  >
                     <Text style={styles.createPostButtonText}>Crear publicación</Text>
                   </TouchableOpacity>
                 </View>
@@ -1295,6 +1312,9 @@ export function CommunityDetailScreen() {
       paddingHorizontal: 16,
       paddingVertical: 8,
       borderRadius: 6,
+    },
+    postButtonDisabled: {
+      opacity: 0.5,
     },
     postButtonText: {
       color: "#fff",
