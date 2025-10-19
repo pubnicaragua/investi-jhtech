@@ -54,6 +54,8 @@ import {
   getCommunityChannels
 } from "../rest/communities"
 
+import { createChannel } from "../api"
+
 import {
   getCommunityPosts,
   createCommunityPost,
@@ -147,6 +149,9 @@ export function CommunityDetailScreen() {
   const [showOptionsMenu, setShowOptionsMenu] = useState(false)
   const [showPostOptions, setShowPostOptions] = useState<string | null>(null)
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set())
+  const [showCreateChannelModal, setShowCreateChannelModal] = useState(false)
+  const [newChannelName, setNewChannelName] = useState('')
+  const [newChannelDescription, setNewChannelDescription] = useState('')
 
   // ✅ Avatar predeterminado
   const getDefaultAvatar = (name: string) => {
@@ -288,6 +293,27 @@ export function CommunityDetailScreen() {
       return () => clearTimeout(timer)
     }
   }, [searchQuery, activeTab])
+
+  // ✅ Crear canal general automáticamente cuando se accede a la pestaña chats
+  useEffect(() => {
+    if (activeTab === 'chats' && channels.length === 0 && isJoined && community && currentUser) {
+      const createDefaultChannel = async () => {
+        try {
+          await createChannel(community.id, currentUser.id, {
+            name: "General",
+            description: "Canal general de la comunidad",
+            type: "text"
+          })
+          // Recargar canales después de crear
+          const newChannels = await getCommunityChannels(communityId)
+          setChannels(newChannels || [])
+        } catch (error) {
+          console.error('Error creando canal general:', error)
+        }
+      }
+      createDefaultChannel()
+    }
+  }, [activeTab, channels.length, isJoined, community, communityId, currentUser])
 
   // --- Actions ---
   const handleJoinCommunity = async () => {
@@ -492,6 +518,27 @@ export function CommunityDetailScreen() {
       channelName: channel.name,
       communityId: community?.id
     })
+  }
+
+  const handleCreateChannel = async () => {
+    if (!newChannelName.trim() || !currentUser || !community) return
+
+    try {
+      await createChannel(community.id, currentUser.id, {
+        name: newChannelName.trim(),
+        description: newChannelDescription.trim(),
+        type: "text"
+      })
+      setNewChannelName('')
+      setNewChannelDescription('')
+      setShowCreateChannelModal(false)
+      const newChannels = await getCommunityChannels(communityId)
+      setChannels(newChannels || [])
+      Alert.alert('Éxito', 'Canal creado')
+    } catch (error) {
+      console.error('Error creating channel:', error)
+      Alert.alert('Error', 'No se pudo crear el canal')
+    }
   }
 
   const onRefresh = useCallback(() => {
@@ -942,6 +989,7 @@ export function CommunityDetailScreen() {
                 <View style={styles.emptyState}>
                   <Text style={styles.emptyStateText}>No hay canales disponibles</Text>
                   <Text style={styles.emptyStateSubtext}>Los canales aparecerán aquí cuando se creen</Text>
+                  
                 </View>
               )}
             </View>
@@ -1798,6 +1846,7 @@ export function CommunityDetailScreen() {
       fontSize: 16,
       fontWeight: "600",
     },
+
     modalOverlay: {
       flex: 1,
       backgroundColor: "rgba(0,0,0,0.5)",

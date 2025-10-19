@@ -612,70 +612,144 @@ export async function getCommunityPosts(communityId: string, limit = 20) {
  * - ChatScreen
  * - ChannelScreen
  */
-export async function getChannelMessages(chatId: string, limit = 50) {  
-  try {  
-    const response = await request("GET", "/chat_messages", {  
-      params: {  
-        chat_id: `eq.${chatId}`,  
-        select: "id,content,created_at,user:users!sender_id(id,nombre,avatar_url)",  
-        order: "created_at.asc",  
-        limit: String(limit),  
-      },  
-    })  
-    return (response || []).map((msg: any) => ({  
-      id: msg.id,  
-      content: msg.content,  
-      created_at: msg.created_at,  
-      user: {  
-        id: msg.user?.id || '',  
-        nombre: msg.user?.nombre || 'Usuario',  
-        avatar: msg.user?.avatar_url || 'https://i.pravatar.cc/100'  
-      }  
-    }))  
-  } catch (error: any) {  
-    console.error('Error fetching messages:', error)  
-    return []  
-  }  
+export async function getChannelMessages(chatId: string, limit = 50) {
+  try {
+    const response = await request("GET", "/chat_messages", {
+      params: {
+        chat_id: `eq.${chatId}`,
+        select: "id,content,created_at,sender_id,user:users!sender_id(id,nombre,full_name,avatar_url,photo_url)",
+        order: "created_at.asc",
+        limit: String(limit),
+      },
+    })
+    return (response || []).map((msg: any) => ({
+      id: msg.id,
+      content: msg.content,
+      created_at: msg.created_at,
+      sender_id: msg.sender_id,
+      user: {
+        id: msg.user?.id || msg.sender_id,
+        nombre: msg.user?.nombre || 'Usuario',
+        full_name: msg.user?.full_name || msg.user?.nombre || 'Usuario',
+        avatar_url: msg.user?.avatar_url || 'https://i.pravatar.cc/100',
+        photo_url: msg.user?.photo_url || msg.user?.avatar_url || 'https://i.pravatar.cc/100'
+      }
+    }))
+  } catch (error: any) {
+    console.error('Error fetching messages:', error)
+    return []
+  }
+}
+
+/**
+ * Obtiene los mensajes de un canal de comunidad (community_messages)
+ *
+ * @param channelId - ID del community channel
+ * @param limit - número máximo de mensajes
+ * @returns Array de mensajes
+ *
+ * USADO EN:
+ * - GroupChatScreen (canales de comunidad)
+ */
+export async function getCommunityChannelMessages(channelId: string, limit = 50) {
+  try {
+    const response = await request("GET", "/community_messages", {
+      params: {
+        channel_id: `eq.${channelId}`,
+        select: "id,content,created_at,user_id,user:users!user_id(id,nombre,full_name,avatar_url,photo_url)",
+        order: "created_at.asc",
+        limit: String(limit),
+      }
+    })
+
+    return (response || []).map((msg: any) => ({
+      id: msg.id,
+      content: msg.content,
+      created_at: msg.created_at,
+      user_id: msg.user_id,
+      user: {
+        id: msg.user?.id || msg.user_id,
+        nombre: msg.user?.nombre || 'Usuario',
+        full_name: msg.user?.full_name || msg.user?.nombre || 'Usuario',
+        avatar_url: msg.user?.avatar_url || 'https://i.pravatar.cc/100',
+        photo_url: msg.user?.photo_url || msg.user?.avatar_url || 'https://i.pravatar.cc/100'
+      }
+    }))
+  } catch (error: any) {
+    console.error('Error fetching community channel messages:', error)
+    return []
+  }
 }
   
 /**
  * Envía un mensaje a un chat/canal
- * Actualiza automáticamente el último mensaje del chat
- * 
- * @param chatId - ID del chat
+ * Para canales de comunidad, el chatId es el channelId y requiere community_id
+ *
+ * @param chatId - ID del chat/canal (para community channels es el channelId)
  * @param userId - ID del usuario que envía
  * @param content - Contenido del mensaje
+ * @param communityId - ID de la comunidad (requerido para mensajes de comunidad)
  * @returns Mensaje creado
- * 
+ *
  * USADO EN:
  * - ChatScreen
  * - ChannelScreen
+ * - GroupChatScreen
  */
-export async function sendMessage(chatId: string, userId: string, content: string) {  
-  try {  
-    const response = await request("POST", "/chat_messages", {  
-      body: {  
-        chat_id: chatId,  
-        sender_id: userId,  
-        content: content  
-      }  
-    })  
-      
-    // Actualizar el último mensaje del chat
-    await request("PATCH", "/chats", {  
-      params: { id: `eq.${chatId}` },  
-      body: {  
-        last_message: content,  
-        last_message_at: new Date().toISOString()  
-      }  
-    })  
-      
-    return response  
-  } catch (error: any) {  
-    console.error('Error sending message:', error)  
-    throw error  
-  }  
-}  
+export async function sendMessage(chatId: string, userId: string, content: string, communityId?: string) {
+  try {
+    console.log('Enviando mensaje:', { chatId, userId, content: content.substring(0, 50), communityId })
+
+    const body: any = {
+      chat_id: chatId,
+      sender_id: userId,
+      content: content
+    }
+
+    // Para mensajes de comunidad, incluir community_id
+    if (communityId) {
+      body.community_id = communityId
+    }
+
+    const response = await request("POST", "/chat_messages", {
+      body: body
+    })
+
+    console.log('Mensaje enviado exitosamente:', response)
+    return response
+  } catch (error: any) {
+    console.error('Error sending message:', error)
+    throw error
+  }
+}
+
+/**
+ * Envía un mensaje a un channel de comunidad (community_messages)
+ *
+ * @param channelId - ID del community channel
+ * @param userId - ID del usuario
+ * @param content - Contenido del mensaje
+ * @returns Mensaje creado
+ *
+ * USADO EN:
+ * - GroupChatScreen (canales de comunidad)
+ */
+export async function sendCommunityMessage(channelId: string, userId: string, content: string, opts?: { message_type?: string; media_url?: string }) {
+  try {
+    const body: any = {
+      channel_id: channelId,
+      user_id: userId,
+      content: content,
+    }
+    if (opts?.message_type) body.message_type = opts.message_type
+    if (opts?.media_url) body.media_url = opts.media_url
+    const response = await request('POST', '/community_messages', { body })
+    return response
+  } catch (error: any) {
+    console.error('Error sending community message:', error)
+    throw error
+  }
+}
 
 
 // ============================================================================

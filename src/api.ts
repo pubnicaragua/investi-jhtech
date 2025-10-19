@@ -1354,7 +1354,7 @@ export const deleteChannel = async (channelId: string, userId: string) => {
 export const getChannelMessages = async (channelId: string, limit = 50) => {
   try {
     const { data, error } = await supabase
-      .from("channel_messages")
+      .from("community_messages")
       .select(`
         *,
         user:users(id, nombre, full_name, photo_url, avatar_url, role)
@@ -1362,7 +1362,7 @@ export const getChannelMessages = async (channelId: string, limit = 50) => {
       .eq("channel_id", channelId)
       .order("created_at", { ascending: false })
       .limit(limit)
-    
+
     if (error) throw error
     return data || []
   } catch (error) {

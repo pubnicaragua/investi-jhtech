@@ -19,16 +19,24 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
-  Image
+  Image,
+  Modal,
+  Linking
 } from 'react-native'
-import { ArrowLeft, Send, Users, MoreVertical } from 'lucide-react-native'
+import { ArrowLeft, Send, Users, MoreVertical, Paperclip, Image as ImageIcon, Video as VideoIcon, FileText } from 'lucide-react-native'
+import { Video } from 'expo-av'
 import { useRoute, useNavigation } from '@react-navigation/native'
 import { 
-  getChannelMessages, 
-  sendMessage, 
+  getChannelMessages,
+  getCommunityChannelMessages,
+  sendMessage,
+  sendCommunityMessage,
   getCurrentUser,
   getCommunityChannels 
 } from '../rest/api'
+import { uploadChatFile } from '../api'
+import * as DocumentPicker from 'expo-document-picker'
+import * as ImagePicker from 'expo-image-picker'
 import { supabase } from '../supabase'
 
 // ============================================================================
@@ -40,11 +48,14 @@ interface Message {
   content: string
   created_at: string
   sender_id: string
+  media_url?: string
+  message_type?: string
   sender: {
     id: string
     name: string
     avatar: string
   }
+  pending?: boolean
   isMe: boolean
 }
 
@@ -77,6 +88,8 @@ export function GroupChatScreen() {
   const [sending, setSending] = useState(false)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [channel, setChannel] = useState<Channel | null>(null)
+  const [pendingMedia, setPendingMedia] = useState<{ type: string; uri: string; file: any } | null>(null)
+  const [showAttachModal, setShowAttachModal] = useState(false)
   const flatListRef = useRef<FlatList>(null)
 
   // ============================================================================
@@ -91,24 +104,24 @@ export function GroupChatScreen() {
     try {
       setLoading(true)
       
-      // Cargar usuario actual y mensajes en paralelo
+      // Cargar usuario actual y mensajes en paralelo (usar helper de community)
       const [user, channelData, messagesData] = await Promise.all([
         getCurrentUser(),
         loadChannelInfo(),
-        getChannelMessages(channelId, 100)
+        getCommunityChannelMessages(channelId, 100)
       ])
 
       setCurrentUser(user)
       
-      // Mapear mensajes con flag isMe
+      // Mapear mensajes con flag isMe (community messages usan user_id)
       const mappedMessages = messagesData.map((msg: any) => ({
         ...msg,
         sender: {
-          id: msg.user?.id || msg.sender_id,
+          id: msg.user?.id || msg.user_id,
           name: msg.user?.nombre || msg.user?.full_name || 'Usuario',
           avatar: msg.user?.avatar_url || msg.user?.photo_url || 'https://i.pravatar.cc/100'
         },
-        isMe: msg.user?.id === user?.id || msg.sender_id === user?.id
+        isMe: msg.user?.id === user?.id || msg.user_id === user?.id
       }))
 
       setMessages(mappedMessages)
@@ -140,6 +153,45 @@ export function GroupChatScreen() {
     }
   }
 
+  const pickImage = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (permissionResult.granted === false) {
+      Alert.alert('Permiso requerido', 'Se necesita acceso a la galería')
+      return
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.8 })
+    if (!result.canceled) {
+      setPendingMedia({ type: 'image', uri: result.assets[0].uri, file: result.assets[0] })
+    }
+  }
+
+  const pickVideo = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (permissionResult.granted === false) {
+      Alert.alert('Permiso requerido', 'Se necesita acceso a la galería')
+      return
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Videos, allowsEditing: true, quality: 0.8 })
+    if (!result.canceled) {
+      setPendingMedia({ type: 'video', uri: result.assets[0].uri, file: result.assets[0] })
+    }
+  }
+
+  const pickDocument = async () => {
+    const result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true })
+    // DocumentPicker returns { type: 'success' | 'cancel', uri, name, size }
+    if ((result as any).type === 'success') {
+      setPendingMedia({ type: 'document', uri: (result as any).uri || '', file: result })
+      setShowAttachModal(false)
+    }
+  }
+
+  const cancelPendingMedia = () => setPendingMedia(null)
+
+  const handleOpenAttach = () => setShowAttachModal(true)
+
+  const handleCloseAttach = () => setShowAttachModal(false)
+
   // ============================================================================
   // TIEMPO REAL - SUPABASE REALTIME
   // ============================================================================
@@ -147,7 +199,7 @@ export function GroupChatScreen() {
   useEffect(() => {
     if (!channelId || !currentUser) return
 
-    // Suscripción a nuevos mensajes en tiempo real
+    // Suscripción a nuevos mensajes en tiempo real (community_messages)
     const subscription = supabase
       .channel(`channel:${channelId}`)
       .on(
@@ -155,38 +207,57 @@ export function GroupChatScreen() {
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'chat_messages',
-          filter: `chat_id=eq.${channelId}`
+          table: 'community_messages',
+          filter: `channel_id=eq.${channelId}`
         },
         async (payload : any) => {
-          console.log('Nuevo mensaje recibido:', payload)
-          
-          // Obtener datos del remitente
-          const { data: senderData } = await supabase
-            .from('users')
-            .select('id, nombre, full_name, avatar_url, photo_url')
-            .eq('id', payload.new.sender_id)
-            .single()
+          try {
+            console.log('Nuevo mensaje recibido (community):', payload)
 
-          const newMessage: Message = {
-            id: payload.new.id,
-            content: payload.new.content,
-            created_at: payload.new.created_at,
-            sender_id: payload.new.sender_id,
-            sender: {
-              id: senderData?.id || payload.new.sender_id,
-              name: senderData?.full_name || senderData?.nombre || 'Usuario',
-              avatar: senderData?.avatar_url || senderData?.photo_url || 'https://i.pravatar.cc/100'
-            },
-            isMe: payload.new.sender_id === currentUser.id
+            // Obtener datos del remitente (user_id)
+            const userId = payload.new.user_id
+            const { data: senderData } = await supabase
+              .from('users')
+              .select('id, nombre, full_name, avatar_url, photo_url')
+              .eq('id', userId)
+              .single()
+
+            const incoming: Message = {
+              id: payload.new.id,
+              content: payload.new.content,
+              created_at: payload.new.created_at,
+              sender_id: userId,
+              media_url: payload.new.media_url,
+              message_type: payload.new.message_type,
+              sender: {
+                id: senderData?.id || userId,
+                name: senderData?.full_name || senderData?.nombre || 'Usuario',
+                avatar: senderData?.avatar_url || senderData?.photo_url || 'https://i.pravatar.cc/100'
+              },
+              isMe: userId === currentUser.id
+            }
+
+            // Merge incoming with any pending local message (match by sender + content + near timestamp)
+            setMessages(prev => {
+              // Find index of pending message that likely corresponds
+              const pendingIndex = prev.findIndex(m => m.pending && m.sender_id === incoming.sender_id && (m.content === incoming.content || m.media_url === incoming.media_url) && Math.abs(new Date(m.created_at).getTime() - new Date(incoming.created_at).getTime()) < 5000)
+              if (pendingIndex !== -1) {
+                // Replace pending with incoming (server) message
+                const next = [...prev]
+                next[pendingIndex] = incoming
+                return next
+              }
+              // Otherwise append
+              return [...prev, incoming]
+            })
+
+            // Auto-scroll si el usuario está cerca del final
+            setTimeout(() => {
+              flatListRef.current?.scrollToEnd({ animated: true })
+            }, 100)
+          } catch (err) {
+            console.error('Error handling realtime payload:', err)
           }
-
-          setMessages(prev => [...prev, newMessage])
-          
-          // Auto-scroll si el usuario está cerca del final
-          setTimeout(() => {
-            flatListRef.current?.scrollToEnd({ animated: true })
-          }, 100)
         }
       )
       .subscribe()
@@ -201,17 +272,49 @@ export function GroupChatScreen() {
   // ============================================================================
 
   const handleSend = async () => {
-    if (!message.trim() || !currentUser || sending) return
+    // Allow sending if there's pending media even when message is empty
+    if (!currentUser || sending) return
+    if (!message.trim() && !pendingMedia) return
 
     const messageText = message.trim()
     setMessage('') // Limpiar input inmediatamente para mejor UX
     setSending(true)
 
+    // Create optimistic pending message
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2,8)}`
+    const optimistic: Message = {
+      id: tempId,
+      content: messageText,
+      created_at: new Date().toISOString(),
+      sender_id: currentUser.id,
+      media_url: pendingMedia ? pendingMedia.uri : undefined,
+      message_type: pendingMedia ? (pendingMedia.type === 'image' ? 'image' : pendingMedia.type === 'video' ? 'video' : 'file') : undefined,
+      sender: {
+        id: currentUser.id,
+        name: currentUser.full_name || currentUser.nombre || 'Yo',
+        avatar: currentUser.photo_url || currentUser.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.full_name||currentUser.nombre||'U')}`
+      },
+      pending: true,
+      isMe: true
+    }
+
+    setMessages(prev => [...prev, optimistic])
+
     try {
-      await sendMessage(channelId, currentUser.id, messageText)
-      
-      // El mensaje se agregará automáticamente via Realtime
-      // Scroll al final
+      // If there's pending media, upload first and send with media_url
+      if (pendingMedia) {
+        const uploadResult = await uploadChatFile(channelId, currentUser.id, pendingMedia.file)
+        const mediaUrl = uploadResult.url
+        const messageType = pendingMedia.type === 'image' ? 'image' : pendingMedia.type === 'video' ? 'video' : 'file'
+        await sendCommunityMessage(channelId, currentUser.id, messageText || (pendingMedia.file.name || ''), { message_type: messageType, media_url: mediaUrl })
+        // Clear pending media locally; server realtime will replace optimistic
+        setPendingMedia(null)
+      } else {
+        // Usar la versión específica para mensajes de comunidad (texto)
+        await sendCommunityMessage(channelId, currentUser.id, messageText)
+      }
+
+      // Server will emit realtime which replaces the pending message via merge logic
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true })
       }, 100)
@@ -219,6 +322,8 @@ export function GroupChatScreen() {
     } catch (error) {
       console.error('Error sending message:', error)
       Alert.alert('Error', 'No se pudo enviar el mensaje')
+      // Remove optimistic message on failure
+      setMessages(prev => prev.filter(m => m.id !== tempId))
       setMessage(messageText) // Restaurar mensaje si falla
     } finally {
       setSending(false)
@@ -260,9 +365,27 @@ export function GroupChatScreen() {
           <Text style={styles.sender}>{item.sender.name}</Text>
         </View>
       )}
-      <Text style={[styles.messageText, item.isMe && styles.myMessageText]}>
-        {item.content}
-      </Text>
+
+      {/* Media rendering */}
+      {item.media_url && item.message_type === 'image' && (
+        <Image source={{ uri: item.media_url }} style={styles.messageImage} />
+      )}
+      {item.media_url && item.message_type === 'video' && (
+        <Video source={{ uri: item.media_url }} style={styles.messageImage} useNativeControls />
+      )}
+      {item.media_url && item.message_type === 'file' && (
+        <TouchableOpacity onPress={() => Linking.openURL(item.media_url!)} style={styles.fileContainer}>
+          <FileText size={18} color={item.isMe ? '#fff' : '#2673f3'} />
+          <Text style={[styles.fileText, item.isMe && styles.myMessageText]}>{item.content}</Text>
+        </TouchableOpacity>
+      )}
+
+      {item.content ? (
+        <Text style={[styles.messageText, item.isMe && styles.myMessageText]}>
+          {item.content}
+        </Text>
+      ) : null}
+
       <Text style={[styles.messageTime, item.isMe && styles.myMessageTime]}>
         {formatTime(item.created_at)}
       </Text>
@@ -319,10 +442,10 @@ export function GroupChatScreen() {
       </View>
 
       {/* Mensajes */}
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.chatContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        behavior="height"
+        keyboardVerticalOffset={0}
       >
         <FlatList
           ref={flatListRef}
@@ -347,7 +470,31 @@ export function GroupChatScreen() {
         />
 
         {/* Input de mensaje - Pixel Perfect */}
+        {pendingMedia && (
+          <View style={styles.mediaPreview}>
+            {pendingMedia.type === 'image' && (
+              <Image source={{ uri: pendingMedia.uri }} style={styles.previewImage} />
+            )}
+            {(pendingMedia.type === 'video' || pendingMedia.type === 'document') && (
+              <View style={styles.previewTextContainer}>
+                {pendingMedia.type === 'document' && <FileText size={20} color="#2673f3" />}
+                <Text style={styles.previewText}>
+                  {pendingMedia.type === 'video' ? 'Video: ' : 'Documento: '}
+                  {pendingMedia.file.fileName?.split(' ')[0] || pendingMedia.type}
+                </Text>
+              </View>
+            )}
+            <TouchableOpacity onPress={cancelPendingMedia} style={styles.cancelButton}>
+              <Text style={styles.cancelText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.inputContainer}>
+          <TouchableOpacity onPress={handleOpenAttach} style={styles.attachButton} disabled={sending}>
+            <Paperclip size={22} color="#2673f3" />
+          </TouchableOpacity>
+
           <TextInput
             style={styles.input}
             value={message}
@@ -361,18 +508,47 @@ export function GroupChatScreen() {
           <TouchableOpacity 
             style={[
               styles.sendButton, 
-              (!message.trim() || sending) && styles.sendButtonDisabled
+              ((!message.trim() && !pendingMedia) || sending) && styles.sendButtonDisabled
             ]} 
             onPress={handleSend}
-            disabled={!message.trim() || sending}
+            disabled={(!message.trim() && !pendingMedia) || sending}
           >
             {sending ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Send size={20} color={message.trim() ? "#fff" : "#ccc"} />
+              <Send size={20} color={(message.trim() || pendingMedia) ? "#fff" : "#ccc"} />
             )}
           </TouchableOpacity>
         </View>
+
+        {/* Attach Modal */}
+        <Modal
+          visible={showAttachModal}
+          transparent
+          animationType="slide"
+          onRequestClose={handleCloseAttach}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Adjuntar</Text>
+              <TouchableOpacity style={styles.modalOption} onPress={() => { handleCloseAttach(); pickImage(); }}>
+                <ImageIcon size={22} color="#2673f3" />
+                <Text style={styles.modalOptionText}>Imagen</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalOption} onPress={() => { handleCloseAttach(); pickVideo(); }}>
+                <VideoIcon size={22} color="#2673f3" />
+                <Text style={styles.modalOptionText}>Video</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalOption} onPress={() => { handleCloseAttach(); pickDocument(); }}>
+                <FileText size={22} color="#2673f3" />
+                <Text style={styles.modalOptionText}>Documento</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalCancel} onPress={handleCloseAttach}>
+                <Text style={styles.modalCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   )
@@ -567,6 +743,108 @@ const styles = StyleSheet.create({
   emptyStateSubtext: {
     fontSize: 14,
     color: '#999',
+  },
+  attachButton: {
+    padding: 10,
+    marginRight: 8
+  },
+  mediaPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: '#f0f0f0',
+    borderTopWidth: 1,
+    borderTopColor: '#eee'
+  },
+  previewImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    marginRight: 10
+  },
+  previewTextContainer: {
+    flex: 1,
+    marginRight: 10
+  },
+  previewText: {
+    fontSize: 14,
+    color: '#111'
+  },
+  cancelButton: {
+    padding: 5,
+    backgroundColor: '#ccc',
+    borderRadius: 15,
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8
+  },
+
+  cancelText: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: 'bold'
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 40,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: '#f7f8fa',
+    marginBottom: 10,
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: '#111',
+    marginLeft: 15,
+  },
+  modalCancel: {
+    paddingVertical: 15,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  modalCancelText: {
+    fontSize: 16,
+    color: '#2673f3',
+    fontWeight: '600',
+  },
+  messageImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 8,
+    marginTop: 8,
+    borderWidth: 0
+  },
+  fileContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8
+  },
+  fileText: {
+    fontSize: 14,
+    color: '#2673f3',
+    marginLeft: 8
   },
 })
 
