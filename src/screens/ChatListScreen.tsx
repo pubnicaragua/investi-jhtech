@@ -48,6 +48,8 @@ import {
   Users,
   Bell,
   X,
+  Sparkles,
+  UserPlus,
 } from "lucide-react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute } from '@react-navigation/native';  
@@ -580,16 +582,41 @@ export function ChatListScreen({ navigation }: any) {
         </TouchableOpacity>
       </Modal>
 
-      {/* Floating Action Button for New Message */}
-      <TouchableOpacity
-        style={styles.floatingActionButton}
-        onPress={() => navigation.navigate('NewMessageScreen')}
-        activeOpacity={0.8}
-      >
-        <View style={styles.fab}>
-          <MessageSquare size={24} color="#FFFFFF" />
-        </View>
-      </TouchableOpacity>
+      {/* Botones de Accesos Rápidos */}
+      <View style={styles.quickAccessContainer}>
+        <TouchableOpacity
+          style={styles.quickAccessButton}
+          onPress={() => navigation.navigate('IRIChatScreen')}
+          activeOpacity={0.7}
+        >
+          <View style={styles.quickAccessIcon}>
+            <Sparkles size={20} color="#2673f3" />
+          </View>
+          <Text style={styles.quickAccessText}>Chat con IRI</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.quickAccessButton}
+          onPress={() => navigation.navigate('CreateCommunity')}
+          activeOpacity={0.7}
+        >
+          <View style={styles.quickAccessIcon}>
+            <Users size={20} color="#2673f3" />
+          </View>
+          <Text style={styles.quickAccessText}>Crear Comunidad</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.quickAccessButton}
+          onPress={() => navigation.navigate('NewMessageScreen')}
+          activeOpacity={0.7}
+        >
+          <View style={styles.quickAccessIcon}>
+            <MessageSquare size={20} color="#2673f3" />
+          </View>
+          <Text style={styles.quickAccessText}>Nuevo Mensaje</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.bottomNavigation}>
         <TouchableOpacity
@@ -974,5 +1001,47 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+
+  quickAccessContainer: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 90 : 70,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+
+  quickAccessButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+
+  quickAccessIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#eff6ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+
+  quickAccessText: {
+    fontSize: 11,
+    color: '#374151',
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });

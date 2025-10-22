@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
   Keyboard,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { ArrowLeft, Camera, Check, Users, ChevronRight, Monitor, DollarSign, Rocket, Trophy, Palette, Music, Microscope, GraduationCap, Heart, Map } from 'lucide-react-native'
+import { ArrowLeft, Camera, Check, Users, ChevronRight, Monitor, DollarSign, Rocket, Trophy, Palette, Music, Microscope, GraduationCap, Heart, Map, Lock, Unlock, School } from 'lucide-react-native'
 import * as ImagePicker from 'expo-image-picker'
 import * as FileSystem from 'expo-file-system'
 import { useAuth } from '../contexts/AuthContext'
@@ -69,9 +69,27 @@ const INTEREST_ICON_COLORS: Record<string, string> = {
 }
 
 const PRIVACY_OPTIONS = [
-  { label: '🔓Pública', value: 'public', description: 'Cualquiera puede unirse' },
-  { label: '🔒Privada', value: 'private', description: 'Solo por invitación' },
-  { label: 'Colegio', value: 'restricted', description: 'Moderada por administradores' },
+  { 
+    label: 'Comunidad Pública', 
+    value: 'public', 
+    icon: 'unlock',
+    description: 'Cualquiera puede unirse. Ideal para grupos abiertos de educación financiera, inversiones, etc.',
+    emoji: '🌍'
+  },
+  { 
+    label: 'Comunidad Privada', 
+    value: 'private', 
+    icon: 'lock',
+    description: 'Solo por invitación y aceptación. Para grupos cerrados con miembros seleccionados.',
+    emoji: '🔒'
+  },
+  { 
+    label: 'Comunidad de Colegio', 
+    value: 'school', 
+    icon: 'school',
+    description: 'Siempre cerrada, solo con invitación. Incluye metas de ahorro grupales para giras de estudios.',
+    emoji: '🎓'
+  },
 ]
 
 export default function CreateCommunityScreen({ navigation }: any) {
@@ -568,25 +586,34 @@ export default function CreateCommunityScreen({ navigation }: any) {
 
         {/* Tipo de privacidad */}
         <View style={styles.stepContainer}>
-          <Text style={styles.stepTitle}>Tipo de privacidad</Text>
-          {PRIVACY_OPTIONS.map((option) => (
-            <TouchableOpacity
-              key={option.value}
-              style={[
-                styles.privacyOption,
-                formData.privacy === option.value && styles.privacyOptionSelected
-              ]}
-              onPress={() => setFormData(prev => ({ ...prev, privacy: option.value }))}
-            >
-              <View style={styles.privacyContent}>
-                <Text style={styles.privacyLabel}>{option.label}</Text>
-                <Text style={styles.privacyDescription}>{option.description}</Text>
-              </View>
-              {formData.privacy === option.value && (
-                <Check size={20} color="#3B82F6" />
-              )}
-            </TouchableOpacity>
-          ))}
+          <Text style={styles.stepTitle}>Tipo de Comunidad</Text>
+          <Text style={styles.stepSubtitle}>Selecciona el tipo de comunidad que deseas crear</Text>
+          {PRIVACY_OPTIONS.map((option) => {
+            const IconComponent = option.icon === 'unlock' ? Unlock : option.icon === 'lock' ? Lock : School;
+            return (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.privacyOption,
+                  formData.privacy === option.value && styles.privacyOptionSelected
+                ]}
+                onPress={() => setFormData(prev => ({ ...prev, privacy: option.value }))}
+              >
+                <View style={styles.privacyIconContainer}>
+                  <IconComponent size={24} color={formData.privacy === option.value ? '#3B82F6' : '#6B7280'} />
+                </View>
+                <View style={styles.privacyContent}>
+                  <Text style={styles.privacyLabel}>
+                    {option.emoji} {option.label}
+                  </Text>
+                  <Text style={styles.privacyDescription}>{option.description}</Text>
+                </View>
+                {formData.privacy === option.value && (
+                  <Check size={20} color="#3B82F6" />
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* Invitar miembros */}
@@ -822,6 +849,15 @@ const styles = StyleSheet.create({
   privacyOptionSelected: {
     backgroundColor: '#EFF6FF',
     borderColor: '#3B82F6',
+  },
+  privacyIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
   privacyContent: {
     flex: 1,

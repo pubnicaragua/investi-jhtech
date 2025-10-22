@@ -16,7 +16,7 @@ import {
   Modal,
 } from "react-native"
 import { useTranslation } from "react-i18next"
-import { X, Users, Check, ChevronLeft } from "lucide-react-native"
+import { X, Users, Check, ChevronLeft, Lock, Unlock, School } from "lucide-react-native"
 import { 
   joinCommunity, 
   getCommunityDetailsComplete, 
@@ -39,6 +39,7 @@ type Community = {
   member_count?: number
   post_count?: number
   is_public?: boolean
+  tipo?: string
 }
 
 type SuggestedPerson = {
@@ -446,7 +447,22 @@ export function CommunityRecommendationsScreen({ navigation, route }: any) {
                         {formatMemberCount(community.member_count || 0)} miembros
                       </Text>
                       <Text style={styles.metaDot}>•</Text>
-                      <Text style={styles.metaText}>Comunidad pública</Text>
+                      {community.tipo === 'school' ? (
+                        <>
+                          <School size={14} color="#666" style={styles.metaIcon} />
+                          <Text style={styles.metaText}>Colegio</Text>
+                        </>
+                      ) : community.tipo === 'private' ? (
+                        <>
+                          <Lock size={14} color="#666" style={styles.metaIcon} />
+                          <Text style={styles.metaText}>Privada</Text>
+                        </>
+                      ) : (
+                        <>
+                          <Unlock size={14} color="#666" style={styles.metaIcon} />
+                          <Text style={styles.metaText}>Pública</Text>
+                        </>
+                      )}
                     </View>
                   </View>
                 </View>
