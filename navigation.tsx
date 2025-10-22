@@ -220,8 +220,12 @@ export function RootStack() {
           
           console.log('📋 Navigation: Onboarding step from DB:', userData?.onboarding_step)
           
-          // Si el onboarding_step es 'completed', ir a HomeFeed
-          if (userData?.onboarding_step === 'completed') {
+          // Verificar también AsyncStorage como fallback
+          const onboardingComplete = await AsyncStorage.getItem('onboarding_complete')
+          console.log('📋 Navigation: Onboarding complete (AsyncStorage):', onboardingComplete)
+          
+          // Si el onboarding_step es 'completed' O AsyncStorage dice que está completo, ir a HomeFeed
+          if (userData?.onboarding_step === 'completed' || onboardingComplete === 'true') {
             console.log('✅ Navigation: Usuario autenticado y onboarding completo, yendo a HomeFeed')
             setInitialRoute("HomeFeed")
           } else {

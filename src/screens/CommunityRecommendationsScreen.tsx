@@ -27,6 +27,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useAuth } from "../contexts/AuthContext"
+import { supabase } from "../supabase"
 
 const { width, height } = Dimensions.get("window")
 
@@ -336,6 +337,22 @@ export function CommunityRecommendationsScreen({ navigation, route }: any) {
       console.log('[CommunityRecommendations] Finishing onboarding');
       await AsyncStorage.setItem("onboarding_complete", "true");
       await AsyncStorage.setItem("communities_complete", "true");
+
+      // CRÍTICO: Actualizar onboarding_step en la base de datos
+      const userId = await AsyncStorage.getItem('userId')
+      if (userId) {
+        console.log('✅ Actualizando onboarding_step a completed en DB')
+        const { error } = await supabase
+          .from('users')
+          .update({ onboarding_step: 'completed' })
+          .eq('id', userId)
+        
+        if (error) {
+          console.error('❌ Error actualizando onboarding_step:', error)
+        } else {
+          console.log('✅ Onboarding completado en DB')
+        }
+      }
 
       if (route.params?.onComplete) {
         console.log('[CommunityRecommendations] Calling onComplete callback');

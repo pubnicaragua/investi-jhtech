@@ -13,11 +13,11 @@ export default {
       url: undefined
     },
     splash: {
-      image: './assets/investi-logo.png',
+      image: './assets/splash.png',
       resizeMode: 'contain',
       backgroundColor: '#ffffff'
     },
-    icon: './assets/logo.png',
+    icon: './assets/investi variantes_Isologo.png',
     assetBundlePatterns: [
       'assets/*.png',
       'assets/*.jpg',
@@ -41,9 +41,9 @@ export default {
       package: 'com.investi.app',
       versionCode: 1,
       adaptiveIcon: {
-        foregroundImage: './assets/logo.png',
+        foregroundImage: './assets/investi variantes_Isologo.png',
         backgroundColor: '#FFFFFF',
-        monochromeImage: './assets/logo.png'
+        monochromeImage: './assets/investi variantes_Isologo.png'
       },
       jsEngine: 'hermes'
     },

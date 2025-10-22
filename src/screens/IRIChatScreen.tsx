@@ -21,9 +21,10 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Send, Sparkles } from 'lucide-react-native';
+import { ArrowLeft, Send } from 'lucide-react-native';
 import { useAuthGuard } from '../hooks/useAuthGuard';
 
 interface Message {
@@ -34,11 +35,15 @@ interface Message {
 }
 
 // IMPORTANTE: La API key debe estar en el archivo .env
-// Crear archivo .env en la raíz con: GROK_API_KEY=tu_api_key_aqui
-const GROK_API_KEY = process.env.GROK_API_KEY || '';
+// Crear archivo .env en la raíz con: EXPO_PUBLIC_GROK_API_KEY=tu_api_key_aqui
+// TEMPORAL: Hardcodeada para testing (REMOVER EN PRODUCCIÓN)
+const GROK_API_KEY = process.env.EXPO_PUBLIC_GROK_API_KEY || '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';
 const GROK_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
-const SYSTEM_CONTEXT = `Eres IRI, el asistente de inteligencia artificial de Investi, una aplicación de educación financiera y comunidad para jóvenes en Nicaragua.
+// DEBUG: Verificar si la API key se cargó
+console.log('🔑 GROK_API_KEY loaded:', GROK_API_KEY ? `${GROK_API_KEY.substring(0, 10)}...` : 'NOT FOUND');
+
+const SYSTEM_CONTEXT = `Eres IRÏ, el asistente de inteligencia artificial de Investi, una aplicación de educación financiera y comunidad para jóvenes en Nicaragua.
 
 CONTEXTO DE LA APP INVESTI:
 - Investi es una plataforma que ayuda a jóvenes a aprender sobre finanzas personales, inversiones y emprendimiento
@@ -66,7 +71,7 @@ export default function IRIChatScreen({ navigation }: any) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: '¡Hola! Soy IRI, tu asistente de inteligencia artificial en Investi. 🌟\n\n¿En qué puedo ayudarte hoy? Puedo responder preguntas sobre finanzas, inversiones, ahorro, o explicarte cómo usar las herramientas de Investi.',
+      content: '¡Hola! Soy IRÏ, tu asistente de inteligencia artificial en Investi. 🌟\n\n¿En qué puedo ayudarte hoy? Puedo responder preguntas sobre finanzas, inversiones, ahorro, o explicarte cómo usar las herramientas de Investi.',
       role: 'assistant',
       timestamp: new Date(),
     },
@@ -85,7 +90,7 @@ export default function IRIChatScreen({ navigation }: any) {
     if (!GROK_API_KEY) {
       Alert.alert(
         'Configuración requerida',
-        'La API key de Grok no está configurada. Por favor, agrega GROK_API_KEY en el archivo .env'
+        'La API key de Grok no está configurada. Por favor, agrega EXPO_PUBLIC_GROK_API_KEY en el archivo .env y reinicia el servidor'
       );
       return;
     }
@@ -165,11 +170,13 @@ export default function IRIChatScreen({ navigation }: any) {
           <ArrowLeft size={24} color="#111" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <View style={styles.iriIconContainer}>
-            <Sparkles size={20} color="#2673f3" />
-          </View>
+          <Image 
+            source={require('../../assets/splash.png')} 
+            style={styles.iriIcon}
+            resizeMode="contain"
+          />
           <View>
-            <Text style={styles.headerTitle}>IRI</Text>
+            <Text style={styles.headerTitle}>IRÏ</Text>
             <Text style={styles.headerSubtitle}>Asistente IA</Text>
           </View>
         </View>
@@ -199,9 +206,11 @@ export default function IRIChatScreen({ navigation }: any) {
               ]}
             >
               {message.role === 'assistant' && (
-                <View style={styles.assistantIcon}>
-                  <Sparkles size={16} color="#2673f3" />
-                </View>
+                <Image 
+                  source={require('../../assets/splash.png')} 
+                  style={styles.assistantIconImage}
+                  resizeMode="contain"
+                />
               )}
               <View style={styles.messageContent}>
                 <Text
@@ -230,12 +239,14 @@ export default function IRIChatScreen({ navigation }: any) {
 
           {isLoading && (
             <View style={[styles.messageBubble, styles.assistantBubble]}>
-              <View style={styles.assistantIcon}>
-                <Sparkles size={16} color="#2673f3" />
-              </View>
+              <Image 
+                source={require('../../assets/splash.png')} 
+                style={styles.assistantIconImage}
+                resizeMode="contain"
+              />
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="small" color="#2673f3" />
-                <Text style={styles.loadingText}>IRI está escribiendo...</Text>
+                <Text style={styles.loadingText}>IRÏ está escribiendo...</Text>
               </View>
             </View>
           )}
@@ -303,6 +314,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  iriIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
@@ -344,6 +360,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#eff6ff',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 8,
+  },
+  assistantIconImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     marginRight: 8,
   },
   messageContent: {

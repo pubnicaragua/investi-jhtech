@@ -173,9 +173,11 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
             {getAvatarUrl(user) ? (
               <Image source={{ uri: getAvatarUrl(user) }} style={styles.avatar} />
             ) : (
-              <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Text style={styles.avatarInitials}>{getInitials(getUserFullName())}</Text>
-              </View>
+              <Image 
+                source={require('../../assets/splash.png')} 
+                style={styles.avatar}
+                resizeMode="cover"
+              />
             )}
             <View style={styles.profileInfo}>  
               <Text style={styles.userName}>{getUserFullName()}</Text>  
@@ -234,8 +236,12 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
           </TouchableOpacity>  
   
           <TouchableOpacity style={styles.menuItem} onPress={handleChatPress} activeOpacity={0.7}>  
-            <Sparkles size={24} color="#2673f3" strokeWidth={1.5} />
-            <Text style={styles.menuText}>Chat con IRI</Text>  
+            <Image 
+              source={require('../../assets/splash.png')} 
+              style={styles.iriMenuIcon}
+              resizeMode="contain"
+            />
+            <Text style={styles.menuText}>Chat con IRÏ</Text>  
           </TouchableOpacity>  
   
           <TouchableOpacity style={styles.menuItem} onPress={handleSettingsPress} activeOpacity={0.7}>
@@ -331,6 +337,7 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 14, color: "#9CA3AF", fontStyle: "italic", paddingVertical: 12 },
   menuItem: { flexDirection: "row", alignItems: "center", paddingVertical: 16, gap: 16 },  
   menuText: { fontSize: 17, color: "#1F2937", fontWeight: "500" },
+  iriMenuIcon: { width: 24, height: 24, borderRadius: 12 },
   logoutItem: { flexDirection: "row", alignItems: "center", paddingVertical: 16, gap: 16, marginTop: 4 },
   logoutText: { fontSize: 17, color: "#DC2626", fontWeight: "600" },
   bottomSpacer: { height: 40 },
