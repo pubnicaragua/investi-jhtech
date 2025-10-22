@@ -1,90 +1,29 @@
-import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+/**
+ * notifications.ts
+ * 
+ * NOTA: Notificaciones push deshabilitadas temporalmente
+ * Se activarán cuando el MVP esté completo según PENDIENTES_CLIENTE.md
+ * 
+ * Funciones stub para evitar errores en build
+ */
 
-// Configurar el comportamiento de las notificaciones
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
-
-// Solicitar permisos para notificaciones
+// Solicitar permisos para notificaciones (stub)
 export async function requestNotificationPermissions() {
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-
-  if (finalStatus !== 'granted') {
-    console.log('Permisos de notificación denegados');
-    return false;
-  }
-
-  console.log('Permisos de notificación concedidos');
-  return true;
+  console.log('[Notifications] Deshabilitadas temporalmente');
+  return false;
 }
 
-// Mostrar una notificación de prueba
+// Mostrar una notificación de prueba (stub)
 export async function showTestNotification() {
-  const hasPermission = await requestNotificationPermissions();
-
-  if (!hasPermission) {
-    console.log('No se pueden mostrar notificaciones sin permisos');
-    return;
-  }
-
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: '¡Bienvenido a Investi! 🎉',
-      body: 'Esta es una notificación de prueba. ¡Tu app está funcionando correctamente!',
-      sound: 'default',
-      priority: Notifications.AndroidNotificationPriority.HIGH,
-      color: '#2673f3',
-    },
-    trigger: null, // Mostrar inmediatamente
-  });
-
-  console.log('Notificación de prueba enviada');
+  console.log('[Notifications] showTestNotification - Deshabilitadas temporalmente');
 }
 
-// Mostrar notificación de bienvenida después del login
+// Mostrar notificación de bienvenida después del login (stub)
 export async function showWelcomeNotification() {
-  const hasPermission = await requestNotificationPermissions();
-
-  if (!hasPermission) {
-    console.log('No se pueden mostrar notificaciones sin permisos');
-    return;
-  }
-
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: '¡Sesión iniciada! ✅',
-      body: 'Has iniciado sesión correctamente en Investi. ¡Bienvenido!',
-      sound: 'default',
-      priority: Notifications.AndroidNotificationPriority.DEFAULT,
-      color: '#2673f3',
-    },
-    trigger: null, // Mostrar inmediatamente
-  });
-
-  console.log('Notificación de bienvenida enviada');
+  console.log('[Notifications] showWelcomeNotification - Deshabilitadas temporalmente');
 }
 
-// Configurar canal de notificaciones para Android
+// Configurar canal de notificaciones para Android (stub)
 export async function setupNotificationChannel() {
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'Default',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#2673f3',
-    });
-  }
+  console.log('[Notifications] setupNotificationChannel - Deshabilitadas temporalmente');
 }

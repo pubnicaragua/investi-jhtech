@@ -35,7 +35,7 @@ import {
   getCommunityChannels 
 } from '../rest/api'
 import { uploadChatFile } from '../api'
-import * as DocumentPicker from 'expo-document-picker'
+// import * as DocumentPicker from 'expo-document-picker' // Temporalmente deshabilitado
 import * as ImagePicker from 'expo-image-picker'
 import { supabase } from '../supabase'
 
@@ -178,12 +178,9 @@ export function GroupChatScreen() {
   }
 
   const pickDocument = async () => {
-    const result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true })
-    // DocumentPicker returns { type: 'success' | 'cancel', uri, name, size }
-    if ((result as any).type === 'success') {
-      setPendingMedia({ type: 'document', uri: (result as any).uri || '', file: result })
-      setShowAttachModal(false)
-    }
+    // Temporalmente deshabilitado - DocumentPicker
+    Alert.alert('Próximamente', 'La función de adjuntar documentos estará disponible pronto')
+    setShowAttachModal(false)
   }
 
   const cancelPendingMedia = () => setPendingMedia(null)
