@@ -16,7 +16,7 @@ import {
   Modal,
 } from "react-native"
 import { useTranslation } from "react-i18next"
-import { X, Users, Check, ChevronLeft, Lock, Unlock, School } from "lucide-react-native"
+import { X, Users, Check, ChevronLeft, Lock, Unlock, School, UserPlus } from "lucide-react-native"
 import { 
   joinCommunity, 
   getCommunityDetailsComplete, 
@@ -427,8 +427,10 @@ export function CommunityRecommendationsScreen({ navigation, route }: any) {
                         disabled={isJoined}
                         activeOpacity={0.8}
                       >
-                        {isJoined && (
+                        {isJoined ? (
                           <Check size={14} color="#fff" style={{ marginRight: 6 }} />
+                        ) : (
+                          <UserPlus size={14} color="#fff" style={{ marginRight: 6 }} />
                         )}
                         <Text style={styles.joinBtnText}>
                           {isJoined ? "Unido" : "Unirse"}

@@ -48,6 +48,7 @@ import SavedPostsScreen from "./src/screens/SavedPostsScreen"
 import { NewMessageScreen } from "./src/screens/NewMessageScreen"
 import { InvestmentKnowledgeScreen } from "./src/screens/InvestmentKnowledgeScreen"
 import { OnboardingCompleteScreen } from "./src/screens/OnboardingCompleteScreen"
+import IRIChatScreen from "./src/screens/IRIChatScreen"
 import { PlanificadorFinancieroScreen } from './src/screens/PlanificadorFinancieroScreen';
 import { CazaHormigasScreen } from './src/screens/CazaHormigasScreen';
 import { ReportesAvanzadosScreen } from './src/screens/ReportesAvanzadosScreen';
@@ -60,6 +61,7 @@ import FollowersScreen from './src/screens/FollowersScreen';
 import FollowingScreen from './src/screens/FollowingScreen';
 
 import { getCurrentUser, getMe } from "./src/rest/api"
+import { supabase } from "./src/supabase"
 import CreateCommunityScreen from "./src/screens/CreateCommunityScreen"
 import CommunitySettingsScreen from "./src/screens/CommunitySettingsScreen"
 import CommunityMembersScreen from "./src/screens/CommunityMembersScreen"
@@ -206,10 +208,54 @@ export function RootStack() {
         console.warn('🔗 Navigation: Error reading initial URL for auth callback check', err)
       }
 
-      // Si ya está autenticado, simplemente ir a HomeFeed
+      // Si ya está autenticado, verificar si completó onboarding
       if (isActuallyAuthenticated) {
-        console.log('✅ Navigation: Usuario autenticado, yendo a HomeFeed')
-        setInitialRoute("HomeFeed")
+        // Verificar onboarding desde la base de datos (más confiable que AsyncStorage)
+        try {
+          const { data: userData } = await supabase
+            .from('users')
+            .select('onboarding_step')
+            .eq('id', userId)
+            .single()
+          
+          console.log('📋 Navigation: Onboarding step from DB:', userData?.onboarding_step)
+          
+          // Si el onboarding_step es 'completed', ir a HomeFeed
+          if (userData?.onboarding_step === 'completed') {
+            console.log('✅ Navigation: Usuario autenticado y onboarding completo, yendo a HomeFeed')
+            setInitialRoute("HomeFeed")
+          } else {
+            // Si no completó onboarding, verificar en qué paso quedó
+            const avatarComplete = await AsyncStorage.getItem('avatar_uploaded')
+            const goalsComplete = await AsyncStorage.getItem('goals_selected')
+            const interestsComplete = await AsyncStorage.getItem('interests_selected')
+            const knowledgeComplete = await AsyncStorage.getItem('knowledge_selected')
+            
+            console.log('📋 Navigation: Avatar:', avatarComplete, 'Goals:', goalsComplete, 'Interests:', interestsComplete, 'Knowledge:', knowledgeComplete)
+            
+            // Determinar en qué paso del onboarding quedó
+            if (!avatarComplete) {
+              console.log('📸 Navigation: Falta avatar, yendo a UploadAvatar')
+              setInitialRoute("UploadAvatar")
+            } else if (!goalsComplete) {
+              console.log('🎯 Navigation: Falta goals, yendo a PickGoals')
+              setInitialRoute("PickGoals")
+            } else if (!interestsComplete) {
+              console.log('❤️ Navigation: Falta interests, yendo a PickInterests')
+              setInitialRoute("PickInterests")
+            } else if (!knowledgeComplete) {
+              console.log('📚 Navigation: Falta knowledge, yendo a PickKnowledge')
+              setInitialRoute("PickKnowledge")
+            } else {
+              console.log('👥 Navigation: Falta comunidades, yendo a CommunityRecommendations')
+              setInitialRoute("CommunityRecommendations")
+            }
+          }
+        } catch (dbError) {
+          console.error('❌ Navigation: Error checking onboarding from DB:', dbError)
+          // Si falla la consulta, ir a UploadAvatar por defecto
+          setInitialRoute("UploadAvatar")
+        }
       } else {
         // Verificar si ya se seleccionó un idioma
         const languageSelected = await AsyncStorage.getItem('user_language')
@@ -559,6 +605,9 @@ export function RootStack() {
           name="SavedPosts"  
           component={SavedPostsScreen}  
         />  
+
+        {/* IRI Chat with AI */}
+        <Stack.Screen name="IRIChatScreen" component={IRIChatScreen} />
 
         {/* Financial Tools */}
         <Stack.Screen name="PlanificadorFinanciero" component={PlanificadorFinancieroScreen} />

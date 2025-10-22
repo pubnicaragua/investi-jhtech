@@ -18,6 +18,7 @@ import {
 import { useTranslation } from "react-i18next"
 import * as Linking from 'expo-linking'
 import { Eye, EyeOff } from "lucide-react-native"
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase } from "../supabase"
 import { useAuth } from "../contexts/AuthContext"
 
@@ -87,25 +88,43 @@ export function SignUpScreen({ navigation }: any) {
         throw new Error("No se pudo crear el usuario")
       }
 
-      // 2. Crear perfil en la tabla users
-      const { error: profileError } = await supabase
+      // 2. Verificar si el perfil ya existe, si no, crearlo
+      const { data: existingUser } = await supabase
         .from('users')
-        .insert({
-          id: authData.user.id,
-          email: email.trim().toLowerCase(),
-          full_name: fullName.trim(),
-          nombre: fullName.trim(),
-          username: username.trim().toLowerCase(),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
+        .select('id')
+        .eq('id', authData.user.id)
+        .single()
 
-      if (profileError) {
-        console.error("Error creating profile:", profileError)
-        // No lanzar error aquí, el usuario ya fue creado en auth
+      if (!existingUser) {
+        // Solo insertar si no existe
+        const { error: profileError } = await supabase
+          .from('users')
+          .insert({
+            id: authData.user.id,
+            email: email.trim().toLowerCase(),
+            full_name: fullName.trim(),
+            nombre: fullName.trim(),
+            username: username.trim().toLowerCase(),
+          })
+
+        if (profileError) {
+          console.error("Error creating profile:", profileError)
+          // No lanzar error aquí, el usuario ya fue creado en auth
+        }
+      } else {
+        console.log("✅ User profile already exists, skipping insert")
       }
 
-      // 3. Auto-login después del registro
+      // 3. Limpiar flags de onboarding anteriores
+      await AsyncStorage.multiRemove([
+        'onboarding_complete',
+        'avatar_uploaded',
+        'goals_selected',
+        'interests_selected',
+        'knowledge_selected'
+      ])
+
+      // 4. Auto-login después del registro
       await authSignIn(email.trim().toLowerCase(), password)
 
       Alert.alert(

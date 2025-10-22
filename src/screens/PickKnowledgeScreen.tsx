@@ -181,8 +181,14 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   optionButtonSelected: {
-    borderWidth: 2,
-    backgroundColor: "#f8f9ff",
+    borderWidth: 3,
+    borderColor: "#2673f3",
+    backgroundColor: "#EEF2FF",
+    shadowColor: "#2673f3",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   optionIcon: {
     width: 40,
