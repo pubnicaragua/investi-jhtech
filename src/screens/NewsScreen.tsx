@@ -8,10 +8,22 @@ import {
   Image, 
   TouchableOpacity, 
   ActivityIndicator, 
-  RefreshControl 
+  RefreshControl,
+  ScrollView
 } from "react-native"
 import { useTranslation } from "react-i18next"
 import { ArrowLeft, Bookmark, Share2, Clock } from "lucide-react-native"
+
+const NEWS_CATEGORIES = [
+  'Todas',
+  'Regulaciones',
+  'Criptomonedas',
+  'Tecnología',
+  'Inversiones',
+  'Startups',
+  'Educación',
+  'Mercados'
+]
 
 type NewsItem = {
   id: string
@@ -27,6 +39,7 @@ export function NewsScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [news, setNews] = useState<NewsItem[]>([])
+  const [selectedCategory, setSelectedCategory] = useState('Todas')
 
   // Datos de ejemplo - en una app real, esto vendría de una API
   const mockNews: NewsItem[] = [
@@ -74,6 +87,10 @@ export function NewsScreen({ navigation }: any) {
     setRefreshing(true)
     loadNews()
   }
+
+  const filteredNews = selectedCategory === 'Todas' 
+    ? news 
+    : news.filter(item => item.category === selectedCategory)
 
   const renderNewsItem = ({ item }: { item: NewsItem }) => (
     <TouchableOpacity 
@@ -123,6 +140,32 @@ export function NewsScreen({ navigation }: any) {
         <View style={styles.headerRight} />
       </View>
 
+      {/* Filtros de Categorías */}
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        style={styles.categoriesContainer}
+        contentContainerStyle={styles.categoriesContent}
+      >
+        {NEWS_CATEGORIES.map((category) => (
+          <TouchableOpacity
+            key={category}
+            style={[
+              styles.categoryChip,
+              selectedCategory === category && styles.categoryChipActive
+            ]}
+            onPress={() => setSelectedCategory(category)}
+          >
+            <Text style={[
+              styles.categoryChipText,
+              selectedCategory === category && styles.categoryChipTextActive
+            ]}>
+              {category}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
       {/* Contenido */}
       {loading && news.length === 0 ? (
         <View style={styles.loadingContainer}>
@@ -130,7 +173,7 @@ export function NewsScreen({ navigation }: any) {
         </View>
       ) : (
         <FlatList
-          data={news}
+          data={filteredNews}
           renderItem={renderNewsItem}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
@@ -248,5 +291,34 @@ const styles = StyleSheet.create({
   actionButton: {
     marginLeft: 16,
     padding: 4,
+  },
+  categoriesContainer: {
+    maxHeight: 60,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  categoriesContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  categoryChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+    marginRight: 8,
+  },
+  categoryChipActive: {
+    backgroundColor: '#2673f3',
+  },
+  categoryChipText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6b7280',
+  },
+  categoryChipTextActive: {
+    color: '#fff',
   },
 })

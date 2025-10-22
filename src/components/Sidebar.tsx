@@ -6,7 +6,7 @@ import {
 import { useNavigation } from "@react-navigation/native";  
 import {
   Bookmark, Users, Settings, MessageCircle, Edit3, LogOut,
-  ChevronRight, User, X,
+  ChevronRight, User, X, Sparkles,
 } from "lucide-react-native";  
 import { getCurrentUser, getUserCommunities } from "../rest/api";
 import { useAuth } from "../contexts/AuthContext";
@@ -99,7 +99,7 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   const handleCommunitiesPress = () => { (navigation as any).push("Communities"); onClose(); };  
   const handleSettingsPress = () => { (navigation as any).push("Settings"); onClose(); };  
   const handleSavedPostsPress = () => { (navigation as any).push("SavedPosts"); onClose(); };  
-  const handleChatPress = () => { (navigation as any).push("Messages"); onClose(); };
+  const handleChatPress = () => { (navigation as any).push("IRIChatScreen"); onClose(); };
   const handleCommunityPress = (communityId: string) => {
     (navigation as any).push("CommunityDetail", { communityId }); onClose();
   };
@@ -234,8 +234,8 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
           </TouchableOpacity>  
   
           <TouchableOpacity style={styles.menuItem} onPress={handleChatPress} activeOpacity={0.7}>  
-            <MessageCircle size={24} color="#1F2937" strokeWidth={1.5} />
-            <Text style={styles.menuText}>Habla con Irí</Text>  
+            <Sparkles size={24} color="#2673f3" strokeWidth={1.5} />
+            <Text style={styles.menuText}>Chat con IRI</Text>  
           </TouchableOpacity>  
   
           <TouchableOpacity style={styles.menuItem} onPress={handleSettingsPress} activeOpacity={0.7}>
