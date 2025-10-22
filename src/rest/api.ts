@@ -656,25 +656,39 @@ export async function getCommunityChannelMessages(channelId: string, limit = 50)
     const response = await request("GET", "/community_messages", {
       params: {
         channel_id: `eq.${channelId}`,
-        select: "id,content,created_at,user_id,user:users!user_id(id,nombre,full_name,avatar_url,photo_url)",
+        // Request media fields so client can render persisted media
+  select: "id,content,created_at,user_id,media_url,message_type,user:users!user_id(id,nombre,full_name,avatar_url,photo_url)",
         order: "created_at.asc",
         limit: String(limit),
       }
     })
 
-    return (response || []).map((msg: any) => ({
-      id: msg.id,
-      content: msg.content,
-      created_at: msg.created_at,
-      user_id: msg.user_id,
-      user: {
-        id: msg.user?.id || msg.user_id,
-        nombre: msg.user?.nombre || 'Usuario',
-        full_name: msg.user?.full_name || msg.user?.nombre || 'Usuario',
-        avatar_url: msg.user?.avatar_url || 'https://i.pravatar.cc/100',
-        photo_url: msg.user?.photo_url || msg.user?.avatar_url || 'https://i.pravatar.cc/100'
+    return (response || []).map((msg: any) => {
+      const mediaUrl = msg.media_url || msg.media || msg.media_path || msg.url || null
+      const inferMessageType = (url?: string | null) => {
+        if (!url) return undefined
+        const path = url.split('?')[0].toLowerCase()
+        if (path.match(/\.(jpg|jpeg|png|gif|webp)$/)) return 'image'
+        if (path.match(/\.(mp4|mov|mkv|webm|3gp)$/)) return 'video'
+        return 'file'
       }
-    }))
+
+      return {
+        id: msg.id,
+        content: msg.content,
+        created_at: msg.created_at,
+        user_id: msg.user_id,
+        media_url: mediaUrl,
+        message_type: msg.message_type || inferMessageType(mediaUrl),
+        user: {
+          id: msg.user?.id || msg.user_id,
+          nombre: msg.user?.nombre || 'Usuario',
+          full_name: msg.user?.full_name || msg.user?.nombre || 'Usuario',
+          avatar_url: msg.user?.avatar_url || 'https://i.pravatar.cc/100',
+          photo_url: msg.user?.photo_url || msg.user?.avatar_url || 'https://i.pravatar.cc/100'
+        }
+      }
+    })
   } catch (error: any) {
     console.error('Error fetching community channel messages:', error)
     return []

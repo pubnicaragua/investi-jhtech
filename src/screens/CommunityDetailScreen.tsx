@@ -45,6 +45,7 @@ import {
   UserCog,
   Edit3
 } from "lucide-react-native"
+import { Ionicons } from '@expo/vector-icons'
 
 import {
   getCommunityDetails,
@@ -69,6 +70,7 @@ import {
 } from "../rest/users"
 
 import { getCurrentUser } from "../rest/api"
+import { InvestiVideoPlayer } from "../components/InvestiVideoPlayer"
 
 const { width } = Dimensions.get('window')
 
@@ -565,145 +567,115 @@ export function CommunityDetailScreen() {
     return `${weeks} sem`
   }
 
-    // --- PostCard Component ---
+    // --- PostCard Component (HomeFeed visual parity) ---
     const PostCard = ({ post }: { post: Post }) => {
       if (!post) return null
       const authorData = post.users || (post as any).author || null
-      if (!authorData) {
-        console.warn(`[CommunityDetailScreen] Post ${post.id} missing author data. user_id=${post.user_id}`)
-      }
-  const authorName = authorData?.full_name || authorData?.nombre || authorData?.name || 'Usuario'
-  let authorAvatar = getAvatarForUser(authorData, authorName)
-      // If the author's avatar accidentally equals the post image (some API shapes mix fields), don't show the large media as avatar
+      const authorName = authorData?.full_name || authorData?.nombre || authorData?.name || 'Usuario'
+      let authorAvatar = getAvatarForUser(authorData, authorName)
       if (post.image_url && authorAvatar && post.image_url === authorAvatar) {
         authorAvatar = getDefaultAvatar(authorName)
       }
       const authorRole = authorData?.role || 'Usuario'
-  
+
       return (
         <View style={styles.postCard}>
+          {/* Header */}
           <View style={styles.postHeader}>
-            <Image
-              source={{ uri: authorAvatar }}
-              style={styles.postAvatar}
-            />
+            <TouchableOpacity onPress={() => navigation.navigate('Profile', { userId: post.user_id })} activeOpacity={0.8}>
+              <Image source={{ uri: authorAvatar }} style={styles.postAvatar} />
+            </TouchableOpacity>
+
             <View style={styles.postAuthorInfo}>
               <View style={styles.postAuthorRow}>
-                <Text style={styles.postAuthorName}>{authorName}</Text>
-                <Text style={styles.postTime}> • {getTimeAgo(post.created_at)}</Text>
+                <TouchableOpacity onPress={() => navigation.navigate('Profile', { userId: post.user_id })} activeOpacity={0.8}>
+                  <Text style={styles.postAuthorName}>{authorName}</Text>
+                </TouchableOpacity>
+                <Text style={styles.postTime}>  {getTimeAgo(post.created_at)}</Text>
               </View>
               <Text style={styles.postAuthorRole}>{authorRole}</Text>
             </View>
-            <TouchableOpacity
-              style={styles.postOptionsBtn}
-              onPress={() => setShowPostOptions(post.id)}
-            >
-              <MoreHorizontal size={20} color="#666" />
+
+            <TouchableOpacity style={styles.postOptionsBtn} onPress={() => setShowPostOptions(post.id)}>
+              <MoreHorizontal size={20} color="#6B7280" />
             </TouchableOpacity>
           </View>
-  
-          <Text style={styles.postContent}>
-            {post.contenido}
-          </Text>
-          {post.contenido?.length > 150 && (
-            <TouchableOpacity onPress={() => handleComment(post)}>
-              <Text style={styles.seeMore}>...Ver más</Text>
-            </TouchableOpacity>
-          )}
-  
-          {post.image_url && (
-            <Image source={{ uri: post.image_url }} style={styles.postImage} />
-          )}
-  
+
+          {/* Content */}
+          <TouchableOpacity activeOpacity={0.9} onPress={() => handleComment(post)}>
+            <Text style={styles.postContent}>{post.contenido}</Text>
+            {post.contenido?.length > 150 && <Text style={styles.seeMore}>  ...Ver más</Text>}
+          </TouchableOpacity>
+
+          {/* Media */}
+          {(post.image_url) && (() => {
+            const mediaUrl = post.image_url
+            const isVideo = mediaUrl?.toLowerCase().endsWith('.mp4') || mediaUrl?.toLowerCase().endsWith('.mov')
+            return isVideo ? (
+              <InvestiVideoPlayer uri={mediaUrl} style={styles.videoPlayer} />
+            ) : (
+              <TouchableOpacity onPress={() => navigation.navigate('PostDetail', { postId: post.id })} activeOpacity={0.9}>
+                <Image source={{ uri: mediaUrl }} style={styles.postImage} />
+              </TouchableOpacity>
+            )
+          })()}
+
+          {/* Stats (left like bubble + counts on right) */}
           <View style={styles.postStats}>
-            <Text style={styles.postStat}>👍 {post.likes_count}</Text>
-            <Text style={styles.postStat}>{post.comment_count} comentarios</Text>
-            <Text style={styles.postStat}>{post.shares_count || 0} compartidos</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={styles.likeIcon}><Ionicons name="thumbs-up" size={10} color="#FFFFFF" /></View>
+              <Text style={styles.postStat}>{post.likes_count || 0}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={styles.postStat}>{post.comment_count || 0} comentarios</Text>
+              <Text style={styles.postStat}>{post.shares_count || 0} compartidos</Text>
+            </View>
           </View>
-  
+
+          {/* Actions */}
           <View style={styles.postActions}>
-            <TouchableOpacity
-              style={styles.postAction}
-              onPress={() => handleLike(post.id)}
-            >
-              <ThumbsUp
-                size={18}
-                color={likedPosts.has(post.id) ? "#2673f3" : "#666"}
-                fill={likedPosts.has(post.id) ? "#2673f3" : "none"}
-              />
-              <Text style={[
-                styles.postActionText,
-                likedPosts.has(post.id) ? { color: "#2673f3" } : {}
-              ]}>Me gusta</Text>
+            <TouchableOpacity style={styles.postAction} onPress={() => handleLike(post.id)}>
+              <Ionicons name={likedPosts.has(post.id) ? 'thumbs-up' : 'thumbs-up-outline'} size={18} color={likedPosts.has(post.id) ? '#2673f3' : '#4B5563'} />
+              <Text style={[styles.postActionText, likedPosts.has(post.id) && { color: '#2673f3' }]}>Recomendar</Text>
             </TouchableOpacity>
-  
-            <TouchableOpacity
-              style={styles.postAction}
-              onPress={() => handleComment(post)}
-            >
-              <MessageCircle size={18} color="#666" />
+
+            <TouchableOpacity style={styles.postAction} onPress={() => handleComment(post)}>
+              <Ionicons name="chatbubble-outline" size={18} color="#4B5563" />
               <Text style={styles.postActionText}>Comentar</Text>
             </TouchableOpacity>
-  
-            <TouchableOpacity
-              style={styles.postAction}
-              onPress={() => handleSharePost(post)}
-            >
-              <Share2 size={18} color="#666" />
+
+            <TouchableOpacity style={styles.postAction} onPress={() => handleSharePost(post)}>
+              <Ionicons name="arrow-redo-outline" size={18} color="#4B5563" />
               <Text style={styles.postActionText}>Compartir</Text>
             </TouchableOpacity>
-  
-            <TouchableOpacity
-              style={styles.postAction}
-              onPress={() => handleSendMessage(post.user_id)}
-            >
-              <Send size={18} color="#666" />
+
+            <TouchableOpacity style={styles.postAction} onPress={() => handleSendMessage(post.user_id)}>
+              <Ionicons name="paper-plane-outline" size={18} color="#4B5563" />
               <Text style={styles.postActionText}>Enviar</Text>
             </TouchableOpacity>
           </View>
-  
+
           {/* Modal de opciones del post */}
-          <Modal
-            visible={showPostOptions === post.id}
-            transparent
-            animationType="fade"
-            onRequestClose={() => setShowPostOptions(null)}
-          >
-            <Pressable
-              style={styles.modalOverlay}
-              onPress={() => setShowPostOptions(null)}
-            >
+          <Modal visible={showPostOptions === post.id} transparent animationType="fade" onRequestClose={() => setShowPostOptions(null)}>
+            <Pressable style={styles.modalOverlay} onPress={() => setShowPostOptions(null)}>
               <View style={styles.optionsMenu}>
-                <TouchableOpacity
-                  style={styles.optionItem}
-                  onPress={() => handlePostOption(post.id, 'save')}
-                >
+                <TouchableOpacity style={styles.optionItem} onPress={() => handlePostOption(post.id, 'save')}>
                   <Bookmark size={20} color="#111" />
                   <Text style={styles.optionText}>Guardar publicación</Text>
                 </TouchableOpacity>
-  
-                <TouchableOpacity
-                  style={styles.optionItem}
-                  onPress={() => handlePostOption(post.id, 'report')}
-                >
+
+                <TouchableOpacity style={styles.optionItem} onPress={() => handlePostOption(post.id, 'report')}>
                   <Flag size={20} color="#111" />
                   <Text style={styles.optionText}>Reportar</Text>
                 </TouchableOpacity>
-  
-                <TouchableOpacity
-                  style={styles.optionItem}
-                  onPress={() => handlePostOption(post.id, 'hide')}
-                >
+
+                <TouchableOpacity style={styles.optionItem} onPress={() => handlePostOption(post.id, 'hide')}>
                   <UserX size={20} color="#111" />
                   <Text style={styles.optionText}>Ocultar publicación</Text>
                 </TouchableOpacity>
 
-                {/* Eliminar - solo autor o admins/moderadores */}
                 {(currentUser?.id === post.user_id || isAdmin) && (
-                  <TouchableOpacity
-                    style={styles.optionItem}
-                    onPress={() => confirmDeletePost(post.id)}
-                  >
+                  <TouchableOpacity style={styles.optionItem} onPress={() => confirmDeletePost(post.id)}>
                     <UserX size={20} color="#d9534f" />
                     <Text style={[styles.optionText, { color: '#d9534f' }]}>Eliminar publicación</Text>
                   </TouchableOpacity>
@@ -794,10 +766,10 @@ export function CommunityDetailScreen() {
                   {community.members_count || 0}k miembros
                 </Text>
                 {community.type === 'public' && (
-                  <Text style={styles.communityTypeText}>🔓 Comunidad pública</Text>
+                  <Text style={styles.communityTypeText}>Comunidad pública</Text>
                 )}
                 {community.type === 'private' && (
-                  <Text style={styles.communityTypeText}>🔒 Comunidad privada</Text>
+                  <Text style={styles.communityTypeText}>Comunidad privada</Text>
                 )}
                 {community.type === 'restricted' && (
                   <Text style={styles.communityTypeText}>Comunidad Colegio</Text>
@@ -905,18 +877,14 @@ export function CommunityDetailScreen() {
                   onPress={() => handleQuickAction('celebrate')}
                   disabled={!isJoined}
                 >
-                  <Text style={[styles.quickActionText, !isJoined && styles.quickActionTextDisabled]}>
-                    🎉 Celebrar un momento
-                  </Text>
+                  <Text style={[styles.quickActionText, !isJoined && styles.quickActionTextDisabled]}>Celebrar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.quickAction, !isJoined && styles.quickActionDisabled]}
                   onPress={() => handleQuickAction('poll')}
                   disabled={!isJoined}
                 >
-                  <Text style={[styles.quickActionText, !isJoined && styles.quickActionTextDisabled]}>
-                    📊 Crear una encuesta
-                  </Text>
+                  <Text style={[styles.quickActionText, !isJoined && styles.quickActionTextDisabled]}>Crear encuesta</Text>
                 </TouchableOpacity>
               </ScrollView>
 
@@ -1946,6 +1914,18 @@ export function CommunityDetailScreen() {
       backgroundColor: "#f5f5f5",
       alignItems: "center",
       justifyContent: "center",
+    },
+    videoPlayer: {
+      width: '100%',
+      marginBottom: 12,
+    },
+    likeIcon: {
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      backgroundColor: "#3B82F6",
+      justifyContent: "center",
+      alignItems: "center",
     },
   })
   

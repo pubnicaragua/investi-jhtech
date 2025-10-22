@@ -113,16 +113,31 @@ export function GroupChatScreen() {
 
       setCurrentUser(user)
       
+      // Helper: inferir tipo por extensión si backend no devuelve message_type
+      const inferMessageType = (url?: string | null) => {
+        if (!url) return undefined
+        const path = url.split('?')[0].toLowerCase()
+        if (path.match(/\.(jpg|jpeg|png|gif|webp)$/)) return 'image'
+        if (path.match(/\.(mp4|mov|mkv|webm|3gp)$/)) return 'video'
+        return 'file'
+      }
+
       // Mapear mensajes con flag isMe (community messages usan user_id)
-      const mappedMessages = messagesData.map((msg: any) => ({
-        ...msg,
-        sender: {
-          id: msg.user?.id || msg.user_id,
-          name: msg.user?.nombre || msg.user?.full_name || 'Usuario',
-          avatar: msg.user?.avatar_url || msg.user?.photo_url || 'https://i.pravatar.cc/100'
-        },
-        isMe: msg.user?.id === user?.id || msg.user_id === user?.id
-      }))
+      const mappedMessages = messagesData.map((msg: any) => {
+        const mediaUrl = msg.media_url || msg.media || msg.media_path || msg.url || null
+        const messageType = msg.message_type || msg.type || inferMessageType(mediaUrl)
+        return {
+          ...msg,
+          media_url: mediaUrl,
+          message_type: messageType,
+          sender: {
+            id: msg.user?.id || msg.user_id,
+            name: msg.user?.nombre || msg.user?.full_name || 'Usuario',
+            avatar: msg.user?.avatar_url || msg.user?.photo_url || 'https://i.pravatar.cc/100'
+          },
+          isMe: msg.user?.id === user?.id || msg.user_id === user?.id
+        }
+      })
 
       setMessages(mappedMessages)
       
@@ -219,13 +234,17 @@ export function GroupChatScreen() {
               .eq('id', userId)
               .single()
 
+            // Normalize media URL and infer type if necessary
+            const mediaUrl = payload.new.media_url || payload.new.media || payload.new.media_path || payload.new.url || null
+            const messageType = payload.new.message_type || payload.new.type || (mediaUrl ? (mediaUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? 'image' : mediaUrl.match(/\.(mp4|mov|mkv|webm|3gp)$/i) ? 'video' : 'file') : null)
+
             const incoming: Message = {
               id: payload.new.id,
               content: payload.new.content,
               created_at: payload.new.created_at,
               sender_id: userId,
-              media_url: payload.new.media_url,
-              message_type: payload.new.message_type,
+              media_url: mediaUrl,
+              message_type: messageType || undefined,
               sender: {
                 id: senderData?.id || userId,
                 name: senderData?.full_name || senderData?.nombre || 'Usuario',
