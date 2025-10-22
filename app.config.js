@@ -13,7 +13,6 @@ export default {
       url: undefined
     },
     splash: {
-      image: './assets/splash.png',
       resizeMode: 'contain',
       backgroundColor: '#ffffff'
     },

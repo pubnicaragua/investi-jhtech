@@ -37,8 +37,7 @@ interface Message {
 // IMPORTANTE: La API key debe estar en el archivo .env
 // Crear archivo .env en la raíz con: EXPO_PUBLIC_GROK_API_KEY=tu_api_key_aqui
 // TEMPORAL: Hardcodeada para testing (REMOVER EN PRODUCCIÓN)
-const GROK_API_KEY = process.env.EXPO_PUBLIC_GROK_API_KEY || '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';
-const GROK_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROK_API_KEY = process.env.EXPO_PUBLIC_GROK_API_KEY || '';
 
 // DEBUG: Verificar si la API key se cargó
 console.log('🔑 GROK_API_KEY loaded:', GROK_API_KEY ? `${GROK_API_KEY.substring(0, 10)}...` : 'NOT FOUND');
@@ -171,7 +170,7 @@ export default function IRIChatScreen({ navigation }: any) {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Image 
-            source={require('../../assets/splash.png')} 
+            source={require('../../assets/assets_logo.png')} 
             style={styles.iriIcon}
             resizeMode="contain"
           />
@@ -207,7 +206,7 @@ export default function IRIChatScreen({ navigation }: any) {
             >
               {message.role === 'assistant' && (
                 <Image 
-                  source={require('../../assets/splash.png')} 
+                  source={require('../../assets/assets_logo.png')} 
                   style={styles.assistantIconImage}
                   resizeMode="contain"
                 />
@@ -240,7 +239,7 @@ export default function IRIChatScreen({ navigation }: any) {
           {isLoading && (
             <View style={[styles.messageBubble, styles.assistantBubble]}>
               <Image 
-                source={require('../../assets/splash.png')} 
+                source={require('../../assets/assets_logo.png')} 
                 style={styles.assistantIconImage}
                 resizeMode="contain"
               />

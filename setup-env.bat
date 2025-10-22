@@ -26,7 +26,7 @@ echo ============================================
 echo.
 echo 1. Abre el archivo .env en tu editor
 echo 2. Reemplaza "tu-grok-api-key-aqui" con tu API key real:
-echo    GROK_API_KEY=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
+echo    EXPO_PUBLIC_GROK_API_KEY=tu-grok-api-key-aqui
 echo.
 echo 3. Guarda el archivo
 echo 4. Reinicia el servidor: npm start
