@@ -77,7 +77,7 @@ interface CommunityDetail {
   id: string
   name: string
   description: string
-  image_url: string
+  icono_url: string
   cover_image_url?: string
   type: string
   members_count: number
@@ -181,7 +181,16 @@ export function CommunityDetailScreen() {
       ])
 
       if (communityData) {
-        setCommunity(communityData)
+        setCommunity({
+          id: communityData.id,
+          name: communityData.name,
+          description: communityData.description,
+          icono_url: (communityData as any).icono_url || communityData.image_url,
+          cover_image_url: (communityData as any).cover_image_url,
+          type: communityData.type,
+          members_count: communityData.members_count,
+          created_at: communityData.created_at
+        })
 
         // ✅ Normalize posts returned by API into the shape this screen expects
   const normalizedPosts = (communityPosts || []).map((post: any) => {
@@ -770,7 +779,7 @@ export function CommunityDetailScreen() {
           <View style={styles.communitySection}>
             {/* Avatar circular de la comunidad */}
             <Image
-              source={{ uri: community.image_url || getDefaultAvatar(community.name) }}
+              source={{ uri: community.icono_url || getDefaultAvatar(community.name) }}
               style={styles.communityAvatar}
             />
 
@@ -784,7 +793,15 @@ export function CommunityDetailScreen() {
                 <Text style={styles.communityMetaText}>
                   {community.members_count || 0}k miembros
                 </Text>
-                <Text style={styles.communityTypeText}>Comunidad pública</Text>
+                {community.type === 'public' && (
+                  <Text style={styles.communityTypeText}>🔓 Comunidad pública</Text>
+                )}
+                {community.type === 'private' && (
+                  <Text style={styles.communityTypeText}>🔒 Comunidad privada</Text>
+                )}
+                {community.type === 'restricted' && (
+                  <Text style={styles.communityTypeText}>Comunidad Colegio</Text>
+                )}
               </View>
 
               {/* Botones de unirse e invitar */}
