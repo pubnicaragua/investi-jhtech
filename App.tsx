@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { I18nextProvider } from "react-i18next"  
 import { SafeAreaProvider } from 'react-native-safe-area-context'  
 import { NavigationContainer } from '@react-navigation/native';
@@ -6,6 +7,7 @@ import * as Linking from "expo-linking"
 import i18n from "./src/i18n/i18n"
 import { AuthProvider } from "./src/contexts/AuthContext"
 import { LanguageProvider } from "./src/contexts/LanguageContext"
+import { SplashScreen } from "./src/components/SplashScreen"
 // DESHABILITADO: Causa error TurboModuleRegistry al cargar todas las pantallas
 // import { TESTING_CONFIG, TestingScreen } from "./src/utils/screenTesting"  
 
@@ -13,6 +15,12 @@ import { LanguageProvider } from "./src/contexts/LanguageContext"
 const linking = undefined;
 
 export default function App() {  
+  const [showSplash, setShowSplash] = useState(true)
+
+  if (showSplash) {
+    return <SplashScreen onFinish={() => setShowSplash(false)} />
+  }
+
   // 🚀 Modo producción normal (Testing deshabilitado para evitar error TurboModuleRegistry)
   return (  
     <SafeAreaProvider>  

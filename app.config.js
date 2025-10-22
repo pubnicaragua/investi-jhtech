@@ -17,11 +17,12 @@ export default {
       resizeMode: 'contain',
       backgroundColor: '#ffffff'
     },
-    icon: './assets/investi-logo.png',
+    icon: './assets/logo.png',
     assetBundlePatterns: [
       'assets/*.png',
       'assets/*.jpg',
-      'assets/*.jpeg'
+      'assets/*.jpeg',
+      'assets/*.mp4'
     ],
     scheme: 'investi-community',
     plugins: [
@@ -40,8 +41,9 @@ export default {
       package: 'com.investi.app',
       versionCode: 1,
       adaptiveIcon: {
-        foregroundImage: './assets/investi-logo.png',
-        backgroundColor: '#FFFFFF'
+        foregroundImage: './assets/logo.png',
+        backgroundColor: '#FFFFFF',
+        monochromeImage: './assets/logo.png'
       },
       jsEngine: 'hermes'
     },
