@@ -38,8 +38,10 @@ interface Message {
 // Crear archivo .env en la raíz con: EXPO_PUBLIC_GROK_API_KEY=tu_api_key_aqui
 // TEMPORAL: Hardcodeada para testing (REMOVER EN PRODUCCIÓN)
 
+const GROK_API_KEY = process.env.EXPO_PUBLIC_GROK_API_KEY || '';
+const GROK_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
-// DEBUG: Verificar si la API key se cargó.
+// DEBUG: Verificar si la API key se cargó
 console.log('🔑 GROK_API_KEY loaded:', GROK_API_KEY ? `${GROK_API_KEY.substring(0, 10)}...` : 'NOT FOUND');
 
 const SYSTEM_CONTEXT = `Eres IRÏ, el asistente de inteligencia artificial de Investi, una aplicación de educación financiera y comunidad para jóvenes en Nicaragua.
@@ -60,9 +62,15 @@ TU PERSONALIDAD:
 
 CÓMO RESPONDES:
 - Respuestas concisas (máximo 3-4 párrafos)
-- Si la pregunta es sobre finanzas, da consejos prácticos
+- Si la pregunta es sobre finanzas, da consejos educativos generales
 - Si preguntan sobre la app, explica las funcionalidades disponibles
-- Si no sabes algo, sé honesto y sugiere recursos alternativos`;
+- Si no sabes algo, sé honesto y sugiere recursos alternativos
+
+⚠️ IMPORTANTE - DISCLAIMER:
+- NO des consejos específicos de inversión
+- NO recomiendes acciones, criptomonedas o instrumentos financieros específicos
+- Siempre recuerda al usuario que consulte con un asesor financiero profesional para decisiones de inversión
+- Tu rol es EDUCATIVO, no de asesoría financiera personalizada`;
 
 export default function IRIChatScreen({ navigation }: any) {
   useAuthGuard();
@@ -70,7 +78,7 @@ export default function IRIChatScreen({ navigation }: any) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: '¡Hola! Soy IRÏ, tu asistente de inteligencia artificial en Investi. 🌟\n\n¿En qué puedo ayudarte hoy? Puedo responder preguntas sobre finanzas, inversiones, ahorro, o explicarte cómo usar las herramientas de Investi.',
+      content: '¡Hola! Soy IRÏ, tu asistente de inteligencia artificial en Investi. 🌟\n\n¿En qué puedo ayudarte hoy? Puedo responder preguntas sobre educación financiera, ahorro, presupuesto, o explicarte cómo usar las herramientas de Investi.\n\n⚠️ Nota: No proporciono consejos específicos de inversión. Para decisiones de inversión, consulta con un asesor financiero profesional.',
       role: 'assistant',
       timestamp: new Date(),
     },
@@ -170,7 +178,7 @@ export default function IRIChatScreen({ navigation }: any) {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Image 
-            source={require('../../assets/assets_logo.png')} 
+            source={require('../../assets/iri-icono-Sin-fondo.gif')} 
             style={styles.iriIcon}
             resizeMode="contain"
           />
@@ -206,7 +214,7 @@ export default function IRIChatScreen({ navigation }: any) {
             >
               {message.role === 'assistant' && (
                 <Image 
-                  source={require('../../assets/assets_logo.png')} 
+                  source={require('../../assets/iri-icono-Sin-fondo.gif')} 
                   style={styles.assistantIconImage}
                   resizeMode="contain"
                 />
@@ -239,7 +247,7 @@ export default function IRIChatScreen({ navigation }: any) {
           {isLoading && (
             <View style={[styles.messageBubble, styles.assistantBubble]}>
               <Image 
-                source={require('../../assets/assets_logo.png')} 
+                source={require('../../assets/iri-icono-Sin-fondo.gif')} 
                 style={styles.assistantIconImage}
                 resizeMode="contain"
               />

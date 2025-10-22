@@ -174,9 +174,9 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
               <Image source={{ uri: getAvatarUrl(user) }} style={styles.avatar} />
             ) : (
               <Image 
-                source={require('../../assets/assets_logo.png')} 
+                source={require('../../assets/iri-icono-Sin-fondo.gif')} 
                 style={styles.avatar}
-                resizeMode="cover"
+                resizeMode="contain"
               />
             )}
             <View style={styles.profileInfo}>  
@@ -237,7 +237,7 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
   
           <TouchableOpacity style={styles.menuItem} onPress={handleChatPress} activeOpacity={0.7}>  
             <Image 
-              source={require('../../assets/assets_logo.png')} 
+              source={require('../../assets/iri-icono-Sin-fondo.gif')} 
               style={styles.iriMenuIcon}
               resizeMode="contain"
             />

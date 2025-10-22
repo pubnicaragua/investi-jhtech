@@ -16,12 +16,13 @@ export default {
       resizeMode: 'contain',
       backgroundColor: '#ffffff'
     },
-    icon: './assets/investi variantes_Isologo.png',
+    icon: './assets/investi-logo.png',
     assetBundlePatterns: [
       'assets/*.png',
       'assets/*.jpg',
       'assets/*.jpeg',
-      'assets/*.mp4'
+      'assets/*.mp4',
+      'assets/*.gif'
     ],
     scheme: 'investi-community',
     plugins: [
@@ -40,9 +41,8 @@ export default {
       package: 'com.investi.app',
       versionCode: 1,
       adaptiveIcon: {
-        foregroundImage: './assets/investi variantes_Isologo.png',
-        backgroundColor: '#FFFFFF',
-        monochromeImage: './assets/investi variantes_Isologo.png'
+        foregroundImage: './assets/investi-logo.png',
+        backgroundColor: '#FFFFFF'
       },
       jsEngine: 'hermes'
     },
