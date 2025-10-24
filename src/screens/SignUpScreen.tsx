@@ -17,8 +17,7 @@ import {
 } from "react-native"
 import { useTranslation } from "react-i18next"
 import * as Linking from 'expo-linking'
-import { LinearGradient } from 'expo-linear-gradient'
-import { Eye, EyeOff, User, Lock, Mail, UserCircle, ArrowRight } from "lucide-react-native"
+import { Eye, EyeOff, User, Lock, Mail, UserCircle } from "lucide-react-native"
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase } from "../supabase"
 import { useAuth } from "../contexts/AuthContext"
@@ -154,18 +153,11 @@ export function SignUpScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
       >
-        {/* Decorative Gradient Header */}
-        <LinearGradient
-          colors={['#EC4899', '#8B5CF6', '#3B82F6']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.gradientHeader}
-        />
 
         <ScrollView
           style={styles.scrollView}
@@ -175,8 +167,8 @@ export function SignUpScreen({ navigation }: any) {
         >
           {/* Welcome Text */}
           <View style={styles.welcomeContainer}>
-            <Text style={styles.welcomeTitle}>Create Account</Text>
-            <Text style={styles.welcomeSubtitle}>Join Investi today</Text>
+            <Text style={styles.welcomeTitle}>Crear Cuenta</Text>
+            <Text style={styles.welcomeSubtitle}>Únete a Investi hoy</Text>
           </View>
 
           {/* Form Container */}
@@ -187,7 +179,7 @@ export function SignUpScreen({ navigation }: any) {
                 <UserCircle size={20} color="#9CA3AF" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Full Name"
+                  placeholder="Nombre completo"
                   placeholderTextColor="#9CA3AF"
                   value={fullName}
                   onChangeText={setFullName}
@@ -203,7 +195,7 @@ export function SignUpScreen({ navigation }: any) {
                 <User size={20} color="#9CA3AF" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Username"
+                  placeholder="Nombre de usuario"
                   placeholderTextColor="#9CA3AF"
                   value={username}
                   onChangeText={setUsername}
@@ -220,7 +212,7 @@ export function SignUpScreen({ navigation }: any) {
                 <Mail size={20} color="#9CA3AF" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Email"
+                  placeholder="Correo electrónico"
                   placeholderTextColor="#9CA3AF"
                   value={email}
                   onChangeText={setEmail}
@@ -238,7 +230,7 @@ export function SignUpScreen({ navigation }: any) {
                 <Lock size={20} color="#9CA3AF" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Password"
+                  placeholder="Contraseña"
                   placeholderTextColor="#9CA3AF"
                   value={password}
                   onChangeText={setPassword}
@@ -271,19 +263,14 @@ export function SignUpScreen({ navigation }: any) {
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <>
-                  <Text style={styles.signUpButtonText}>Create Account</Text>
-                  <View style={styles.signUpIconContainer}>
-                    <ArrowRight size={20} color="#FFFFFF" />
-                  </View>
-                </>
+                <Text style={styles.signUpButtonText}>Crear cuenta</Text>
               )}
             </TouchableOpacity>
           </View>
 
           {/* Social Login Section */}
           <View style={styles.socialLoginSection}>
-            <Text style={styles.socialLoginText}>Already have an account? <Text style={styles.signInLink} onPress={() => navigation.navigate('SignIn')}>Sign In</Text></Text>
+            <Text style={styles.socialLoginText}>¿Ya tienes cuenta? <Text style={styles.signInLink} onPress={() => navigation.navigate('SignIn')}>Inicia sesión</Text></Text>
             
             {/* Social Icons Row */}
             <View style={styles.socialIconsRow}>
@@ -299,18 +286,6 @@ export function SignUpScreen({ navigation }: any) {
                 </View>
               </TouchableOpacity>
 
-              {/* Twitter/X */}
-              <TouchableOpacity
-                style={styles.socialIconButton}
-                onPress={() => Alert.alert('Info', 'Twitter OAuth próximamente')}
-                disabled={loading}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.socialIcon, styles.twitterIconBg]}>
-                  <Text style={styles.twitterIcon}>𝕏</Text>
-                </View>
-              </TouchableOpacity>
-
               {/* Google */}
               <TouchableOpacity
                 style={styles.socialIconButton}
@@ -322,13 +297,25 @@ export function SignUpScreen({ navigation }: any) {
                   <Text style={styles.googleIcon}>G</Text>
                 </View>
               </TouchableOpacity>
+
+              {/* LinkedIn */}
+              <TouchableOpacity
+                style={styles.socialIconButton}
+                onPress={() => handleOAuth("linkedin_oidc")}
+                disabled={loading}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.socialIcon, styles.linkedinIconBg]}>
+                  <Text style={styles.linkedinIcon}>in</Text>
+                </View>
+              </TouchableOpacity>
             </View>
           </View>
 
           {/* Terms */}
           <View style={styles.termsContainer}>
             <Text style={styles.termsText}>
-              By signing up, you agree to our Terms and Privacy Policy.
+              Al registrarte en Investi, aceptas nuestros Términos y Políticas de Privacidad.
             </Text>
           </View>
         </ScrollView>
@@ -340,32 +327,27 @@ export function SignUpScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: "#FFFFFF",
   },
   keyboardView: {
     flex: 1,
-  },
-  gradientHeader: {
-    height: 120,
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 32,
-    paddingTop: 20,
+    paddingHorizontal: 24,
+    paddingTop: 60,
     paddingBottom: 40,
   },
   welcomeContainer: {
-    marginBottom: 40,
+    marginBottom: 48,
     alignItems: 'center',
   },
   welcomeTitle: {
-    fontSize: 48,
+    fontSize: 36,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#111827',
     marginBottom: 8,
   },
   welcomeSubtitle: {
@@ -407,18 +389,16 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   signUpButton: {
-    flexDirection: 'row',
-    backgroundColor: '#1F2937',
+    backgroundColor: '#2563EB',
     paddingVertical: 18,
-    paddingHorizontal: 24,
     borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     marginTop: 8,
-    shadowColor: '#000',
+    shadowColor: '#2563EB',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
     elevation: 4,
   },
   signUpButtonDisabled: {
@@ -426,14 +406,9 @@ const styles = StyleSheet.create({
   },
   signUpButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
-    flex: 1,
-  },
-  signUpIconContainer: {
-    backgroundColor: '#8B5CF6',
-    borderRadius: 8,
-    padding: 8,
+    letterSpacing: 0.5,
   },
   socialLoginSection: {
     marginTop: 32,
@@ -445,7 +420,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   signInLink: {
-    color: '#8B5CF6',
+    color: '#2563EB',
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
@@ -472,16 +447,16 @@ const styles = StyleSheet.create({
   facebookIconBg: {
     backgroundColor: '#1877F2',
   },
-  twitterIconBg: {
-    backgroundColor: '#1DA1F2',
+  linkedinIconBg: {
+    backgroundColor: '#0A66C2',
   },
   facebookIcon: {
     fontSize: 24,
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  twitterIcon: {
-    fontSize: 20,
+  linkedinIcon: {
+    fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
   },

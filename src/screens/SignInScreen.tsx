@@ -15,10 +15,9 @@ import {
   Platform,
   StatusBar,
 } from "react-native"
-import { LinearGradient } from 'expo-linear-gradient'
 import { useTranslation } from "react-i18next"
 import * as Linking from 'expo-linking'
-import { Eye, EyeOff, User, Lock, ArrowRight } from "lucide-react-native"
+import { Eye, EyeOff, User, Lock } from "lucide-react-native"
 import { useAuth } from "../contexts/AuthContext"
 import { supabase } from "../supabase"
 
@@ -119,18 +118,11 @@ export function SignInScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
       >
-        {/* Decorative Gradient Header */}
-        <LinearGradient
-          colors={['#EC4899', '#8B5CF6', '#3B82F6']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.gradientHeader}
-        />
 
         <ScrollView
           style={styles.scrollView}
@@ -140,8 +132,8 @@ export function SignInScreen({ navigation }: any) {
         >
           {/* Welcome Text */}
           <View style={styles.welcomeContainer}>
-            <Text style={styles.welcomeTitle}>Hello</Text>
-            <Text style={styles.welcomeSubtitle}>Sign in to your account</Text>
+            <Text style={styles.welcomeTitle}>Bienvenido</Text>
+            <Text style={styles.welcomeSubtitle}>Inicia sesión en tu cuenta</Text>
           </View>
 
           {/* Form Container */}
@@ -152,7 +144,7 @@ export function SignInScreen({ navigation }: any) {
                 <User size={20} color="#9CA3AF" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Username"
+                  placeholder="Correo electrónico"
                   placeholderTextColor="#9CA3AF"
                   value={email}
                   onChangeText={setEmail}
@@ -170,7 +162,7 @@ export function SignInScreen({ navigation }: any) {
                 <Lock size={20} color="#9CA3AF" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Password"
+                  placeholder="Contraseña"
                   placeholderTextColor="#9CA3AF"
                   value={password}
                   onChangeText={setPassword}
@@ -195,7 +187,7 @@ export function SignInScreen({ navigation }: any) {
               onPress={handleForgotPassword}
               activeOpacity={0.7}
             >
-              <Text style={styles.forgotPasswordText}>Forgot your password?</Text>
+              <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
             </TouchableOpacity>
 
             {/* Sign In Button */}
@@ -208,19 +200,14 @@ export function SignInScreen({ navigation }: any) {
               {loading || isLoading ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <>
-                  <Text style={styles.signInButtonText}>Sign In</Text>
-                  <View style={styles.signInIconContainer}>
-                    <ArrowRight size={20} color="#FFFFFF" />
-                  </View>
-                </>
+                <Text style={styles.signInButtonText}>Iniciar sesión</Text>
               )}
             </TouchableOpacity>
           </View>
 
           {/* Social Login Section */}
           <View style={styles.socialLoginSection}>
-            <Text style={styles.socialLoginText}>Don't have an account? <Text style={styles.createLink} onPress={() => navigation.navigate('SignUp')}>Create</Text></Text>
+            <Text style={styles.socialLoginText}>¿No tienes cuenta? <Text style={styles.createLink} onPress={() => navigation.navigate('SignUp')}>Regístrate</Text></Text>
 
             {/* Social Icons Row */}
             <View style={styles.socialIconsRow}>
@@ -236,18 +223,6 @@ export function SignInScreen({ navigation }: any) {
                 </View>
               </TouchableOpacity>
 
-              {/* Twitter/X */}
-              <TouchableOpacity
-                style={styles.socialIconButton}
-                onPress={() => Alert.alert('Info', 'Twitter OAuth próximamente')}
-                disabled={loading || isLoading}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.socialIcon, styles.twitterIconBg]}>
-                  <Text style={styles.twitterIcon}>𝕏</Text>
-                </View>
-              </TouchableOpacity>
-
               {/* Google */}
               <TouchableOpacity
                 style={styles.socialIconButton}
@@ -257,6 +232,18 @@ export function SignInScreen({ navigation }: any) {
               >
                 <View style={styles.socialIcon}>
                   <Text style={styles.googleIcon}>G</Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* LinkedIn */}
+              <TouchableOpacity
+                style={styles.socialIconButton}
+                onPress={() => handleOAuth("linkedin_oidc")}
+                disabled={loading || isLoading}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.socialIcon, styles.linkedinIconBg]}>
+                  <Text style={styles.linkedinIcon}>in</Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -270,32 +257,27 @@ export function SignInScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: "#FFFFFF",
   },
   keyboardView: {
     flex: 1,
-  },
-  gradientHeader: {
-    height: 120,
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 32,
-    paddingTop: 20,
+    paddingHorizontal: 24,
+    paddingTop: 60,
     paddingBottom: 40,
   },
   welcomeContainer: {
-    marginBottom: 40,
+    marginBottom: 48,
     alignItems: 'center',
   },
   welcomeTitle: {
-    fontSize: 48,
+    fontSize: 36,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#111827',
     marginBottom: 8,
   },
   welcomeSubtitle: {
@@ -346,17 +328,15 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
   signInButton: {
-    flexDirection: 'row',
-    backgroundColor: '#1F2937',
+    backgroundColor: '#2563EB',
     paddingVertical: 18,
-    paddingHorizontal: 24,
     borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    shadowColor: '#000',
+    justifyContent: 'center',
+    shadowColor: '#2563EB',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
     elevation: 4,
   },
   signInButtonDisabled: {
@@ -364,14 +344,9 @@ const styles = StyleSheet.create({
   },
   signInButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
-    flex: 1,
-  },
-  signInIconContainer: {
-    backgroundColor: '#8B5CF6',
-    borderRadius: 8,
-    padding: 8,
+    letterSpacing: 0.5,
   },
   socialLoginSection: {
     marginTop: 32,
@@ -383,7 +358,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   createLink: {
-    color: '#8B5CF6',
+    color: '#2563EB',
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
@@ -410,16 +385,16 @@ const styles = StyleSheet.create({
   facebookIconBg: {
     backgroundColor: '#1877F2',
   },
-  twitterIconBg: {
-    backgroundColor: '#1DA1F2',
+  linkedinIconBg: {
+    backgroundColor: '#0A66C2',
   },
   facebookIcon: {
     fontSize: 24,
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  twitterIcon: {
-    fontSize: 20,
+  linkedinIcon: {
+    fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
   },
