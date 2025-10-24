@@ -17,7 +17,8 @@ import {
 } from "react-native"
 import { useTranslation } from "react-i18next"
 import * as Linking from 'expo-linking'
-import { Eye, EyeOff } from "lucide-react-native"
+import { LinearGradient } from 'expo-linear-gradient'
+import { Eye, EyeOff, User, Lock, Mail, UserCircle, ArrowRight } from "lucide-react-native"
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase } from "../supabase"
 import { useAuth } from "../contexts/AuthContext"
@@ -153,23 +154,18 @@ export function SignUpScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.backButtonText}>‹</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Regístrate</Text>
-          <View style={styles.headerRight} />
-        </View>
+        {/* Decorative Gradient Header */}
+        <LinearGradient
+          colors={['#EC4899', '#8B5CF6', '#3B82F6']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.gradientHeader}
+        />
 
         <ScrollView
           style={styles.scrollView}
@@ -177,29 +173,72 @@ export function SignUpScreen({ navigation }: any) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Welcome Text */}
+          <View style={styles.welcomeContainer}>
+            <Text style={styles.welcomeTitle}>Create Account</Text>
+            <Text style={styles.welcomeSubtitle}>Join Investi today</Text>
+          </View>
+
           {/* Form Container */}
           <View style={styles.formContainer}>
+            {/* Full Name Input */}
+            <View style={styles.inputWrapper}>
+              <View style={styles.inputIconContainer}>
+                <UserCircle size={20} color="#9CA3AF" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Full Name"
+                  placeholderTextColor="#9CA3AF"
+                  value={fullName}
+                  onChangeText={setFullName}
+                  autoCapitalize="words"
+                  editable={!loading}
+                />
+              </View>
+            </View>
+
+            {/* Username Input */}
+            <View style={styles.inputWrapper}>
+              <View style={styles.inputIconContainer}>
+                <User size={20} color="#9CA3AF" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Username"
+                  placeholderTextColor="#9CA3AF"
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!loading}
+                />
+              </View>
+            </View>
+
             {/* Email Input */}
             <View style={styles.inputWrapper}>
-              <TextInput
-                style={styles.input}
-                placeholder="Correo"
-                placeholderTextColor="#9CA3AF"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!loading}
-              />
+              <View style={styles.inputIconContainer}>
+                <Mail size={20} color="#9CA3AF" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Email"
+                  placeholderTextColor="#9CA3AF"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!loading}
+                />
+              </View>
             </View>
 
             {/* Password Input */}
             <View style={styles.inputWrapper}>
-              <View style={styles.passwordContainer}>
+              <View style={styles.inputIconContainer}>
+                <Lock size={20} color="#9CA3AF" style={styles.inputIcon} />
                 <TextInput
-                  style={styles.passwordInput}
-                  placeholder="Contraseña"
+                  style={styles.input}
+                  placeholder="Password"
                   placeholderTextColor="#9CA3AF"
                   value={password}
                   onChangeText={setPassword}
@@ -222,33 +261,6 @@ export function SignUpScreen({ navigation }: any) {
               </View>
             </View>
 
-            {/* Full Name Input */}
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={styles.input}
-                placeholder="Nombre"
-                placeholderTextColor="#9CA3AF"
-                value={fullName}
-                onChangeText={setFullName}
-                autoCapitalize="words"
-                editable={!loading}
-              />
-            </View>
-
-            {/* Username Input */}
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={styles.input}
-                placeholder="Nombre de usuario"
-                placeholderTextColor="#9CA3AF"
-                value={username}
-                onChangeText={setUsername}
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!loading}
-              />
-            </View>
-
             {/* Sign Up Button */}
             <TouchableOpacity
               style={[styles.signUpButton, loading && styles.signUpButtonDisabled]}
@@ -259,77 +271,64 @@ export function SignUpScreen({ navigation }: any) {
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={styles.signUpButtonText}>Crear cuenta</Text>
+                <>
+                  <Text style={styles.signUpButtonText}>Create Account</Text>
+                  <View style={styles.signUpIconContainer}>
+                    <ArrowRight size={20} color="#FFFFFF" />
+                  </View>
+                </>
               )}
             </TouchableOpacity>
           </View>
 
-          {/* Divider */}
-          <View style={styles.dividerContainer}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>o</Text>
-            <View style={styles.dividerLine} />
-          </View>
+          {/* Social Login Section */}
+          <View style={styles.socialLoginSection}>
+            <Text style={styles.socialLoginText}>Already have an account? <Text style={styles.signInLink} onPress={() => navigation.navigate('SignIn')}>Sign In</Text></Text>
+            
+            {/* Social Icons Row */}
+            <View style={styles.socialIconsRow}>
+              {/* Facebook */}
+              <TouchableOpacity
+                style={styles.socialIconButton}
+                onPress={() => handleOAuth("facebook")}
+                disabled={loading}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.socialIcon, styles.facebookIconBg]}>
+                  <Text style={styles.facebookIcon}>f</Text>
+                </View>
+              </TouchableOpacity>
 
-          {/* Social Buttons */}
-          <View style={styles.socialButtons}>
-            {/* LinkedIn */}
-            <TouchableOpacity
-              style={styles.socialButton}
-              onPress={() => handleOAuth("linkedin_oidc")}
-              disabled={loading}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.socialIconContainer, styles.linkedinIconBg]}>
-                <Text style={styles.linkedinIcon}>in</Text>
-              </View>
-              <Text style={styles.socialButtonText}>Regístrate con LinkedIn</Text>
-            </TouchableOpacity>
+              {/* Twitter/X */}
+              <TouchableOpacity
+                style={styles.socialIconButton}
+                onPress={() => Alert.alert('Info', 'Twitter OAuth próximamente')}
+                disabled={loading}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.socialIcon, styles.twitterIconBg]}>
+                  <Text style={styles.twitterIcon}>𝕏</Text>
+                </View>
+              </TouchableOpacity>
 
-            {/* Google */}
-            <TouchableOpacity
-              style={styles.socialButton}
-              onPress={() => handleOAuth("google")}
-              disabled={loading}
-              activeOpacity={0.7}
-            >
-              <View style={styles.socialIconContainer}>
-                <Text style={styles.googleIcon}>G</Text>
-              </View>
-              <Text style={styles.socialButtonText}>Regístrate con Google</Text>
-            </TouchableOpacity>
-
-            {/* Apple */}
-            <TouchableOpacity
-              style={styles.socialButton}
-              onPress={() => handleOAuth("apple")}
-              disabled={loading}
-              activeOpacity={0.7}
-            >
-              <View style={styles.socialIconContainer}>
-                <Text style={styles.appleIcon}></Text>
-              </View>
-              <Text style={styles.socialButtonText}>Regístrate con Apple</Text>
-            </TouchableOpacity>
-
-            {/* Facebook */}
-            <TouchableOpacity
-              style={styles.socialButton}
-              onPress={() => handleOAuth("facebook")}
-              disabled={loading}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.socialIconContainer, styles.facebookIconBg]}>
-                <Text style={styles.facebookIcon}>f</Text>
-              </View>
-              <Text style={styles.socialButtonText}>Regístrate con Facebook</Text>
-            </TouchableOpacity>
+              {/* Google */}
+              <TouchableOpacity
+                style={styles.socialIconButton}
+                onPress={() => handleOAuth("google")}
+                disabled={loading}
+                activeOpacity={0.7}
+              >
+                <View style={styles.socialIcon}>
+                  <Text style={styles.googleIcon}>G</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Terms */}
           <View style={styles.termsContainer}>
             <Text style={styles.termsText}>
-              Al registrarte en Investi, tu aceptas nuestros Términos y{"\n"}Políticas de Privacidad.
+              By signing up, you agree to our Terms and Privacy Policy.
             </Text>
           </View>
         </ScrollView>
@@ -341,175 +340,164 @@ export function SignUpScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F5F5F5",
   },
   keyboardView: {
     flex: 1,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 0,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    justifyContent: "center",
-    alignItems: "flex-start",
-  },
-  backButtonText: {
-    fontSize: 34,
-    fontWeight: "300",
-    color: "#111827",
-    marginTop: -6,
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#111827",
-    letterSpacing: -0.4,
-  },
-  headerRight: {
-    width: 44,
+  gradientHeader: {
+    height: 120,
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 24,
+    paddingHorizontal: 32,
+    paddingTop: 20,
+    paddingBottom: 40,
+  },
+  welcomeContainer: {
+    marginBottom: 40,
+    alignItems: 'center',
+  },
+  welcomeTitle: {
+    fontSize: 48,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  welcomeSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '400',
   },
   formContainer: {
-    marginBottom: 32,
+    marginBottom: 24,
   },
   inputWrapper: {
-    marginBottom: 12,
+    marginBottom: 16,
+  },
+  inputIconContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  inputIcon: {
+    marginRight: 12,
   },
   input: {
-    backgroundColor: "#F3F4F6",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderRadius: 10,
-    fontSize: 16,
-    color: "#111827",
-    fontWeight: "400",
-  },
-  passwordContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F3F4F6",
-    borderRadius: 10,
-    paddingHorizontal: 16,
-  },
-  passwordInput: {
     flex: 1,
     paddingVertical: 16,
     fontSize: 16,
-    color: "#111827",
-    fontWeight: "400",
+    color: '#1F2937',
+    fontWeight: '400',
   },
   eyeButton: {
     padding: 8,
     marginLeft: 8,
   },
   signUpButton: {
-    backgroundColor: "#2563EB",
-    paddingVertical: 16,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 20,
+    flexDirection: 'row',
+    backgroundColor: '#1F2937',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
   },
   signUpButtonDisabled: {
     opacity: 0.6,
   },
   signUpButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-    letterSpacing: -0.3,
-  },
-  dividerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 32,
-  },
-  dividerLine: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
     flex: 1,
-    height: 1,
-    backgroundColor: "#E5E7EB",
   },
-  dividerText: {
-    marginHorizontal: 16,
+  signUpIconContainer: {
+    backgroundColor: '#8B5CF6',
+    borderRadius: 8,
+    padding: 8,
+  },
+  socialLoginSection: {
+    marginTop: 32,
+    alignItems: 'center',
+  },
+  socialLoginText: {
     fontSize: 14,
-    color: "#6B7280",
-    fontWeight: "500",
+    color: '#6B7280',
+    marginBottom: 24,
   },
-  socialButtons: {
-    gap: 12,
-    marginBottom: 32,
+  signInLink: {
+    color: '#8B5CF6',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
-  socialButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+  socialIconsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
   },
-  socialIconContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
+  socialIconButton: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  linkedinIconBg: {
-    backgroundColor: "#0A66C2",
+  socialIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   facebookIconBg: {
-    backgroundColor: "#1877F2",
+    backgroundColor: '#1877F2',
   },
-  linkedinIcon: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  googleIcon: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#4285F4",
-  },
-  appleIcon: {
-    fontSize: 22,
-    color: "#000000",
+  twitterIconBg: {
+    backgroundColor: '#1DA1F2',
   },
   facebookIcon: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#FFFFFF",
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
-  socialButtonText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#1F2937",
-    letterSpacing: -0.2,
+  twitterIcon: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  googleIcon: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#4285F4',
   },
   termsContainer: {
+    marginTop: 24,
     paddingBottom: 24,
   },
   termsText: {
     fontSize: 12,
-    color: "#6B7280",
-    textAlign: "center",
+    color: '#6B7280',
+    textAlign: 'center',
     lineHeight: 18,
     paddingHorizontal: 20,
   },

@@ -25,6 +25,26 @@ export default {
       'assets/*.gif'
     ],
     scheme: 'investi-community',
+    // Deep linking configuration for OAuth callbacks
+    intentFilters: [
+      {
+        action: 'VIEW',
+        autoVerify: true,
+        data: [
+          {
+            scheme: 'https',
+            host: '*.investi.app',
+            pathPrefix: '/auth/callback'
+          },
+          {
+            scheme: 'investi-community',
+            host: 'auth',
+            pathPrefix: '/callback'
+          }
+        ],
+        category: ['BROWSABLE', 'DEFAULT']
+      }
+    ],
     plugins: [
       'expo-localization',
       'expo-secure-store',
@@ -35,7 +55,12 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.investi.app',
-      jsEngine: 'hermes'
+      jsEngine: 'hermes',
+      // Associated Domains for Universal Links (OAuth callbacks)
+      associatedDomains: [
+        'applinks:investi.app',
+        'applinks:*.investi.app'
+      ]
     },
     android: {
       package: 'com.investi.app',
