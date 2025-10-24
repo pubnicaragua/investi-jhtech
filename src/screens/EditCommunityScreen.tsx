@@ -271,10 +271,8 @@ export default function EditCommunityScreen() {
         body: {
           name: name.trim(),
           nombre: name.trim(),
-          description: description.trim(),
           descripcion: description.trim(),
           category: category,
-          location: location.trim() || null,
           updated_at: new Date().toISOString(),
         },
       })
