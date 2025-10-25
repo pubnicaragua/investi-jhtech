@@ -14,12 +14,24 @@ const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
 // Redirect URIs
 const REDIRECT_URI = `${SUPABASE_URL}/functions/v1/linkedin-auth/callback`
-const APP_REDIRECT_URI = 'investi-community://auth/callback'
+const APP_REDIRECT_URI = 'https://paoliakwfoczcallnecf.supabase.co/auth/callback'
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
+  }
+
+  // Log request details for debugging
+  console.log('[LinkedIn Auth] Request method:', req.method)
+  console.log('[LinkedIn Auth] Request URL:', req.url)
+  console.log('[LinkedIn Auth] Request headers:', Object.fromEntries(req.headers.entries()))
+
+  // Check for authorization header
+  const authHeader = req.headers.get('authorization')
+  console.log('[LinkedIn Auth] Auth header present:', !!authHeader)
+  if (authHeader) {
+    console.log('[LinkedIn Auth] Auth header starts with:', authHeader.substring(0, 20) + '...')
   }
 
   try {

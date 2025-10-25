@@ -32,7 +32,8 @@ export default function AuthCallbackScreen() {
         const isLinkedInCallback = initialUrl && (
           initialUrl.includes('linkedin-auth') ||
           initialUrl.includes('access_token') ||
-          initialUrl.includes('provider=linkedin')
+          initialUrl.includes('provider=linkedin') ||
+          initialUrl.includes('/auth/callback')
         )
 
         if (isLinkedInCallback) {

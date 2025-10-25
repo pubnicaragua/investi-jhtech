@@ -20,7 +20,7 @@ import * as Linking from 'expo-linking'
 import { Eye, EyeOff, User, Lock, Mail, UserCircle } from "lucide-react-native"
 import { FacebookIcon, GoogleIcon, LinkedInIcon } from '../components/SocialIcons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { supabase } from "../supabase"
+import { supabase, supabaseAnonKey } from "../supabase"
 import { useAuth } from "../contexts/AuthContext"
 
 export function SignUpScreen({ navigation }: any) {
@@ -39,11 +39,39 @@ export function SignUpScreen({ navigation }: any) {
 
       if (provider === "linkedin_oidc") {
         // Use custom LinkedIn OAuth flow via Edge Function
-        const linkedInAuthUrl = `${supabase.supabaseUrl}/functions/v1/linkedin-auth`
-        if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          window.location.href = linkedInAuthUrl
-        } else {
-          await Linking.openURL(linkedInAuthUrl)
+        try {
+          const linkedInAuthUrl = `${supabase.supabaseUrl}/functions/v1/linkedin-auth`
+          console.log('[SignUpScreen] LinkedIn auth URL:', linkedInAuthUrl)
+
+          // For Edge Functions, we need to make a request with proper authorization
+          const response = await fetch(linkedInAuthUrl, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${supabaseAnonKey}`,
+              'Content-Type': 'application/json',
+            },
+          })
+
+          if (!response.ok) {
+            const errorData = await response.text()
+            console.error('LinkedIn auth error:', errorData)
+            throw new Error(`HTTP ${response.status}: ${errorData}`)
+          }
+
+          // The function should redirect to LinkedIn OAuth URL
+          const redirectUrl = response.headers.get('location')
+          if (redirectUrl) {
+            if (Platform.OS === 'web' && typeof window !== 'undefined') {
+              window.location.href = redirectUrl
+            } else {
+              await Linking.openURL(redirectUrl)
+            }
+          } else {
+            throw new Error('No redirect URL received from LinkedIn auth function')
+          }
+        } catch (error: any) {
+          console.error('LinkedIn OAuth initiation error:', error)
+          Alert.alert("Error", error?.message || "No se pudo iniciar LinkedIn OAuth")
         }
         return
       }
