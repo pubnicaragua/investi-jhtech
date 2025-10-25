@@ -28,6 +28,58 @@ export default function AuthCallbackScreen() {
           console.warn('[AuthCallback] Error getting initial URL:', err)
         }
 
+        // Check if this is a LinkedIn OAuth callback
+        const isLinkedInCallback = initialUrl && (
+          initialUrl.includes('linkedin-auth') ||
+          initialUrl.includes('access_token') ||
+          initialUrl.includes('provider=linkedin')
+        )
+
+        if (isLinkedInCallback) {
+          console.log('[AuthCallback] Detected LinkedIn OAuth callback')
+
+          // For LinkedIn, the Edge Function handles the OAuth flow and redirects back
+          // with tokens in the URL. We need to extract and use them.
+          const urlParams = new URLSearchParams(initialUrl!.split('?')[1] || '')
+          const accessToken = urlParams.get('access_token')
+          const refreshToken = urlParams.get('refresh_token')
+          const provider = urlParams.get('provider')
+          const error = urlParams.get('error')
+
+          if (error) {
+            console.error('[AuthCallback] LinkedIn OAuth error:', error)
+            Alert.alert('Error', `Error en autenticación LinkedIn: ${error}`)
+            navigation.navigate('SignIn')
+            return
+          }
+
+          if (accessToken && provider === 'linkedin') {
+            console.log('[AuthCallback] LinkedIn tokens received, setting session...')
+
+            // Set the session with the tokens from LinkedIn Edge Function
+            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || accessToken, // Use access token as fallback
+            })
+
+            if (sessionError) {
+              console.error('[AuthCallback] Error setting LinkedIn session:', sessionError)
+              Alert.alert('Error', 'No se pudo establecer la sesión de LinkedIn')
+              navigation.navigate('SignIn')
+              return
+            }
+
+            console.log('[AuthCallback] LinkedIn session set successfully')
+
+            // Navigate to UploadAvatar to continue onboarding
+            if (mounted) {
+              navigation.reset({ index: 0, routes: [{ name: 'UploadAvatar' }] })
+            }
+            return
+          }
+        }
+
+        // Handle standard OAuth providers (Google, Facebook)
         // First, try to let supabase parse session from the URL if available
         if (initialUrl) {
           console.log('[AuthCallback] initialUrl:', initialUrl)

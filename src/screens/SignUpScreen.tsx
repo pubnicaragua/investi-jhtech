@@ -36,6 +36,18 @@ export function SignUpScreen({ navigation }: any) {
   const handleOAuth = async (provider: "google" | "apple" | "facebook" | "linkedin_oidc") => {
     try {
       setLoading(true)
+
+      if (provider === "linkedin_oidc") {
+        // Use custom LinkedIn OAuth flow via Edge Function
+        const linkedInAuthUrl = `${supabase.supabaseUrl}/functions/v1/linkedin-auth`
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          window.location.href = linkedInAuthUrl
+        } else {
+          await Linking.openURL(linkedInAuthUrl)
+        }
+        return
+      }
+
       const redirectTo = (typeof window !== 'undefined' && window.location && window.location.origin)
         ? `${window.location.origin}/auth/callback`
         : Linking.createURL('auth/callback')
