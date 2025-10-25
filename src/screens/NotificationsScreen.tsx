@@ -48,15 +48,45 @@ export function NotificationsScreen({ navigation }: any) {
   }
 
   const transformNotifications = (apiNotifications: any[]): NotificationItem[] => {
-    return apiNotifications.map(notification => ({
-      id: notification.id,
-      type: notification.type,
-      title: notification.title || getNotificationTitle(notification.type),
-      message: notification.message || '',
-      time: getTimeAgo(notification.created_at),
-      read: notification.is_read || false,
-      icon: getNotificationIcon(notification.type)
-    }))
+    return apiNotifications.map(notification => {
+      // Obtener nombre del actor (quien hizo la acción)
+      const actorName = notification.actor?.nombre || notification.actor?.full_name || 'Alguien'
+      
+      // Construir mensaje personalizado según el tipo
+      let message = notification.message || notification.body || ''
+      
+      if (!message) {
+        switch (notification.type) {
+          case 'follow':
+            message = `${actorName} comenzó a seguirte`
+            break
+          case 'like':
+            message = `A ${actorName} le gustó tu publicación`
+            break
+          case 'comment':
+            message = `${actorName} comentó en tu publicación`
+            break
+          case 'connection_request':
+            message = `${actorName} quiere conectar contigo`
+            break
+          case 'connection_accepted':
+            message = `${actorName} aceptó tu solicitud de conexión`
+            break
+          default:
+            message = notification.title || 'Nueva notificación'
+        }
+      }
+      
+      return {
+        id: notification.id,
+        type: notification.type,
+        title: notification.title || getNotificationTitle(notification.type),
+        message: message,
+        time: getTimeAgo(notification.created_at),
+        read: notification.is_read || false,
+        icon: getNotificationIcon(notification.type)
+      }
+    })
   }
 
   const getNotificationTitle = (type: string): string => {

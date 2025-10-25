@@ -17,6 +17,7 @@ import {
 } from "react-native"
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from "react-i18next"
+import { supabase } from "../supabase"
 import {
   Search,
   MessageSquare,
@@ -178,27 +179,48 @@ export function HomeFeedScreen({ navigation }: any) {
   }
 
   const loadMorePosts = async () => {
-    if (loadingMore || !userId) return
+    if (loadingMore || !userId || !hasMore) return
     
     setLoadingMore(true)
+    console.log('📄 [HomeFeed] Cargando más posts, página:', page + 1)
+    
     try {
-      // Obtener los posts originales (sin duplicados)
-      const originalPosts = posts.filter(p => !p.id.includes('-'))
+      const nextPage = page + 1
+      const { data: newPosts, error } = await supabase
+        .from('posts')
+        .select(`
+          *,
+          user:users!posts_user_id_fkey(id, nombre, full_name, avatar_url, photo_url, role),
+          likes:post_likes(count),
+          comments:post_comments(count)
+        `)
+        .order('created_at', { ascending: false })
+        .range(nextPage * 20, (nextPage + 1) * 20 - 1)
       
-      // Si no hay posts originales, usar todos los posts
-      const postsToRepeat = originalPosts.length > 0 ? originalPosts : posts.slice(0, 20)
+      if (error) {
+        console.error('❌ [HomeFeed] Error cargando más posts:', error)
+        setHasMore(false)
+        return
+      }
       
-      // Crear nuevos posts con IDs únicos
-      const morePosts = postsToRepeat.map(post => ({
-        ...post,
-        id: `${post.id.split('-')[0]}-repeat-${Date.now()}-${Math.random()}` // ID único
-      }))
+      if (!newPosts || newPosts.length === 0) {
+        console.log('📄 [HomeFeed] No hay más posts')
+        setHasMore(false)
+        return
+      }
       
-      setPosts([...posts, ...morePosts])
-      setPage(page + 1)
-      setHasMore(true) // SIEMPRE mantener true para scroll infinito
+      console.log('✅ [HomeFeed] Cargados', newPosts.length, 'posts nuevos')
+      
+      // Filtrar duplicados por ID
+      const existingIds = new Set(posts.map(p => p.id))
+      const uniqueNewPosts = newPosts.filter(p => !existingIds.has(p.id))
+      
+      setPosts([...posts, ...uniqueNewPosts])
+      setPage(nextPage)
+      setHasMore(newPosts.length === 20) // Si trajo menos de 20, no hay más
     } catch (err) {
-      console.error("Error loading more posts:", err)
+      console.error("❌ [HomeFeed] Exception:", err)
+      setHasMore(false)
     } finally {
       setLoadingMore(false)
     }
