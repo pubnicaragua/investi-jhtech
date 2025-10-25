@@ -1,10 +1,14 @@
 /**
  * Market Data Service
  * Servicio para obtener datos de mercado en tiempo real
- * Usa datos mock (Yahoo Finance no funciona en React Native)
+ * Usa SearchAPI (https://www.searchapi.io/)
  */
 
 import { supabase } from '../supabase';
+
+// SearchAPI configuration
+const SEARCHAPI_KEY = 'igaze6ph1NawrHgRDjsWwuFq';
+const SEARCHAPI_BASE_URL = 'https://www.searchapi.io/api/v1/search';
 
 // Mock data como último fallback
 const MOCK_STOCKS: MarketStock[] = [
@@ -106,21 +110,98 @@ export interface MarketIndex {
  */
 export async function getMarketStocks(symbols: string[] = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA', 'AMD']): Promise<MarketStock[]> {
   try {
-    console.log('📊 [getMarketStocks] Usando datos mock (Yahoo Finance no compatible con RN)');
+    console.log('📊 [getMarketStocks] Usando mock data (SearchAPI tiene error)');
     
-    // Devolver mock data con variación aleatoria para simular mercado real
+    // TEMPORAL: SearchAPI devuelve error, usar mock data
     return symbols.map((symbol, index) => {
       const mockStock = MOCK_STOCKS[index % MOCK_STOCKS.length];
-      const randomVariation = (Math.random() - 0.5) * 10; // ±5
-      
+      const randomVariation = (Math.random() - 0.5) * 10;
       return {
         ...mockStock,
         symbol: symbol,
         price: mockStock.price + randomVariation,
         change: mockStock.change + (Math.random() - 0.5) * 2,
         changePercent: mockStock.changePercent + (Math.random() - 0.5),
+        logo: `https://logo.clearbit.com/${symbol.toLowerCase()}.com`,
       };
     });
+    
+    /* CÓDIGO SEARCHAPI COMENTADO HASTA ARREGLAR API
+    // SearchAPI usa Google Finance, hacer query para cada símbolo
+    const results: MarketStock[] = [];
+    
+    for (const symbol of symbols.slice(0, 3)) { // Limitar a 3 para no exceder límite gratuito
+      try {
+        const url = `${SEARCHAPI_BASE_URL}?engine=google_finance&q=${symbol}&api_key=${SEARCHAPI_KEY}`;
+        console.log('📡 [SearchAPI] URL:', url);
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        console.log('📡 [SearchAPI] Full Response:', JSON.stringify(data));
+        
+        // SearchAPI devuelve markets en lugar de summary
+        if (data.markets && data.markets.length > 0) {
+          const market = data.markets[0];
+          results.push({
+            symbol: symbol,
+            name: market.name || symbol,
+            price: parseFloat(market.price?.toString().replace(/[^0-9.]/g, '') || '0'),
+            change: parseFloat(market.price_change?.toString().replace(/[^0-9.-]/g, '') || '0'),
+            changePercent: parseFloat(market.price_change_percentage?.toString().replace(/[^0-9.-]/g, '') || '0'),
+            currency: 'USD',
+            exchange: market.exchange || 'NASDAQ',
+            logo: `https://logo.clearbit.com/${symbol.toLowerCase()}.com`,
+          });
+          console.log('✅ [SearchAPI] Stock agregado:', symbol, market.price);
+        } else if (data.summary) {
+          // Fallback a estructura summary
+          const summary = data.summary;
+          results.push({
+            symbol: symbol,
+            name: summary.title || symbol,
+            price: parseFloat(summary.price?.replace(/[^0-9.]/g, '') || '0'),
+            change: parseFloat(summary.price_movement?.movement || '0'),
+            changePercent: parseFloat(summary.price_movement?.percentage?.replace('%', '') || '0'),
+            currency: 'USD',
+            exchange: summary.stock_exchange || 'NASDAQ',
+            logo: `https://logo.clearbit.com/${symbol.toLowerCase()}.com`,
+          });
+          console.log('✅ [SearchAPI] Stock agregado (summary):', symbol);
+        } else {
+          console.warn('⚠️ [SearchAPI] No data para:', symbol, 'Keys:', Object.keys(data));
+        }
+      } catch (err) {
+        console.error(`❌ [SearchAPI] Error ${symbol}:`, err);
+      }
+    }
+    
+    // Si obtuvimos datos, completar con mock para el resto
+    if (results.length > 0) {
+      const remaining = symbols.slice(results.length);
+      remaining.forEach((symbol, index) => {
+        const mockStock = MOCK_STOCKS[index % MOCK_STOCKS.length];
+        results.push({
+          ...mockStock,
+          symbol: symbol,
+          logo: `https://logo.clearbit.com/${symbol.toLowerCase()}.com`,
+        });
+      });
+      
+      console.log('✅ [getMarketStocks] Datos reales:', results.length);
+      return results;
+    }
+    
+    // Fallback a mock data
+    console.warn('⚠️ [getMarketStocks] Usando mock data');
+    return symbols.map((symbol, index) => {
+      const mockStock = MOCK_STOCKS[index % MOCK_STOCKS.length];
+      return {
+        ...mockStock,
+        symbol: symbol,
+        logo: `https://logo.clearbit.com/${symbol.toLowerCase()}.com`,
+      };
+    });
+    */
   } catch (error) {
     console.error('❌ [getMarketStocks] Error:', error);
     return MOCK_STOCKS.slice(0, symbols.length);

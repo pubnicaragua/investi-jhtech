@@ -73,24 +73,53 @@ export function NotificationsModal({ visible, onClose, userId, navigation }: Not
     }  
   }  
   
-  const renderNotification = ({ item }: any) => (  
-    <TouchableOpacity  
-      style={[styles.notificationItem, !item.read && styles.unreadNotification]}  
-      onPress={() => handleNotificationPress(item)}  
-    >  
-      <Image  
-        source={{ uri: item.avatar || 'https://i.pravatar.cc/100?img=1' }}  
-        style={styles.notificationAvatar}  
-      />  
-      <View style={styles.notificationContent}>  
-        <Text style={styles.notificationText}>{item.message}</Text>  
-        <Text style={styles.notificationTime}>  
-          {new Date(item.created_at).toLocaleTimeString()}  
-        </Text>  
-      </View>  
-      {!item.read && <View style={styles.unreadDot} />}  
-    </TouchableOpacity>  
-  )  
+  const formatTimeAgo = (dateString: string) => {
+    const now = new Date();
+    const past = new Date(dateString);
+    const diffMs = now.getTime() - past.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Ahora';
+    if (diffMins < 60) return `Hace ${diffMins}m`;
+    if (diffHours < 24) return `Hace ${diffHours}h`;
+    if (diffDays < 7) return `Hace ${diffDays}d`;
+    return past.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+  };
+
+  const renderNotification = ({ item }: any) => {
+    // Obtener avatar del actor o from_user
+    const avatar = item.from_user?.avatar_url || 
+                   item.from_user?.photo_url || 
+                   item.actor?.avatar_url || 
+                   item.actor?.photo_url || 
+                   'https://ui-avatars.com/api/?name=User';
+    
+    // Obtener título y cuerpo
+    const title = item.title || 'Notificación';
+    const body = item.body || item.message || item.content || 'Nueva actividad';
+    
+    return (
+      <TouchableOpacity  
+        style={[styles.notificationItem, !item.is_read && styles.unreadNotification]}  
+        onPress={() => handleNotificationPress(item)}  
+      >  
+        <Image  
+          source={{ uri: avatar }}  
+          style={styles.notificationAvatar}  
+        />  
+        <View style={styles.notificationContent}>  
+          <Text style={styles.notificationTitle}>{title}</Text>
+          <Text style={styles.notificationBody}>{body}</Text>  
+          <Text style={styles.notificationTime}>  
+            {formatTimeAgo(item.created_at)}  
+          </Text>  
+        </View>  
+        {!item.is_read && <View style={styles.unreadDot} />}  
+      </TouchableOpacity>
+    );
+  }  
   
   return (  
     <Modal  
@@ -196,7 +225,18 @@ const styles = StyleSheet.create({
   },  
   notificationContent: {  
     flex: 1,  
-  },  
+  },
+  notificationTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: "#111",
+    marginBottom: 4,
+  },
+  notificationBody: {
+    fontSize: 14,
+    color: "#444",
+    lineHeight: 20,
+  },
   notificationText: {  
     fontSize: 14,  
     color: "#111",  
@@ -204,7 +244,7 @@ const styles = StyleSheet.create({
   },  
   notificationTime: {  
     fontSize: 12,  
-    color: "#666",  
+    color: "#999",  
     marginTop: 4,  
   },  
   unreadDot: {  

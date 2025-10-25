@@ -38,6 +38,8 @@ interface Message {
   sender_id: string;
   media_url?: string;
   message_type?: string;
+  read_at?: string | null;
+  delivered_at?: string | null;
   user?: {
     id: string;
     nombre: string;
@@ -708,12 +710,19 @@ export function ChatScreen({ navigation, route }: any) {
               {item.content}
             </Text>
           )}
-          <Text style={styles.timeText}>
-            {new Date(item.created_at).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </Text>
+          <View style={styles.messageFooter}>
+            <Text style={styles.timeText}>
+              {new Date(item.created_at).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </Text>
+            {isMine && (
+              <Text style={styles.readReceipt}>
+                {item.read_at ? '✓✓' : item.delivered_at ? '✓' : '⏱'}
+              </Text>
+            )}
+          </View>
         </View>
       </View>  
     );  
@@ -908,7 +917,19 @@ const styles = StyleSheet.create({
   myMessageText: { color: "#fff" },
   mediaCommentText: { marginTop: 8 },
   senderName: { fontSize: 12, fontWeight: "600", marginBottom: 2, color: "#444" },  
-  timeText: { fontSize: 10, color: "#999", marginTop: 4, alignSelf: "flex-end" },  
+  timeText: { fontSize: 10, color: "#999", marginTop: 4, alignSelf: "flex-end" },
+  messageFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+    gap: 4
+  },
+  readReceipt: {
+    fontSize: 12,
+    color: '#4CAF50',
+    marginLeft: 4
+  },
   inputContainer: {  
     flexDirection: "row",  
     alignItems: "flex-end",  

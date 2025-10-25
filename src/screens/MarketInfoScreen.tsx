@@ -146,15 +146,35 @@ export function MarketInfoScreen({ navigation }: any) {
 
   const handleSimulateInvestment = (stock: Stock) => {
     console.log('🎯 Simular inversión:', stock.symbol)
-    // Navegar a InvestmentSimulatorScreen con los datos del stock
-    navigation.navigate('InvestmentSimulator', {
-      stock: {
-        symbol: stock.symbol,
-        name: stock.company_name,
-        price: stock.current_price,
-        change: stock.price_change_percent
+    
+    try {
+      const stockData = {
+        stock: {
+          symbol: stock.symbol,
+          name: stock.company_name,
+          price: stock.current_price,
+          change: stock.price_change_percent
+        }
+      };
+      
+      // Navegar al root navigator y luego a InvestmentSimulator
+      const rootNav = navigation.getParent()?.getParent();
+      if (rootNav) {
+        console.log('✅ [MarketInfo] Navegando con root navigator');
+        rootNav.navigate('InvestmentSimulator', stockData);
+      } else {
+        console.log('⚠️ [MarketInfo] Root navigator no encontrado, usando parent');
+        const parentNav = navigation.getParent();
+        if (parentNav) {
+          parentNav.navigate('InvestmentSimulator', stockData);
+        } else {
+          (navigation as any).navigate('InvestmentSimulator', stockData);
+        }
       }
-    })
+    } catch (error) {
+      console.error('❌ Error navigating to simulator:', error);
+      Alert.alert('Error', 'No se pudo abrir el simulador');
+    }
   }
 
   const filteredStocks = stocks.filter(stock => {

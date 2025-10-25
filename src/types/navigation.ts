@@ -52,6 +52,14 @@ export type RootStackParamList = {
   // Market & Investments
   Market: undefined;
   MarketInfo: undefined;
+  InvestmentSimulator: {
+    stock: {
+      symbol: string;
+      name: string;
+      price: number;
+      change: number;
+    };
+  };
   Inversiones: undefined;
   Inversionista: undefined;
   PlanificadorFinanciero: undefined;
