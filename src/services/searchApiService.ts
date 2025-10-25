@@ -7,8 +7,8 @@
 import { supabase } from '../supabase';
 
 // Financial Modeling Prep API (gratis, sin CORS)
-const FMP_API_KEY = process.env.EXPO_PUBLIC_FMP_API_KEY || 'igaze6ph1NawrHgRDjsWwuFq';
-const FMP_BASE_URL = 'https://financialmodelingprep.com/api/v3';
+const FMP_API_KEY = process.env.EXPO_PUBLIC_FMP_API_KEY || '82xqcoiLim6uBtlqlPnHiwcACynWkn7Y';
+const FMP_BASE_URL = 'https://financialmodelingprep.com/stable';
 
 // Mock data como último fallback
 const MOCK_STOCKS: MarketStock[] = [
@@ -110,19 +110,31 @@ export interface MarketIndex {
  */
 export async function getMarketStocks(symbols: string[] = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA', 'AMD']): Promise<MarketStock[]> {
   try {
-    // Obtener quotes en batch de Financial Modeling Prep
+    console.log('📊 [getMarketStocks] Iniciando llamada a API...');
+    console.log('📊 [getMarketStocks] API Key:', FMP_API_KEY ? `${FMP_API_KEY.substring(0, 8)}...` : 'NO CONFIGURADA');
+    
+    // Obtener quotes usando el endpoint /stable que funciona con tu plan
     const symbolsStr = symbols.join(',');
-    const url = `${FMP_BASE_URL}/quote/${symbolsStr}?apikey=${FMP_API_KEY}`;
+    const url = `${FMP_BASE_URL}/quote-short/${symbolsStr}?apikey=${FMP_API_KEY}`;
+    
+    console.log('📊 [getMarketStocks] URL:', url.replace(FMP_API_KEY, 'API_KEY_HIDDEN'));
     
     const response = await fetch(url);
     
+    console.log('📊 [getMarketStocks] Response status:', response.status);
+    
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ [getMarketStocks] API error:', response.status, errorText);
       throw new Error(`API error: ${response.status}`);
     }
     
     const data = await response.json();
     
+    console.log('📊 [getMarketStocks] Data recibida:', data?.length || 0, 'stocks');
+    
     if (data && Array.isArray(data) && data.length > 0) {
+      console.log('✅ [getMarketStocks] Usando datos REALES de la API');
       return data.map((stock: any) => ({
         symbol: stock.symbol,
         name: stock.name,
@@ -135,11 +147,13 @@ export async function getMarketStocks(symbols: string[] = ['AAPL', 'GOOGL', 'MSF
       }));
     }
     
-    // Fallback a mock data
-    return MOCK_STOCKS;
+    // NO usar mock data, devolver array vacío
+    console.warn('⚠️ [getMarketStocks] API no devolvió datos');
+    return [];
   } catch (error) {
-    // Silently fallback to mock data
-    return MOCK_STOCKS;
+    console.error('❌ [getMarketStocks] Error:', error);
+    console.warn('⚠️ [getMarketStocks] API falló, devolviendo array vacío');
+    return [];
   }
 }
 

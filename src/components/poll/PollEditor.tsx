@@ -98,7 +98,6 @@ export function PollEditor({ visible, onClose, onSave, initialData }: PollEditor
       transparent
       animationType="slide"
       onRequestClose={handleCancel}
-      statusBarTranslucent
     >
       <View style={styles.overlay}>
         <View style={styles.container}>

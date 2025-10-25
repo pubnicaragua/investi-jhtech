@@ -71,7 +71,7 @@ export const WelcomeScreen = ({ navigation }: WelcomeScreenProps) => {
         {/* Logo */}
         <View style={styles.logoContainer}>
           <Image
-            source={require("../../assets/logo-investi.jpeg")}
+            source={require("../../assets/investi-logo-letras.jpg")}
             style={styles.logo}
             resizeMode="contain"
           />
