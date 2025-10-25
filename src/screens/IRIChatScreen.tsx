@@ -44,7 +44,7 @@ const GROK_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 // DEBUG: Verificar si la API key se cargó
 console.log('🔑 GROK_API_KEY loaded:', GROK_API_KEY ? `${GROK_API_KEY.substring(0, 10)}...` : 'NOT FOUND');
 
-const SYSTEM_CONTEXT = `Eres IRÏ, el asistente de inteligencia artificial de Investi, una aplicación de educación financiera y comunidad para jóvenes en Nicaragua.
+const SYSTEM_CONTEXT = `Eres Irï, el asistente de inteligencia artificial de Investi, una aplicación de educación financiera y comunidad para jóvenes en Nicaragua.
 
 CONTEXTO DE LA APP INVESTI:
 - Investi es una plataforma que ayuda a jóvenes a aprender sobre finanzas personales, inversiones y emprendimiento
@@ -78,7 +78,7 @@ export default function IRIChatScreen({ navigation }: any) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: '¡Hola! Soy IRÏ, tu asistente de inteligencia artificial en Investi. 🌟\n\n¿En qué puedo ayudarte hoy? Puedo responder preguntas sobre educación financiera, ahorro, presupuesto, o explicarte cómo usar las herramientas de Investi.\n\n⚠️ Nota: No proporciono consejos específicos de inversión. Para decisiones de inversión, consulta con un asesor financiero profesional.',
+      content: '¡Hola! Soy Irï, tu asistente de inteligencia artificial en Investi. 🌟\n\n¿En qué puedo ayudarte hoy? Puedo responder preguntas sobre educación financiera, ahorro, presupuesto, o explicarte cómo usar las herramientas de Investi.\n\n⚠️ Nota: No proporciono consejos específicos de inversión. Para decisiones de inversión, consulta con un asesor financiero profesional.',
       role: 'assistant',
       timestamp: new Date(),
     },
@@ -183,7 +183,7 @@ export default function IRIChatScreen({ navigation }: any) {
             resizeMode="contain"
           />
           <View>
-            <Text style={styles.headerTitle}>IRÏ</Text>
+            <Text style={styles.headerTitle}>Irï</Text>
             <Text style={styles.headerSubtitle}>Asistente IA</Text>
           </View>
         </View>
@@ -253,7 +253,7 @@ export default function IRIChatScreen({ navigation }: any) {
               />
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="small" color="#2673f3" />
-                <Text style={styles.loadingText}>IRÏ está escribiendo...</Text>
+                <Text style={styles.loadingText}>Irï está escribiendo...</Text>
               </View>
             </View>
           )}

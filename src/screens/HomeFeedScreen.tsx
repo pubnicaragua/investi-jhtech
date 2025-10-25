@@ -185,28 +185,83 @@ export function HomeFeedScreen({ navigation }: any) {
     console.log('📄 [HomeFeed] Cargando más posts, página:', page + 1)
     
     try {
-      // getUserFeed ya filtra duplicados, podemos usarlo directamente
-      const allPosts = await getUserFeed(userId, (page + 1) * 20)
+      const nextPage = page + 1
       
-      if (!allPosts || allPosts.length === 0) {
+      // Obtener posts con offset correcto usando range
+      const { data: newPosts, error } = await supabase
+        .from('posts')
+        .select('id,contenido,created_at,likes_count,comment_count,user_id,media_url,shares_count')
+        .order('created_at', { ascending: false })
+        .range(nextPage * 20, (nextPage + 1) * 20 - 1)
+      
+      if (error) {
+        console.error('❌ [HomeFeed] Error cargando más:', error)
+        setLoadingMore(false)
+        return
+      }
+      
+      if (!newPosts || newPosts.length === 0) {
         console.log('📄 [HomeFeed] No hay más posts')
         setHasMore(false)
         setLoadingMore(false)
         return
       }
       
-      // Si trajo la misma cantidad que antes, no hay más
-      if (allPosts.length <= posts.length) {
-        console.log('📄 [HomeFeed] No hay posts nuevos')
-        setHasMore(false)
-        setLoadingMore(false)
-        return
+      // Obtener datos de usuarios
+      const userIds = [...new Set(newPosts.map((p: any) => p.user_id).filter(Boolean))]
+      const { data: users } = await supabase
+        .from('users')
+        .select('id,nombre,full_name,username,photo_url,avatar_url,role')
+        .in('id', userIds)
+      
+      // Función helper para tiempo relativo
+      const getTimeAgo = (dateString: string) => {
+        const now = new Date()
+        const past = new Date(dateString)
+        const diffMs = now.getTime() - past.getTime()
+        const diffMins = Math.floor(diffMs / 60000)
+        const diffHours = Math.floor(diffMs / 3600000)
+        const diffDays = Math.floor(diffMs / 86400000)
+        
+        if (diffMins < 1) return 'Ahora'
+        if (diffMins < 60) return `${diffMins}m`
+        if (diffHours < 24) return `${diffHours}h`
+        if (diffDays < 7) return `${diffDays}d`
+        return past.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
       }
       
-      console.log('✅ [HomeFeed] Total posts:', allPosts.length)
-      setPosts(allPosts)
-      setPage(page + 1)
-      setHasMore(allPosts.length >= (page + 1) * 20)
+      // Mapear posts con usuarios
+      const mappedPosts = newPosts.map((post: any) => {
+        const user = users?.find((u: any) => u.id === post.user_id)
+        return {
+          id: post.id,
+          user_id: post.user_id,
+          user_name: user?.full_name || user?.nombre || 'Usuario',
+          user_avatar: user?.avatar_url || user?.photo_url || 'https://ui-avatars.com/api/?name=User',
+          user_role: user?.role || 'Usuario',
+          content: post.contenido || '',
+          image: Array.isArray(post.media_url) && post.media_url.length > 0 ? post.media_url[0] : null,
+          time_ago: getTimeAgo(post.created_at),
+          likes: post.likes_count || 0,
+          comments: post.comment_count || 0,
+          shares: post.shares_count || 0,
+          is_liked: false,
+          is_saved: false,
+          is_following: false,
+          created_at: post.created_at
+        }
+      })
+      
+      console.log('✅ [HomeFeed] Nuevos posts:', mappedPosts.length)
+      
+      // Filtrar duplicados por ID
+      const existingIds = new Set(posts.map((p: any) => p.id));
+      const uniqueNewPosts = mappedPosts.filter((p: any) => !existingIds.has(p.id));
+      
+      console.log('📊 [HomeFeed] Posts únicos después de filtrar:', uniqueNewPosts.length);
+      setPosts([...posts, ...uniqueNewPosts])
+      setPage(nextPage)
+      setHasMore(newPosts.length >= 20)
       
       /* CÓDIGO COMENTADO HASTA QUE SE IMPLEMENTE PAGINACIÓN EN getUserFeed
       const { data: newPosts, error } = await supabase
@@ -359,20 +414,42 @@ export function HomeFeedScreen({ navigation }: any) {
     if (!userId) return
     
     try {
-      await Share.share({
-        message: postContent || 'Mira esta publicación en Investi',
-        title: 'Compartir publicación',
-      });
-      
-      await sharePost(postId, userId);
-      
-      const newCount = posts.find(p => p.id === postId)?.shares_count || 0
-      setPosts(prev => prev.map(p => p.id === postId ? { ...p, shares_count: newCount + 1 } : p))
-      
-      await Share.share({
-        message: postContent ? `${postContent}\n\nMira esta publicación en Investi` : `Mira esta publicación en Investi`,
-        url: `https://investi.app/posts/${postId}`,
-      })
+      // Mostrar opciones de compartir
+      Alert.alert(
+        'Compartir publicación',
+        '¿Cómo deseas compartir?',
+        [
+          {
+            text: 'Enviar mensaje',
+            onPress: () => {
+              // Navegar a ChatList con el post para compartir
+              navigation.navigate('ChatList', {
+                sharePost: {
+                  id: postId,
+                  content: postContent || ''
+                }
+              });
+            }
+          },
+          {
+            text: 'Compartir fuera de la app',
+            onPress: async () => {
+              await Share.share({
+                message: postContent ? `${postContent}\n\nMira esta publicación en Investi` : `Mira esta publicación en Investi`,
+                url: `https://investi.app/posts/${postId}`,
+              });
+              
+              await sharePost(postId, userId);
+              const newCount = posts.find(p => p.id === postId)?.shares_count || 0;
+              setPosts(prev => prev.map(p => p.id === postId ? { ...p, shares_count: newCount + 1 } : p));
+            }
+          },
+          {
+            text: 'Cancelar',
+            style: 'cancel'
+          }
+        ]
+      );
     } catch (err) {
       console.error("Error sharing:", err)
     }

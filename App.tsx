@@ -5,14 +5,29 @@ import { NavigationContainer } from '@react-navigation/native';
 import { RootStack } from "./navigation"
 import * as Linking from "expo-linking"  
 import i18n from "./src/i18n/i18n"
-import { AuthProvider } from "./src/contexts/AuthContext"
+import { AuthProvider, useAuth } from "./src/contexts/AuthContext"
 import { LanguageProvider } from "./src/contexts/LanguageContext"
 import { SplashScreen } from "./src/components/SplashScreen"
+import { useOnlineStatus } from "./src/hooks/useOnlineStatus"
 // DESHABILITADO: Causa error TurboModuleRegistry al cargar todas las pantallas
 // import { TESTING_CONFIG, TestingScreen } from "./src/utils/screenTesting"  
 
 // Deshabilitar linking temporalmente para Expo Go
 const linking = undefined;
+
+// Componente interno que usa useAuth
+function AppContent() {
+  const { user } = useAuth();
+  
+  // Hook para actualizar estado online/offline automáticamente
+  useOnlineStatus(user?.id || null);
+  
+  return (
+    <NavigationContainer linking={linking}>
+      <RootStack />
+    </NavigationContainer>
+  );
+}
 
 export default function App() {  
   const [showSplash, setShowSplash] = useState(true)
@@ -27,9 +42,7 @@ export default function App() {
       <LanguageProvider>
         <I18nextProvider i18n={i18n}>  
           <AuthProvider>
-            <NavigationContainer linking={linking}>
-              <RootStack />
-            </NavigationContainer>
+            <AppContent />
           </AuthProvider>
         </I18nextProvider>
       </LanguageProvider>

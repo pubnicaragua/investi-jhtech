@@ -10,6 +10,7 @@ import { CommunityRecommendationsScreen } from '../screens/CommunityRecommendati
 import { WelcomeScreen } from '../screens/WelcomeScreen';
 import { SignInScreen } from '../screens/SignInScreen';
 import { SignUpScreen } from '../screens/SignUpScreen';
+import { InvestmentSimulatorScreen } from '../screens/InvestmentSimulatorScreen';
 import { useAuth } from '../contexts/AuthContext';
 import { ActivityIndicator, View } from 'react-native';
 import { supabase } from '../supabase';
@@ -170,6 +171,16 @@ export function RootStack() {
         options={{
           headerShown: false,
           gestureEnabled: false
+        }}
+      />
+      
+      {/* Investment Simulator */}
+      <Stack.Screen 
+        name="InvestmentSimulator" 
+        component={InvestmentSimulatorScreen}
+        options={{
+          headerShown: true,
+          title: 'Simulador de Inversión'
         }}
       />
     </Stack.Navigator>

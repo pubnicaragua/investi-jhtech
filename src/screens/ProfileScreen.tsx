@@ -324,25 +324,24 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
   const handleMessage = async () => {
     if (!profileUser) return
     
-    // Verificar si son contactos/amigos
     try {
       const currentUserId = await getCurrentUserId()
-      if (!currentUserId) return
+      if (!currentUserId) {
+        Alert.alert('Error', 'No se pudo obtener el usuario actual')
+        return
+      }
       
-      // Verificar si existe conexión mutua
-      const { data: connection } = await supabase
-        .from('user_follows')
-        .select('id')
-        .or(`and(follower_id.eq.${currentUserId},following_id.eq.${profileUser.id}),and(follower_id.eq.${profileUser.id},following_id.eq.${currentUserId})`)
-        .limit(2)
-      
-      if (!connection || connection.length < 2) {
+      // Verificar si está siguiendo (más simple que conexión)
+      if (!isFollowing) {
         Alert.alert(
           'Conexión requerida',
-          'Debes conectar con este usuario antes de enviar mensajes. Envía una solicitud de conexión primero.',
+          'Debes seguir a este usuario antes de enviarle mensajes',
           [
             { text: 'Cancelar', style: 'cancel' },
-            { text: 'Conectar', onPress: () => handleConnect() }
+            { 
+              text: 'Seguir ahora', 
+              onPress: handleFollow 
+            }
           ]
         )
         return
@@ -359,8 +358,8 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
         }
       })
     } catch (error) {
-      console.error('Error checking connection:', error)
-      Alert.alert('Error', 'No se pudo verificar la conexión')
+      console.error('Error opening chat:', error)
+      Alert.alert('Error', 'No se pudo abrir el chat')
     }
   }
 
