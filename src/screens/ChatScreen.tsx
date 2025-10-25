@@ -64,18 +64,26 @@ export function ChatScreen({ navigation, route }: any) {
   const [pendingMedia, setPendingMedia] = useState<{ type: string; uri: string; file: any } | null>(null);
   const [showAttachModal, setShowAttachModal] = useState(false);
   
+  // Estados de presencia
+  const [isOnline, setIsOnline] = useState(false);
+  const [lastSeen, setLastSeen] = useState<string | null>(null);
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   useAuthGuard();  
   
   useEffect(() => {  
     loadInitialData();
   }, []);  
 
+  // Suscripción a mensajes + presencia
   useEffect(() => {
-    if (!conversationId) return;
+    if (!conversationId || !participant?.id) return;
 
-    console.log('🔔 [ChatScreen] Setting up realtime subscription for:', conversationId);
+    console.log('🔔 [ChatScreen] Setting up realtime subscriptions');
 
-    const channel = supabase
+    // Canal para mensajes
+    const messagesChannel = supabase
       .channel(`messages:${conversationId}`)
       .on(
         'postgres_changes',
@@ -89,20 +97,17 @@ export function ChatScreen({ navigation, route }: any) {
           console.log('🔔 [ChatScreen] New message received:', payload);
           const newMessage = payload.new;
 
-          // Usar datos del participant si es el otro usuario, o datos propios
           const currentUid = await getCurrentUserId();
           const isMyMessage = newMessage.sender_id === currentUid;
           
           let userData;
           if (isMyMessage) {
-            // Es mi mensaje, usar datos mínimos
             userData = {
               id: currentUid,
               nombre: 'Yo',
               avatar: undefined
             };
           } else {
-            // Es del otro usuario, usar datos del participant (ya los tenemos)
             userData = {
               id: participant?.id || newMessage.sender_id,
               nombre: participant?.nombre || 'Usuario',
@@ -110,7 +115,6 @@ export function ChatScreen({ navigation, route }: any) {
             };
           }
 
-          // Transform the message to match our interface
           const transformedMessage = {
             id: newMessage.id,
             content: newMessage.content || newMessage.contenido,
@@ -122,24 +126,97 @@ export function ChatScreen({ navigation, route }: any) {
           };
 
           setMessages(prev => [...prev, transformedMessage]);
-
-          // Auto-scroll al final INMEDIATAMENTE
           flatListRef.current?.scrollToEnd({ animated: true });
 
-          // Marcar como leído si no es nuestro mensaje (async, no bloquea)
+          // Marcar como leído
           if (!isMyMessage && conversationId) {
             markMessagesAsRead(conversationId, currentUid).catch(err => 
               console.warn('Error marcando mensaje como leído:', err)
             );
+            
+            // Marcar mensaje específico como leído
+            supabase.rpc('mark_message_read', { p_message_id: newMessage.id }).catch(() => {});
           }
         }
       )
       .subscribe();
 
+    // Canal para estado online del otro usuario
+    const presenceChannel = supabase
+      .channel(`user:${participant.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'users',
+          filter: `id=eq.${participant.id}`
+        },
+        (payload: any) => {
+          console.log('👤 [ChatScreen] User status updated:', payload.new);
+          setIsOnline(payload.new.is_online || false);
+          setLastSeen(payload.new.last_seen_at);
+        }
+      )
+      .subscribe();
+
+    // Canal para typing indicators
+    const typingChannel = supabase
+      .channel(`typing:${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'typing_indicators',
+          filter: `conversation_id=eq.${conversationId}`
+        },
+        async (payload: any) => {
+          const currentUid = await getCurrentUserId();
+          if (payload.new && payload.new.user_id !== currentUid) {
+            console.log('⌨️ [ChatScreen] Other user is typing');
+            setIsTyping(true);
+            
+            // Auto-clear después de 3 segundos
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 3000);
+          } else if (payload.eventType === 'DELETE') {
+            setIsTyping(false);
+          }
+        }
+      )
+      .subscribe();
+
+    // Cargar estado inicial
+    loadUserPresence();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(messagesChannel);
+      supabase.removeChannel(presenceChannel);
+      supabase.removeChannel(typingChannel);
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     };
-  }, [conversationId, participant]);  
+  }, [conversationId, participant]);
+
+  // Cargar estado de presencia inicial
+  const loadUserPresence = async () => {
+    if (!participant?.id) return;
+    
+    try {
+      const { data } = await supabase
+        .from('users')
+        .select('is_online, last_seen_at')
+        .eq('id', participant.id)
+        .single();
+      
+      if (data) {
+        setIsOnline(data.is_online || false);
+        setLastSeen(data.last_seen_at);
+      }
+    } catch (error) {
+      console.error('Error loading user presence:', error);
+    }
+  };  
 
   // Keyboard listeners to move input bar (works for Android and iOS)
   useEffect(() => {
@@ -222,7 +299,7 @@ export function ChatScreen({ navigation, route }: any) {
         setChatInfo({
           nombre: participant.nombre,
           avatar_url: participant.avatar_url,
-          is_online: Math.random() > 0.5 // Mock online status
+          is_online: isOnline
         });
       } else {
         setChatInfo({
@@ -234,6 +311,49 @@ export function ChatScreen({ navigation, route }: any) {
     } catch (err) {
       console.error("Error loading chat info:", err);
     }
+  };
+  
+  // Detectar cuando usuario escribe
+  const handleInputChange = async (text: string) => {
+    setInput(text);
+    
+    if (!conversationId || !currentUserId) return;
+    
+    if (text.length > 0) {
+      // Insertar/actualizar typing indicator
+      supabase.from('typing_indicators')
+        .upsert({
+          conversation_id: conversationId,
+          user_id: currentUserId,
+          created_at: new Date().toISOString()
+        })
+        .then(() => {});
+    } else {
+      // Eliminar typing indicator
+      supabase.from('typing_indicators')
+        .delete()
+        .eq('conversation_id', conversationId)
+        .eq('user_id', currentUserId)
+        .then(() => {});
+    }
+  };
+  
+  // Formatear última vez visto
+  const formatLastSeen = (lastSeenAt: string | null) => {
+    if (!lastSeenAt) return 'hace mucho';
+    
+    const now = new Date();
+    const lastSeen = new Date(lastSeenAt);
+    const diffMs = now.getTime() - lastSeen.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'ahora mismo';
+    if (diffMins < 60) return `hace ${diffMins}m`;
+    if (diffHours < 24) return `hace ${diffHours}h`;
+    if (diffDays < 7) return `hace ${diffDays}d`;
+    return lastSeen.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
   };  
   
   const loadMessages = async () => {
@@ -281,6 +401,15 @@ export function ChatScreen({ navigation, route }: any) {
     const messageText = input.trim();
     setInput("");
     setSending(true);
+    
+    // Limpiar typing indicator
+    if (conversationId && currentUserId) {
+      supabase.from('typing_indicators')
+        .delete()
+        .eq('conversation_id', conversationId)
+        .eq('user_id', currentUserId)
+        .then(() => {});
+    }
 
     try {
       const uid = await getCurrentUserId();
@@ -620,8 +749,12 @@ export function ChatScreen({ navigation, route }: any) {
             <Text style={styles.headerSubtitle}>  
               {type === "community"  
                 ? `${chatInfo?.members?.[0]?.count || 0} miembros`  
-                : chatInfo?.is_online  
+                : isTyping
+                ? "escribiendo..."
+                : isOnline  
                 ? "En línea"  
+                : lastSeen
+                ? `Últ. vez ${formatLastSeen(lastSeen)}`
                 : "Desconectado"}  
             </Text>  
           </View>  
@@ -668,7 +801,7 @@ export function ChatScreen({ navigation, route }: any) {
           </TouchableOpacity>
           <TextInput
             value={input}
-            onChangeText={setInput}
+            onChangeText={handleInputChange}
             placeholder={pendingMedia ? "Agrega un comentario (opcional)..." : "Escribe un mensaje..."}
             style={styles.textInput}
             multiline

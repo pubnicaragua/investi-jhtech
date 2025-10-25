@@ -803,8 +803,11 @@ export async function getUserFeed(uid: string, limit = 20) {
     
     if (!response || response.length === 0) return []
     
+    // CRÍTICO: Filtrar duplicados por ID
+    const uniquePosts = Array.from(new Map(response.map((post: any) => [post.id, post])).values())
+    
     // Paso 2: Obtener datos de usuarios por separado
-    const userIds = [...new Set(response.map((post: any) => post.user_id).filter(Boolean))]
+    const userIds = [...new Set(uniquePosts.map((post: any) => post.user_id).filter(Boolean))]
     
     let usersResponse = []
     if (userIds.length > 0) {
@@ -858,8 +861,8 @@ export async function getUserFeed(uid: string, limit = 20) {
       return past.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
     }
     
-    // Paso 6: Mapear datos completos
-    return response.map((post: any) => {
+    // Paso 6: Mapear datos completos (usar uniquePosts)
+    return uniquePosts.map((post: any) => {
       const user = usersResponse?.find((u: any) => u.id === post.user_id)
       const mediaUrls = post.media_url || []
       const firstImage = Array.isArray(mediaUrls) && mediaUrls.length > 0 ? mediaUrls[0] : null

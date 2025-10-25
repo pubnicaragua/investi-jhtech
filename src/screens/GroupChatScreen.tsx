@@ -92,6 +92,10 @@ export function GroupChatScreen() {
   const [showAttachModal, setShowAttachModal] = useState(false)
   const [communityStats, setCommunityStats] = useState({ members_count: 0, active_members_count: 0 })
   const flatListRef = useRef<FlatList>(null)
+  
+  // Estados de presencia
+  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set())
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // ============================================================================
   // CARGAR DATOS INICIALES
@@ -312,14 +316,77 @@ export function GroupChatScreen() {
       )
       .subscribe()
 
+    // Suscripción a typing indicators (GroupChat)
+    const typingSubscription = supabase
+      .channel(`typing:channel:${channelId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'typing_indicators',
+          filter: `conversation_id=eq.${channelId}`
+        },
+        async (payload: any) => {
+          if (payload.new && payload.new.user_id !== currentUser?.id) {
+            console.log('⌨️ [GroupChat] User typing:', payload.new.user_id)
+            setTypingUsers(prev => new Set(prev).add(payload.new.user_id))
+            
+            // Auto-clear después de 3 segundos
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+            typingTimeoutRef.current = setTimeout(() => {
+              setTypingUsers(prev => {
+                const next = new Set(prev)
+                next.delete(payload.new.user_id)
+                return next
+              })
+            }, 3000)
+          } else if (payload.eventType === 'DELETE' && payload.old) {
+            setTypingUsers(prev => {
+              const next = new Set(prev)
+              next.delete(payload.old.user_id)
+              return next
+            })
+          }
+        }
+      )
+      .subscribe()
+
     return () => {
       subscription.unsubscribe()
+      typingSubscription.unsubscribe()
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
     }
   }, [channelId, currentUser])
 
   // ============================================================================
   // ENVIAR MENSAJE
   // ============================================================================
+
+  // Detectar cuando usuario escribe
+  const handleInputChange = async (text: string) => {
+    setMessage(text)
+    
+    if (!channelId || !currentUser?.id) return
+    
+    if (text.length > 0) {
+      // Insertar/actualizar typing indicator
+      supabase.from('typing_indicators')
+        .upsert({
+          conversation_id: channelId,
+          user_id: currentUser.id,
+          created_at: new Date().toISOString()
+        })
+        .then(() => {})
+    } else {
+      // Eliminar typing indicator
+      supabase.from('typing_indicators')
+        .delete()
+        .eq('conversation_id', channelId)
+        .eq('user_id', currentUser.id)
+        .then(() => {})
+    }
+  }
 
   const handleSend = async () => {
     // Allow sending if there's pending media even when message is empty
@@ -329,6 +396,15 @@ export function GroupChatScreen() {
     const messageText = message.trim()
     setMessage('') // Limpiar input inmediatamente para mejor UX
     setSending(true)
+    
+    // Limpiar typing indicator
+    if (channelId && currentUser?.id) {
+      supabase.from('typing_indicators')
+        .delete()
+        .eq('conversation_id', channelId)
+        .eq('user_id', currentUser.id)
+        .then(() => {})
+    }
 
     // Create optimistic pending message
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2,8)}`
@@ -477,12 +553,20 @@ export function GroupChatScreen() {
             {channel?.name || channelName || 'Chat grupal'}
           </Text>
           <View style={styles.headerSubtitleRow}>
-            <Users size={12} color="#10B981" />
-            <Text style={styles.headerSubtitle}>
-              {communityStats.active_members_count} activos
-            </Text>
-            <Text style={styles.headerDot}>•</Text>
-            <Text style={styles.headerSubtitle}>{communityStats.members_count} miembros</Text>
+            {typingUsers.size > 0 ? (
+              <Text style={[styles.headerSubtitle, { color: '#10B981', fontStyle: 'italic' }]}>
+                {typingUsers.size === 1 ? 'Alguien está escribiendo...' : `${typingUsers.size} personas escribiendo...`}
+              </Text>
+            ) : (
+              <>
+                <Users size={12} color="#10B981" />
+                <Text style={styles.headerSubtitle}>
+                  {communityStats.active_members_count} activos
+                </Text>
+                <Text style={styles.headerDot}>•</Text>
+                <Text style={styles.headerSubtitle}>{communityStats.members_count} miembros</Text>
+              </>
+            )}
           </View>
         </View>
         
@@ -548,7 +632,7 @@ export function GroupChatScreen() {
           <TextInput
             style={styles.input}
             value={message}
-            onChangeText={setMessage}
+            onChangeText={handleInputChange}
             placeholder="Escribe un mensaje..."
             placeholderTextColor="#999"
             multiline

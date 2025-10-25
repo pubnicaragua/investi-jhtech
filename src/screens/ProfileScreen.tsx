@@ -189,6 +189,24 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
         } catch (error) {
           console.error('Error loading connections:', error)
         }
+
+        // CRÍTICO: Verificar si ya estoy siguiendo a este usuario
+        if (!isOwnProfile && currentUserId) {
+          try {
+            const { data: followData } = await supabase
+              .from('user_follows')
+              .select('id')
+              .eq('follower_id', currentUserId)
+              .eq('following_id', userId)
+              .maybeSingle()
+            
+            const isCurrentlyFollowing = !!followData
+            console.log('🔍 [ProfileScreen] Estado de seguimiento:', { userId, isCurrentlyFollowing })
+            setIsFollowing(isCurrentlyFollowing)
+          } catch (error) {
+            console.error('Error checking follow status:', error)
+          }
+        }
       } else {
         Alert.alert("Error", "No se pudo cargar el perfil del usuario")  
       }  

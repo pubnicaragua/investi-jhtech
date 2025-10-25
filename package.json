@@ -73,7 +73,8 @@
     "react-native-tab-view": "^4.2.0",
     "react-native-url-polyfill": "^3.0.0",
     "react-native-web": "^0.20.0",
-    "tailwind-merge": "^3.3.1"
+    "tailwind-merge": "^3.3.1",
+    "yahoo-finance2": "^3.10.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

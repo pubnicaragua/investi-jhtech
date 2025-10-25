@@ -185,14 +185,35 @@ export function HomeFeedScreen({ navigation }: any) {
     console.log('📄 [HomeFeed] Cargando más posts, página:', page + 1)
     
     try {
-      const nextPage = page + 1
+      // getUserFeed ya filtra duplicados, podemos usarlo directamente
+      const allPosts = await getUserFeed(userId, (page + 1) * 20)
+      
+      if (!allPosts || allPosts.length === 0) {
+        console.log('📄 [HomeFeed] No hay más posts')
+        setHasMore(false)
+        setLoadingMore(false)
+        return
+      }
+      
+      // Si trajo la misma cantidad que antes, no hay más
+      if (allPosts.length <= posts.length) {
+        console.log('📄 [HomeFeed] No hay posts nuevos')
+        setHasMore(false)
+        setLoadingMore(false)
+        return
+      }
+      
+      console.log('✅ [HomeFeed] Total posts:', allPosts.length)
+      setPosts(allPosts)
+      setPage(page + 1)
+      setHasMore(allPosts.length >= (page + 1) * 20)
+      
+      /* CÓDIGO COMENTADO HASTA QUE SE IMPLEMENTE PAGINACIÓN EN getUserFeed
       const { data: newPosts, error } = await supabase
         .from('posts')
         .select(`
           *,
-          user:users!posts_user_id_fkey(id, nombre, full_name, avatar_url, photo_url, role),
-          likes:post_likes(count),
-          comments:post_comments(count)
+          user:users!posts_user_id_fkey(id, nombre, full_name, avatar_url, photo_url, role)
         `)
         .order('created_at', { ascending: false })
         .range(nextPage * 20, (nextPage + 1) * 20 - 1)
@@ -211,13 +232,21 @@ export function HomeFeedScreen({ navigation }: any) {
       
       console.log('✅ [HomeFeed] Cargados', newPosts.length, 'posts nuevos')
       
+      // Mapear correctamente likes y comments
+      const mappedPosts = newPosts.map((post: any) => ({
+        ...post,
+        likes_count: post.likes?.[0]?.count || 0,
+        comment_count: post.comments?.[0]?.count || 0
+      }))
+      
       // Filtrar duplicados por ID
-      const existingIds = new Set(posts.map(p => p.id))
-      const uniqueNewPosts = newPosts.filter(p => !existingIds.has(p.id))
+      const existingIds = new Set(posts.map((p: any) => p.id))
+      const uniqueNewPosts = mappedPosts.filter((p: any) => !existingIds.has(p.id))
       
       setPosts([...posts, ...uniqueNewPosts])
       setPage(nextPage)
       setHasMore(newPosts.length === 20) // Si trajo menos de 20, no hay más
+      */
     } catch (err) {
       console.error("❌ [HomeFeed] Exception:", err)
       setHasMore(false)
