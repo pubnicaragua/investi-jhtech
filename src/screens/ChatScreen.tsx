@@ -68,11 +68,17 @@ export function ChatScreen({ navigation, route }: any) {
   
   useEffect(() => {  
     loadInitialData();
-    
-    // Configurar Supabase Realtime para mensajes en tiempo real
+  }, []);  
+
+  useEffect(() => {
+    if (!conversationId) return;
+
+    console.log('🔔 [ChatScreen] Setting up realtime subscription for:', conversationId);
+
     const channel = supabase
-      .channel(`conversation_${conversationId}`)
-      .on('postgres_changes',
+      .channel(`messages:${conversationId}`)
+      .on(
+        'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
@@ -80,27 +86,28 @@ export function ChatScreen({ navigation, route }: any) {
           filter: `conversation_id=eq.${conversationId}`
         },
         async (payload: any) => {
-          console.log('Nuevo mensaje recibido en tiempo real:', payload);
-          const newMessage = payload.new as any;
+          console.log('🔔 [ChatScreen] New message received:', payload);
+          const newMessage = payload.new;
 
-          // Obtener datos completos del usuario remitente
-          let userData = null;
-          try {
-            const { data, error } = await supabase
-              .from('users')
-              .select('id, nombre, full_name, avatar_url, photo_url')
-              .eq('id', newMessage.sender_id || newMessage.user_id)
-              .single();
-
-            if (!error && data) {
-              userData = {
-                id: data.id,
-                nombre: data.full_name || data.nombre || 'Usuario',
-                avatar: data.avatar_url || data.photo_url || 'https://i.pravatar.cc/100'
-              };
-            }
-          } catch (error) {
-            console.warn('Error obteniendo datos del usuario:', error);
+          // Usar datos del participant si es el otro usuario, o datos propios
+          const currentUid = await getCurrentUserId();
+          const isMyMessage = newMessage.sender_id === currentUid;
+          
+          let userData;
+          if (isMyMessage) {
+            // Es mi mensaje, usar datos mínimos
+            userData = {
+              id: currentUid,
+              nombre: 'Yo',
+              avatar: undefined
+            };
+          } else {
+            // Es del otro usuario, usar datos del participant (ya los tenemos)
+            userData = {
+              id: participant?.id || newMessage.sender_id,
+              nombre: participant?.nombre || 'Usuario',
+              avatar: participant?.avatar_url || 'https://i.pravatar.cc/100'
+            };
           }
 
           // Transform the message to match our interface
@@ -111,28 +118,19 @@ export function ChatScreen({ navigation, route }: any) {
             sender_id: newMessage.sender_id || newMessage.user_id,
             media_url: newMessage.media_url,
             message_type: newMessage.message_type,
-            user: userData || {
-              id: newMessage.user_id || newMessage.sender_id,
-              nombre: 'Usuario',
-              avatar: 'https://i.pravatar.cc/100'
-            }
+            user: userData
           };
 
           setMessages(prev => [...prev, transformedMessage]);
 
-          // Auto-scroll al final
-          setTimeout(() => {
-            flatListRef.current?.scrollToEnd({ animated: true });
-          }, 100);
+          // Auto-scroll al final INMEDIATAMENTE
+          flatListRef.current?.scrollToEnd({ animated: true });
 
-          // Marcar como leído si no es nuestro mensaje
-          const currentUid = await getCurrentUserId();
-          if (currentUid && newMessage.sender_id !== currentUid && conversationId) {
-            try {
-              await markMessagesAsRead(conversationId, currentUid);
-            } catch (error) {
-              console.warn('Error marcando mensaje como leído:', error);
-            }
+          // Marcar como leído si no es nuestro mensaje (async, no bloquea)
+          if (!isMyMessage && conversationId) {
+            markMessagesAsRead(conversationId, currentUid).catch(err => 
+              console.warn('Error marcando mensaje como leído:', err)
+            );
           }
         }
       )
@@ -141,7 +139,7 @@ export function ChatScreen({ navigation, route }: any) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversationId]);  
+  }, [conversationId, participant]);  
 
   // Keyboard listeners to move input bar (works for Android and iOS)
   useEffect(() => {
@@ -165,37 +163,45 @@ export function ChatScreen({ navigation, route }: any) {
       const uid = await getCurrentUserId();  
       setCurrentUserId(uid);  
       
-      // Si no hay conversationId pero hay targetUserId, crear o buscar conversación
-      if (!conversationId && targetUserId && uid) {
+      // Si no hay conversationId, crear o buscar conversación usando participant.id
+      const otherUserId = targetUserId || participant?.id;
+      
+      if (!conversationId && otherUserId && uid) {
+        console.log('🔍 [ChatScreen] Buscando/creando conversación:', { uid, otherUserId });
         try {
           // Buscar conversación existente
           const { data: existingConv, error: searchError } = await supabase
             .from('conversations')
             .select('id')
-            .or(`and(participant_one.eq.${uid},participant_two.eq.${targetUserId}),and(participant_one.eq.${targetUserId},participant_two.eq.${uid})`)
+            .or(`and(participant_one.eq.${uid},participant_two.eq.${otherUserId}),and(participant_one.eq.${otherUserId},participant_two.eq.${uid})`)
             .single();
           
           if (existingConv) {
+            console.log('✅ [ChatScreen] Conversación encontrada:', existingConv.id);
             setConversationId(existingConv.id);
           } else {
             // Crear nueva conversación
+            console.log('🆕 [ChatScreen] Creando nueva conversación...');
             const { data: newConv, error: createError } = await supabase
               .from('conversations')
               .insert({
                 type: 'direct',
                 participant_one: uid,
-                participant_two: targetUserId,
+                participant_two: otherUserId,
                 created_by: uid
               })
               .select('id')
               .single();
             
             if (newConv) {
+              console.log('✅ [ChatScreen] Conversación creada:', newConv.id);
               setConversationId(newConv.id);
+            } else {
+              console.error('❌ [ChatScreen] Error creando conversación:', createError);
             }
           }
         } catch (err) {
-          console.error('Error creating/finding conversation:', err);
+          console.error('❌ [ChatScreen] Exception:', err);
         }
       }
         

@@ -250,19 +250,25 @@ export function GroupChatScreen() {
         },
         async (payload : any) => {
           try {
-            console.log('Nuevo mensaje recibido (community):', payload)
+            console.log('🔔 [GroupChat] Nuevo mensaje recibido:', payload)
 
-            // Obtener datos del remitente (user_id)
             const userId = payload.new.user_id
-            const { data: senderData } = await supabase
-              .from('users')
-              .select('id, nombre, full_name, avatar_url, photo_url')
-              .eq('id', userId)
-              .single()
+            const isMyMessage = userId === currentUser.id
 
             // Normalize media URL and infer type if necessary
             const mediaUrl = payload.new.media_url || payload.new.media || payload.new.media_path || payload.new.url || null
             const messageType = payload.new.message_type || payload.new.type || (mediaUrl ? (mediaUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? 'image' : mediaUrl.match(/\.(mp4|mov|mkv|webm|3gp)$/i) ? 'video' : 'file') : null)
+
+            // OPTIMIZACIÓN: Solo hacer query si NO es mi mensaje
+            let senderData = null
+            if (!isMyMessage) {
+              const { data } = await supabase
+                .from('users')
+                .select('id, nombre, full_name, avatar_url, photo_url')
+                .eq('id', userId)
+                .single()
+              senderData = data
+            }
 
             const incoming: Message = {
               id: payload.new.id,
@@ -271,12 +277,16 @@ export function GroupChatScreen() {
               sender_id: userId,
               media_url: mediaUrl,
               message_type: messageType || undefined,
-              sender: {
+              sender: isMyMessage ? {
+                id: currentUser.id,
+                name: 'Yo',
+                avatar: currentUser.avatar_url || 'https://i.pravatar.cc/100'
+              } : {
                 id: senderData?.id || userId,
                 name: senderData?.full_name || senderData?.nombre || 'Usuario',
                 avatar: senderData?.avatar_url || senderData?.photo_url || 'https://i.pravatar.cc/100'
               },
-              isMe: userId === currentUser.id
+              isMe: isMyMessage
             }
 
             // Merge incoming with any pending local message (match by sender + content + near timestamp)
@@ -293,10 +303,8 @@ export function GroupChatScreen() {
               return [...prev, incoming]
             })
 
-            // Auto-scroll si el usuario está cerca del final
-            setTimeout(() => {
-              flatListRef.current?.scrollToEnd({ animated: true })
-            }, 100)
+            // Auto-scroll INMEDIATO
+            flatListRef.current?.scrollToEnd({ animated: true })
           } catch (err) {
             console.error('Error handling realtime payload:', err)
           }

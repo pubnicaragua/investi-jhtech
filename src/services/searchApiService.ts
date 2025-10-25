@@ -113,39 +113,30 @@ export async function getMarketStocks(symbols: string[] = ['AAPL', 'GOOGL', 'MSF
     console.log('📊 [getMarketStocks] Iniciando llamada a API...');
     console.log('📊 [getMarketStocks] API Key:', FMP_API_KEY ? `${FMP_API_KEY.substring(0, 8)}...` : 'NO CONFIGURADA');
     
-    // Obtener quotes usando el endpoint /stable que funciona con tu plan
-    const symbolsStr = symbols.join(',');
-    const url = `${FMP_BASE_URL}/quote-short/${symbolsStr}?apikey=${FMP_API_KEY}`;
+    // Obtener datos de Supabase (más confiable que API externa)
+    console.log('📊 [getMarketStocks] Obteniendo desde Supabase...');
     
-    console.log('📊 [getMarketStocks] URL:', url.replace(FMP_API_KEY, 'API_KEY_HIDDEN'));
+    const { data: supabaseData, error } = await supabase
+      .from('market_data')
+      .select('*')
+      .in('symbol', symbols)
+      .order('symbol');
     
-    const response = await fetch(url);
-    
-    console.log('📊 [getMarketStocks] Response status:', response.status);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ [getMarketStocks] API error:', response.status, errorText);
-      throw new Error(`API error: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    
-    console.log('📊 [getMarketStocks] Data recibida:', data?.length || 0, 'stocks');
-    
-    if (data && Array.isArray(data) && data.length > 0) {
-      console.log('✅ [getMarketStocks] Usando datos REALES de la API');
-      return data.map((stock: any) => ({
+    if (!error && supabaseData && supabaseData.length > 0) {
+      console.log('✅ [getMarketStocks] Datos desde Supabase:', supabaseData.length);
+      return supabaseData.map((stock: any) => ({
         symbol: stock.symbol,
-        name: stock.name,
-        price: stock.price,
-        change: stock.change,
-        changePercent: stock.changesPercentage,
+        name: stock.company_name,
+        price: stock.current_price,
+        change: stock.price_change,
+        changePercent: stock.price_change_percent,
         currency: 'USD',
         exchange: stock.exchange || 'NASDAQ',
-        logo: `https://financialmodelingprep.com/image-stock/${stock.symbol}.png`,
+        logo: stock.logo_url,
       }));
     }
+    
+    console.warn('⚠️ [getMarketStocks] No hay datos en Supabase');
     
     // NO usar mock data, devolver array vacío
     console.warn('⚠️ [getMarketStocks] API no devolvió datos');
