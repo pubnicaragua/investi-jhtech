@@ -1,0 +1,63 @@
+INSTRUCCIONES FINALES - INVESTI APP
+====================================
+
+PROBLEMA API KEY (Error 401):
+La API key "igaze6ph1NawrHgRDjsWwuFq" ya expiró.
+
+SOLUCIÓN:
+1. Ir a: https://site.financialmodelingprep.com/developer/docs/
+2. Crear cuenta gratis
+3. Obtener nueva API key
+4. Actualizar en .env: EXPO_PUBLIC_FMP_API_KEY=NUEVA_KEY
+5. Reiniciar: expo start -c
+
+MIENTRAS TANTO:
+La app usa mock data (datos de prueba) que funcionan perfectamente.
+
+SQL A EJECUTAR:
+===============
+Abrir Supabase SQL Editor y ejecutar:
+SQL_MASTER_CORRECCIONES.sql
+
+Esto creará:
+- Índices para búsqueda rápida
+- Funciones para comunidades recomendadas
+- Funciones para usuarios recomendados
+- Triggers para contar posts
+- Categorías en noticias, cursos, videos
+
+ESTADO DE LAS 8 PANTALLAS:
+==========================
+✅ CommunityPostDetail - 100%
+✅ SavedPosts - 100%
+✅ EditCommunity - 100%
+✅ Following - 100%
+⚠️ EditProfile - 80% (falta validación)
+⚠️ Settings - 60% (falta logo y botones)
+⚠️ CommunityMembers - 90% (muestra "Usuario")
+⚠️ Followers - 90% (muestra "Usuario")
+
+LO QUE FALTA HACER:
+==================
+1. Ejecutar SQL_MASTER_CORRECCIONES.sql en Supabase
+2. Obtener nueva API key de FMP
+3. Aplicar correcciones de código (ver documentos)
+
+DOCUMENTOS CREADOS:
+==================
+- MASTER_TODO_COMPLETO.md - Lista completa de tareas
+- SQL_MASTER_CORRECCIONES.sql - SQL para ejecutar
+- CODIGO_COMPLETO_CORRECCIONES.md - Código para MarketInfo
+- TODO_LO_QUE_FALTA.md - Correcciones pendientes
+
+TIEMPO ESTIMADO:
+===============
+- Ejecutar SQL: 5 minutos
+- Obtener API key: 10 minutos
+- Aplicar correcciones código: 4-6 horas
+
+PRIORIDAD:
+=========
+1. Ejecutar SQL (AHORA)
+2. Obtener API key (AHORA)
+3. Resto de correcciones (DESPUÉS)

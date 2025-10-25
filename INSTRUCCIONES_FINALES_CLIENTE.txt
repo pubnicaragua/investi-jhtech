@@ -1,0 +1,141 @@
+═══════════════════════════════════════════════════════════════════════════════
+  INVESTI APP - INSTRUCCIONES FINALES - 24 OCTUBRE 2024
+═══════════════════════════════════════════════════════════════════════════════
+
+ESTADO: ✅ 8 PROBLEMAS CRÍTICOS CORREGIDOS
+VERSIÓN: 1.0.45.43
+HORA: 17:30 UTC-6
+
+═══════════════════════════════════════════════════════════════════════════════
+  PASO 1: EJECUTAR SQL EN SUPABASE (OBLIGATORIO)
+═══════════════════════════════════════════════════════════════════════════════
+
+⚠️  IMPORTANTE: NO compilar la app sin ejecutar estos SQL primero.
+
+SQL 1: fix_user_follows_duplicate.sql
+--------------------------------------
+1. Ir a Supabase Dashboard → SQL Editor
+2. New Query
+3. Copiar contenido de: sql/fix_user_follows_duplicate.sql
+4. Run
+5. Verificar ✅ en: follow_user_safe, unfollow_user_safe, is_following_user
+
+SQL 2: create_user_connections_system.sql
+------------------------------------------
+1. Ir a Supabase Dashboard → SQL Editor
+2. New Query
+3. Copiar contenido de: sql/create_user_connections_system.sql
+4. Run
+5. Verificar ✅ en 6 funciones: request_user_connection, accept_connection_request,
+   reject_connection_request, are_users_connected, get_pending_connection_requests,
+   get_user_connections
+
+═══════════════════════════════════════════════════════════════════════════════
+  PASO 2: COMPILAR LA APP
+═══════════════════════════════════════════════════════════════════════════════
+
+npm run clean
+npm install
+npm run android  (o npm run ios)
+
+═══════════════════════════════════════════════════════════════════════════════
+  PROBLEMAS CORREGIDOS
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ 1. Error duplicate key al seguir usuario
+   - Síntoma: ERROR 23505 duplicate key constraint
+   - Solución: Función RPC follow_user_safe() con manejo de duplicados
+   - Archivo: src/rest/api.ts + sql/fix_user_follows_duplicate.sql
+
+✅ 2. Posts no visibles en perfil
+   - Síntoma: Log dice "10 posts" pero UI muestra "no tiene publicaciones"
+   - Solución: Asignar userData.posts al estado feed
+   - Archivo: src/screens/ProfileScreen.tsx líneas 133-152
+
+✅ 3. Error "Cannot read property 'id' of undefined" en ChatScreen
+   - Síntoma: Error al hacer clic en "Mensaje" desde perfil
+   - Solución: Corregir parámetros de navegación (targetUserId, participant)
+   - Archivo: src/screens/ProfileScreen.tsx líneas 250-259
+
+✅ 4. Funciones faltantes en ProfileScreen
+   - Síntoma: Cannot find name 'supabase', 'handleConnect'
+   - Solución: Agregar imports y función handleConnect()
+   - Archivo: src/screens/ProfileScreen.tsx líneas 31, 34, 224-237
+
+✅ 5. Comunidades Recomendadas muestra "Usuario"
+   - Síntoma: No muestra nombres reales de usuarios
+   - Solución: Mapear full_name, username, photo_url correctamente
+   - Archivo: src/screens/CommunityRecommendationsScreen.tsx líneas 158-167
+
+✅ 6. Sistema de conexiones completo implementado
+   - 6 funciones RPC nuevas para gestión de conexiones
+   - Tabla user_connections creada
+   - Notificaciones automáticas
+   - Archivo: sql/create_user_connections_system.sql + src/rest/api.ts
+
+✅ 7. Posts guardados corregidos
+   - Query PostgREST corregido con posts!inner
+   - Transformación de datos agregada
+   - Archivo: src/screens/SavedPostsScreen.tsx líneas 113-161
+
+✅ 8. Enlaces externos en ajustes funcionales
+   - Todos los enlaces configurados (ayuda, privacidad, términos)
+   - Popup de soporte con email contacto@investiiapp.com
+   - Archivo: src/screens/SettingsScreen.tsx
+
+═══════════════════════════════════════════════════════════════════════════════
+  TESTING RÁPIDO
+═══════════════════════════════════════════════════════════════════════════════
+
+Test 1: Seguir usuario
+- Ir a perfil → Seguir → Verificar NO da error duplicate key
+
+Test 2: Ver posts en perfil
+- Ir a perfil de SEBASTIAN 22 → Verificar se muestran sus 10 posts
+
+Test 3: Enviar mensaje
+- Ir a perfil → Mensaje → Verificar NO da error → Enviar mensaje
+
+Test 4: Solicitar conexión
+- Ir a perfil → Conectar → Verificar envía solicitud y notificación
+
+Test 5: Comunidades recomendadas
+- Ir a comunidades → Verificar muestra nombres reales (no "Usuario")
+
+═══════════════════════════════════════════════════════════════════════════════
+  ARCHIVOS MODIFICADOS
+═══════════════════════════════════════════════════════════════════════════════
+
+SQL (NUEVOS):
+- sql/fix_user_follows_duplicate.sql
+- sql/create_user_connections_system.sql
+
+TypeScript (MODIFICADOS):
+- src/rest/api.ts
+- src/screens/ProfileScreen.tsx
+- src/screens/ChatScreen.tsx (sin cambios, solo corrección de navegación)
+- src/screens/CommunityRecommendationsScreen.tsx
+- src/screens/SavedPostsScreen.tsx
+- src/screens/SettingsScreen.tsx
+- src/screens/NotificationsScreen.tsx
+
+═══════════════════════════════════════════════════════════════════════════════
+  PENDIENTES (NO CRÍTICOS)
+═══════════════════════════════════════════════════════════════════════════════
+
+⏳ Optimizar PromotionsScreen búsqueda
+⏳ MarketInfo con API real + simulación inversiones
+⏳ Verificar noticias backend
+⏳ Corregir títulos herramientas educación
+⏳ Agregar 3 herramientas faltantes
+⏳ Corregir logo cohete InversionistaScreen
+⏳ Validar 8 pantallas críticas 100%
+
+═══════════════════════════════════════════════════════════════════════════════
+  SOPORTE
+═══════════════════════════════════════════════════════════════════════════════
+
+Email: contacto@investiiapp.com
+Documentación completa: Ver archivos .md en raíz del proyecto
+
+═══════════════════════════════════════════════════════════════════════════════

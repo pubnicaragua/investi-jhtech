@@ -21,7 +21,7 @@ const InversionistaScreen = () => {
   const handleNotifyMe = () => {
     Alert.alert(
       'Notificación activada',
-      'Te notificaremos cuando la función de Inversionista Ángel esté disponible el 4 de Octubre.'
+      'Te notificaremos cuando la función de Inversionista Ángel esté disponible.'
     );
   };
 
@@ -42,39 +42,38 @@ const InversionistaScreen = () => {
           <Rocket size={80} color="#2673f3" />
         </View>
         
-        <Text style={styles.title}>¡Próximamente!</Text>
-        <Text style={styles.subtitle}>Startups y Emprendimientos</Text>
+        <Text style={styles.title}>Próximamente...</Text>
         
         <Text style={styles.description}>
-          Estamos trabajando en una experiencia increíble para conectar inversionistas ángeles con startups prometedoras.
+          Muy pronto podrás acceder a una <Text style={styles.highlight}>red exclusiva</Text> de inversionistas ángeles y startups maduras de manera digital. Haz <Text style={styles.highlight}>Match</Text> como en tinder y conecta tanto con inversionistas ángeles como con startups de tus intereses. ¡Estamos trabajando en esta función!
         </Text>
-        
-        <View style={styles.dateContainer}>
-          <Calendar size={20} color="#2673f3" />
-          <Text style={styles.dateText}>Disponible el 4 de Octubre</Text>
-        </View>
         
         <View style={styles.featuresContainer}>
           <Text style={styles.featuresTitle}>¿Qué podrás hacer?</Text>
           
           <View style={styles.feature}>
-            <TrendingUp size={16} color="#28a745" />
-            <Text style={styles.featureText}>Descubrir startups con alto potencial</Text>
+            <Text style={styles.featureIcon}>🔎</Text>
+            <Text style={styles.featureText}>Explorar startups de alto potencial para invertir en ellas.</Text>
           </View>
           
           <View style={styles.feature}>
-            <TrendingUp size={16} color="#28a745" />
-            <Text style={styles.featureText}>Invertir desde $1,000 USD</Text>
+            <Text style={styles.featureIcon}>🤝</Text>
+            <Text style={styles.featureText}>Hacer match con inversionistas ángeles según tus intereses.</Text>
           </View>
           
           <View style={styles.feature}>
-            <TrendingUp size={16} color="#28a745" />
-            <Text style={styles.featureText}>Seguimiento de tu portafolio</Text>
+            <Text style={styles.featureIcon}>💼</Text>
+            <Text style={styles.featureText}>Acceder a proyectos exclusivos en etapa madura.</Text>
           </View>
           
           <View style={styles.feature}>
-            <TrendingUp size={16} color="#28a745" />
-            <Text style={styles.featureText}>Conectar con emprendedores</Text>
+            <Text style={styles.featureIcon}>📊</Text>
+            <Text style={styles.featureText}>Revisar el perfil de la startup o del ángel</Text>
+          </View>
+          
+          <View style={styles.feature}>
+            <Text style={styles.featureIcon}>🌐</Text>
+            <Text style={styles.featureText}>Conectar con otros inversionistas ángeles y startups.</Text>
           </View>
         </View>
         
@@ -142,20 +141,9 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: 32,
   },
-  dateContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0f7ff',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 25,
-    marginBottom: 32,
-  },
-  dateText: {
-    fontSize: 16,
-    fontWeight: '600',
+  highlight: {
     color: '#2673f3',
-    marginLeft: 8,
+    fontWeight: '700',
   },
   featuresContainer: {
     width: '100%',
@@ -170,13 +158,18 @@ const styles = StyleSheet.create({
   },
   feature: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
+    alignItems: 'flex-start',
+    paddingVertical: 10,
+  },
+  featureIcon: {
+    fontSize: 20,
+    marginRight: 12,
   },
   featureText: {
     fontSize: 15,
     color: '#444',
-    marginLeft: 12,
+    flex: 1,
+    lineHeight: 22,
   },
   notifyButton: {
     backgroundColor: '#2673f3',

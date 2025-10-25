@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator } from "react-native"
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from "react-i18next"
 import { 
   ChevronLeft,
@@ -111,6 +112,9 @@ export function PickGoalsScreen({ navigation }: any) {
         onboarding_step: 'pick_interests'
       })
       console.log('✅ Onboarding actualizado exitosamente')
+      
+      // Marcar paso como completado en AsyncStorage
+      await AsyncStorage.setItem('goals_selected', 'true')
       
       // Navegar a siguiente pantalla
       console.log('🚀 Navegando a PickInterests')

@@ -71,7 +71,7 @@ export const WelcomeScreen = ({ navigation }: WelcomeScreenProps) => {
         {/* Logo */}
         <View style={styles.logoContainer}>
           <Image
-            source={require("../../assets/investi-logo.png")}
+            source={require("../../assets/logo-investi.jpeg")}
             style={styles.logo}
             resizeMode="contain"
           />
@@ -79,10 +79,7 @@ export const WelcomeScreen = ({ navigation }: WelcomeScreenProps) => {
 
         {/* Description */}
         <Text style={styles.description}>
-          {t(
-            "welcome.description",
-            "¡Únete a la primera red social de educación financiera y de inversionistas en el mundo!"
-          )}
+          ¡Únete a la primera <Text style={styles.blueText}>red social</Text> de <Text style={styles.blueText}>educación financiera</Text> y de <Text style={styles.blueText}>inversionistas</Text> en el <Text style={styles.blueText}>mundo</Text>!
         </Text>
 
         {/* Branding Icons */}
@@ -220,5 +217,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     letterSpacing: -0.3,
+  },
+  blueText: {
+    color: "#2563EB",
+    fontWeight: "700",
   },
 })

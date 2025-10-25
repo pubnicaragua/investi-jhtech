@@ -115,28 +115,47 @@ export function SavedPostsScreen() {
       const user = await getCurrentUser()
       if (!user) return []
 
+      console.log('🔍 Fetching saved posts for user:', user.id)
+
       const response = await request('GET', '/post_saves', {
         params: {
-          select: `
-            *,
-            post:posts(
-              *,
-              user:users!posts_user_id_fkey(id,full_name,nombre,username,avatar_url,photo_url),
-              community:communities(id,name,nombre)
-            )
-          `,
+          select: `id,post_id,user_id,created_at,posts!inner(id,contenido,content,image_url,media_url,likes_count,comment_count,shares_count,created_at,user_id,community_id,users!posts_user_id_fkey(id,full_name,nombre,username,avatar_url,photo_url),communities(id,name,nombre))`,
           user_id: `eq.${user.id}`,
           order: 'created_at.desc',
         },
       })
 
-      if (response) {
-        setSavedPosts(response)
-        return response
+      console.log('✅ Saved posts response:', response)
+
+      if (response && Array.isArray(response)) {
+        // Transform response to match expected structure
+        const transformedPosts = response.map((item: any) => ({
+          id: item.id,
+          post_id: item.post_id,
+          user_id: item.user_id,
+          created_at: item.created_at,
+          post: {
+            id: item.posts?.id,
+            contenido: item.posts?.contenido,
+            content: item.posts?.content,
+            image_url: item.posts?.image_url,
+            media_url: item.posts?.media_url,
+            likes_count: item.posts?.likes_count || 0,
+            comment_count: item.posts?.comment_count || 0,
+            shares_count: item.posts?.shares_count || 0,
+            created_at: item.posts?.created_at,
+            user: item.posts?.users,
+            community: item.posts?.communities
+          }
+        }))
+        
+        console.log('🎯 Transformed posts:', transformedPosts.length)
+        setSavedPosts(transformedPosts)
+        return transformedPosts
       }
       return []
     } catch (error) {
-      console.error('Error fetching saved posts:', error)
+      console.error('❌ Error fetching saved posts:', error)
       return []
     }
   }

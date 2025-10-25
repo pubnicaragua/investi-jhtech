@@ -2039,27 +2039,49 @@ export async function getUserComplete(userId: string) {
   
 export async function followUser(followerId: string, followingId: string) {  
   try {  
-    return await request("POST", "/user_follows", {  
-      body: { follower_id: followerId, following_id: followingId }  
-    })  
+    // Usar función RPC que maneja duplicados automáticamente
+    const response = await request("POST", "/rpc/follow_user_safe", {  
+      body: { 
+        p_follower_id: followerId, 
+        p_following_id: followingId 
+      }  
+    })
+    return response
   } catch (error: any) {  
-    if (error.code === "23505") return null // Already following  
+    console.error('Error following user:', error)
     throw error  
   }  
 }  
   
 export async function unfollowUser(followerId: string, followingId: string) {  
   try {  
-    return await request("DELETE", "/user_follows", {  
-      params: {  
-        follower_id: `eq.${followerId}`,  
-        following_id: `eq.${followingId}`  
+    // Usar función RPC que maneja contadores automáticamente
+    const response = await request("POST", "/rpc/unfollow_user_safe", {  
+      body: {  
+        p_follower_id: followerId,  
+        p_following_id: followingId  
       }  
-    })  
+    })
+    return response
   } catch (error: any) {  
     console.error('Error unfollowing user:', error)  
     throw error  
   }  
+}
+
+export async function isFollowingUser(followerId: string, followingId: string): Promise<boolean> {
+  try {
+    const response = await request("POST", "/rpc/is_following_user", {
+      body: {
+        p_follower_id: followerId,
+        p_following_id: followingId
+      }
+    })
+    return response || false
+  } catch (error: any) {
+    console.error('Error checking follow status:', error)
+    return false
+  }
 }  
 
 
@@ -3227,20 +3249,93 @@ export async function getRecentPosts(userId: string, filter: string, limit = 10)
   }
 }
 
-// Connect with user
+// Connect with user - Usando función RPC con validación y notificación
 export async function connectWithUser(userId: string, targetUserId: string) {
   try {
-    const response = await request("POST", "/user_connections", {
+    const response = await request("POST", "/rpc/request_user_connection", {
       body: {
-        user_id: userId,
-        target_user_id: targetUserId,
-        status: 'pending'
+        p_user_id: userId,
+        p_target_user_id: targetUserId
       }
     })
     return response
   } catch (error: any) {
     console.error('Error connecting with user:', error)
     throw error
+  }
+}
+
+// Verificar si dos usuarios están conectados
+export async function areUsersConnected(userId: string, targetUserId: string): Promise<boolean> {
+  try {
+    const response = await request("POST", "/rpc/are_users_connected", {
+      body: {
+        p_user_id: userId,
+        p_target_user_id: targetUserId
+      }
+    })
+    return response || false
+  } catch (error: any) {
+    console.error('Error checking connection:', error)
+    return false
+  }
+}
+
+// Obtener solicitudes de conexión pendientes
+export async function getPendingConnectionRequests(userId: string) {
+  try {
+    const response = await request("POST", "/rpc/get_pending_connection_requests", {
+      body: { p_user_id: userId }
+    })
+    return response || []
+  } catch (error: any) {
+    console.error('Error fetching pending connection requests:', error)
+    return []
+  }
+}
+
+// Aceptar solicitud de conexión
+export async function acceptConnectionRequest(connectionId: string, userId: string) {
+  try {
+    const response = await request("POST", "/rpc/accept_connection_request", {
+      body: {
+        p_connection_id: connectionId,
+        p_user_id: userId
+      }
+    })
+    return response
+  } catch (error: any) {
+    console.error('Error accepting connection request:', error)
+    throw error
+  }
+}
+
+// Rechazar solicitud de conexión
+export async function rejectConnectionRequest(connectionId: string, userId: string) {
+  try {
+    const response = await request("POST", "/rpc/reject_connection_request", {
+      body: {
+        p_connection_id: connectionId,
+        p_user_id: userId
+      }
+    })
+    return response
+  } catch (error: any) {
+    console.error('Error rejecting connection request:', error)
+    throw error
+  }
+}
+
+// Obtener conexiones del usuario
+export async function getUserConnections(userId: string) {
+  try {
+    const response = await request("POST", "/rpc/get_user_connections", {
+      body: { p_user_id: userId }
+    })
+    return response || []
+  } catch (error: any) {
+    console.error('Error fetching user connections:', error)
+    return []
   }
 }
 

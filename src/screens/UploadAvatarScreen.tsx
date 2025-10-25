@@ -5,6 +5,7 @@ import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Image, Alert, A
 import { useTranslation } from "react-i18next"  
 import { ArrowLeft, Camera } from "lucide-react-native"  
 import * as ImagePicker from "expo-image-picker"  
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { getCurrentUserId, updateUser } from "../api"  
 import { supabase, supabaseUrl, supabaseAnonKey } from "../supabase"  
 import { LanguageToggle } from "../components/LanguageToggle"  
@@ -127,6 +128,9 @@ export function UploadAvatarScreen({ navigation }: any) {
             
           // Actualizar el perfil del usuario con la URL del avatar  
           await updateUser(uid, { photo_url: avatarUrl })  
+          
+          // Marcar paso como completado
+          await AsyncStorage.setItem('avatar_uploaded', 'true')
             
           Alert.alert("Éxito", "Avatar subido correctamente", [  
             { text: "OK", onPress: () => navigation.navigate("PickGoals") }  
@@ -145,7 +149,8 @@ export function UploadAvatarScreen({ navigation }: any) {
           )  
         }  
       } else {  
-        // Si no hay avatar, simplemente continuar  
+        // Si no hay avatar, simplemente continuar
+        await AsyncStorage.setItem('avatar_uploaded', 'true')
         navigation.navigate("PickGoals")  
       }  
     } catch (error: any) {  
@@ -156,7 +161,8 @@ export function UploadAvatarScreen({ navigation }: any) {
     }  
   }  
   
-  const handleSkip = () => {
+  const handleSkip = async () => {
+    await AsyncStorage.setItem('avatar_uploaded', 'true')
     navigation.navigate("PickGoals")
   }
   

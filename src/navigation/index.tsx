@@ -12,6 +12,7 @@ import { SignInScreen } from '../screens/SignInScreen';
 import { SignUpScreen } from '../screens/SignUpScreen';
 import { useAuth } from '../contexts/AuthContext';
 import { ActivityIndicator, View } from 'react-native';
+import { supabase } from '../supabase';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -34,6 +35,28 @@ export function RootStack() {
     const checkOnboardingStatus = async () => {
       try {
         if (isAuthenticated) {
+          // PRIORIDAD 1: Verificar en la base de datos
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data: userData, error } = await supabase
+              .from('users')
+              .select('onboarding_step')
+              .eq('id', user.id)
+              .single();
+
+            if (!error && userData) {
+              const isComplete = userData.onboarding_step === 'completed';
+              console.log('[RootStack] Onboarding status from DB:', userData.onboarding_step);
+              
+              // Sincronizar con AsyncStorage
+              await AsyncStorage.setItem(ONBOARDING_COMPLETE_KEY, isComplete ? 'true' : 'false');
+              setIsOnboarded(isComplete);
+              setIsCheckingOnboarding(false);
+              return;
+            }
+          }
+
+          // FALLBACK: Si falla la DB, usar AsyncStorage
           const onboarded = await AsyncStorage.getItem(ONBOARDING_COMPLETE_KEY);
           setIsOnboarded(onboarded === 'true');
         } else {
@@ -41,7 +64,13 @@ export function RootStack() {
         }
       } catch (error) {
         console.error('[RootStack] Error checking onboarding:', error);
-        setIsOnboarded(null);
+        // En caso de error, usar AsyncStorage como fallback
+        try {
+          const onboarded = await AsyncStorage.getItem(ONBOARDING_COMPLETE_KEY);
+          setIsOnboarded(onboarded === 'true');
+        } catch {
+          setIsOnboarded(null);
+        }
       } finally {
         setIsCheckingOnboarding(false);
       }

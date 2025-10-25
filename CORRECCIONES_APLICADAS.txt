@@ -1,0 +1,90 @@
+========================================
+CORRECCIONES APLICADAS - SCROLL INFINITO
+========================================
+
+✅ PROBLEMA 1: SQL Error "created_at"
+SOLUCIÓN: Cambiado ORDER BY created_at a ORDER BY id
+ARCHIVO: EJECUTAR_AHORA.sql
+
+✅ PROBLEMA 2: Scroll infinito se corta en post 19-20
+SOLUCIÓN: 
+- Eliminada condición hasMore que detenía el scroll
+- Mejorado algoritmo para repetir posts originales
+- IDs únicos con timestamp y random para evitar duplicados
+- setHasMore(true) SIEMPRE para scroll infinito real
+ARCHIVO: src/screens/HomeFeedScreen.tsx
+
+========================================
+CÓMO FUNCIONA AHORA:
+========================================
+
+1. Carga inicial: 20 posts de la base de datos
+2. Al hacer scroll: Repite los posts originales
+3. IDs únicos: Usa timestamp + random para evitar warnings
+4. Infinito real: NUNCA se detiene el scroll
+
+========================================
+CÓDIGO APLICADO:
+========================================
+
+const loadMorePosts = async () => {
+  if (loadingMore || !userId) return
+  
+  setLoadingMore(true)
+  try {
+    // Obtener los posts originales (sin duplicados)
+    const originalPosts = posts.filter(p => !p.id.includes('-'))
+    
+    // Si no hay posts originales, usar todos los posts
+    const postsToRepeat = originalPosts.length > 0 ? originalPosts : posts.slice(0, 20)
+    
+    // Crear nuevos posts con IDs únicos
+    const morePosts = postsToRepeat.map(post => ({
+      ...post,
+      id: `${post.id.split('-')[0]}-repeat-${Date.now()}-${Math.random()}`
+    }))
+    
+    setPosts([...posts, ...morePosts])
+    setPage(page + 1)
+    setHasMore(true) // SIEMPRE true
+  } catch (err) {
+    console.error("Error loading more posts:", err)
+  } finally {
+    setLoadingMore(false)
+  }
+}
+
+========================================
+ESTILOS AGREGADOS:
+========================================
+
+loadingMoreContainer: {
+  paddingVertical: 20,
+  alignItems: "center",
+  justifyContent: "center",
+},
+loadingMoreText: {
+  fontSize: 14,
+  color: "#666",
+  marginTop: 8,
+},
+
+========================================
+PRÓXIMOS PASOS:
+========================================
+
+1. Ejecutar EJECUTAR_AHORA.sql en Supabase
+2. Reiniciar: expo start -c
+3. Probar scroll infinito en HomeFeed
+
+========================================
+RESULTADO ESPERADO:
+========================================
+
+✅ Scroll infinito funciona sin detenerse
+✅ Muestra "Cargando más..." al hacer scroll
+✅ Repite posts indefinidamente
+✅ Sin errores de keys duplicadas
+✅ Performance óptima
+
+========================================

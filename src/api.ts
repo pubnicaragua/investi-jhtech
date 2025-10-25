@@ -368,8 +368,9 @@ export const getUserFollowers = async (userId: string, limit = 50, page = 1) => 
   if (error) throw error
   return (data || []).map((item: any) => ({
     ...item.follower,
-    name: item.follower.full_name || item.follower.nombre || item.follower.username,
-    avatarUrl: item.follower.avatar_url || item.follower.photo_url
+    name: item.follower.full_name || item.follower.nombre || item.follower.username || 'Usuario',
+    avatarUrl: item.follower.avatar_url || item.follower.photo_url,
+    username: item.follower.username
   }))
 }
 

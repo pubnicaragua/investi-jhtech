@@ -18,6 +18,7 @@ import {
 import { useTranslation } from "react-i18next"
 import * as Linking from 'expo-linking'
 import { Eye, EyeOff, User, Lock } from "lucide-react-native"
+import { FacebookIcon, GoogleIcon, LinkedInIcon } from '../components/SocialIcons'
 import { useAuth } from "../contexts/AuthContext"
 import { supabase } from "../supabase"
 
@@ -29,30 +30,8 @@ export function SignInScreen({ navigation }: any) {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const handleForgotPassword = async () => {
-    if (!email) {
-      Alert.alert(
-        t("common.error"),
-        t("auth.enterEmailForReset") || "Ingresa tu correo para restablecer la contraseña"
-      )
-      return
-    }
-    try {
-      setLoading(true)
-      const redirectTo = `${
-        typeof window !== "undefined" ? window.location.origin : "https://investi.app"
-      }/auth/callback`
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
-      if (error) throw error
-      Alert.alert(
-        t("common.success") || "Éxito",
-        t("auth.resetEmailSent") || "Te enviamos un correo para restablecer la contraseña"
-      )
-    } catch (err: any) {
-      Alert.alert("Error", err.message || "No fue posible enviar el correo de restablecimiento")
-    } finally {
-      setLoading(false)
-    }
+  const handleForgotPassword = () => {
+    navigation.navigate('ForgotPassword')
   }
 
   const handleOAuth = async (provider: "google" | "apple" | "facebook" | "linkedin_oidc") => {
@@ -218,9 +197,7 @@ export function SignInScreen({ navigation }: any) {
                 disabled={loading || isLoading}
                 activeOpacity={0.7}
               >
-                <View style={[styles.socialIcon, styles.facebookIconBg]}>
-                  <Text style={styles.facebookIcon}>f</Text>
-                </View>
+                <FacebookIcon size={56} />
               </TouchableOpacity>
 
               {/* Google */}
@@ -230,9 +207,7 @@ export function SignInScreen({ navigation }: any) {
                 disabled={loading || isLoading}
                 activeOpacity={0.7}
               >
-                <View style={styles.socialIcon}>
-                  <Text style={styles.googleIcon}>G</Text>
-                </View>
+                <GoogleIcon size={56} />
               </TouchableOpacity>
 
               {/* LinkedIn */}
@@ -242,9 +217,7 @@ export function SignInScreen({ navigation }: any) {
                 disabled={loading || isLoading}
                 activeOpacity={0.7}
               >
-                <View style={[styles.socialIcon, styles.linkedinIconBg]}>
-                  <Text style={styles.linkedinIcon}>in</Text>
-                </View>
+                <LinkedInIcon size={56} />
               </TouchableOpacity>
             </View>
           </View>
@@ -371,36 +344,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 4,
     elevation: 3,
-  },
-  socialIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  facebookIconBg: {
-    backgroundColor: '#1877F2',
-  },
-  linkedinIconBg: {
-    backgroundColor: '#0A66C2',
-  },
-  facebookIcon: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  linkedinIcon: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  googleIcon: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#4285F4',
   },
 })

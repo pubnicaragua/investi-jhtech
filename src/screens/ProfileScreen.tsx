@@ -12,6 +12,7 @@ import {
   RefreshControl,
   Dimensions,
   Modal,
+  Share,
 } from "react-native"  
 import { 
   ArrowLeft, 
@@ -28,9 +29,10 @@ import {
   MessageCircle,
   Send,
 } from "lucide-react-native"  
-import { getUserComplete, followUser, unfollowUser, getCurrentUserId, getSuggestedPeople, connectWithUser } from "../rest/api"
+import { getUserComplete, followUser, unfollowUser, getCurrentUserId, getSuggestedPeople, connectWithUser, areUsersConnected } from "../rest/api"
 import { useAuth } from "../contexts/AuthContext"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { supabase } from "../supabase"
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
@@ -102,6 +104,11 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
   const [showAboutModal, setShowAboutModal] = useState(false)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [suggestedPeople, setSuggestedPeople] = useState<SuggestedPerson[]>([])
+  const [connectionsData, setConnectionsData] = useState({
+    followers: 0,
+    following: 0,
+    mutualConnections: 0
+  })
     
   const targetUserId = route?.params?.userId || ''
   
@@ -130,6 +137,27 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
         })
         setIsOwnProfile(userId === currentUserId)
 
+        // CRÍTICO: Asignar los posts al feed
+        if (userData.posts && Array.isArray(userData.posts)) {
+          console.log(`✅ [ProfileScreen] Loading ${userData.posts.length} posts for user ${userData.name}`)
+          setFeed(userData.posts)
+        } else {
+          console.log(`⚠️ [ProfileScreen] No posts found for user ${userData.name}`)
+          setFeed([])
+        }
+
+        // Asignar comunidades si existen
+        if (userData.communities && Array.isArray(userData.communities)) {
+          const mappedCommunities = userData.communities.map((comm: any) => ({
+            id: comm.id,
+            name: comm.name || comm.nombre,
+            imageUrl: comm.icono_url || comm.image_url,
+            memberCount: comm.members_count || 0,
+            isMember: true
+          }))
+          setCommunities(mappedCommunities)
+        }
+
         // Obtener personas sugeridas del backend
         try {
           const suggestedUsers = await getSuggestedPeople(userId)
@@ -144,6 +172,22 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
         } catch (error) {
           console.error('Error loading suggested people:', error)
           setSuggestedPeople([])
+        }
+
+        // Cargar conexiones reales
+        try {
+          const { data: connections } = await supabase
+            .rpc('get_user_connections_count', { user_id_param: userId })
+          
+          if (connections && connections.length > 0) {
+            setConnectionsData({
+              followers: Number(connections[0].followers_count) || 0,
+              following: Number(connections[0].following_count) || 0,
+              mutualConnections: Number(connections[0].mutual_connections_count) || 0
+            })
+          }
+        } catch (error) {
+          console.error('Error loading connections:', error)
         }
       } else {
         Alert.alert("Error", "No se pudo cargar el perfil del usuario")  
@@ -199,13 +243,119 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
     navigation.navigate('EditProfile')
   }
 
-  const handleMessage = () => {
+  const handleChangeCoverPhoto = async () => {
+    try {
+      const ImagePicker = require('expo-image-picker')
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      })
+
+      if (!result.canceled && result.assets[0]) {
+        const uri = result.assets[0].uri
+        const currentUserId = await getCurrentUserId()
+        if (!currentUserId) return
+        
+        const fileName = `cover_${currentUserId}_${Date.now()}.jpg`
+        const { supabase } = require('../supabase')
+        const { data, error } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, {
+            uri,
+            type: 'image/jpeg',
+            name: fileName
+          })
+        
+        if (!error && data) {
+          const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(fileName)
+          
+          await supabase
+            .from('users')
+            .update({ cover_photo_url: publicUrl })
+            .eq('id', currentUserId)
+          
+          Alert.alert('✓ Actualizado', 'Foto de portada actualizada')
+          loadProfile()
+        }
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      Alert.alert('Error', 'No se pudo cambiar la foto')
+    }
+  }
+
+  const handleConnect = async () => {
     if (!profileUser) return
-    navigation.navigate('ChatScreen', { userId: profileUser.id, userName: profileUser.name })
+    
+    try {
+      const currentUserId = await getCurrentUserId()
+      if (!currentUserId) return
+
+      await connectWithUser(currentUserId, profileUser.id)
+      Alert.alert('Solicitud enviada', 'Se ha enviado tu solicitud de conexión')
+    } catch (error) {
+      console.error('Error connecting:', error)
+      Alert.alert('Error', 'No se pudo enviar la solicitud')
+    }
+  }
+
+  const handleMessage = async () => {
+    if (!profileUser) return
+    
+    // Verificar si son contactos/amigos
+    try {
+      const currentUserId = await getCurrentUserId()
+      if (!currentUserId) return
+      
+      // Verificar si existe conexión mutua
+      const { data: connection } = await supabase
+        .from('user_follows')
+        .select('id')
+        .or(`and(follower_id.eq.${currentUserId},following_id.eq.${profileUser.id}),and(follower_id.eq.${profileUser.id},following_id.eq.${currentUserId})`)
+        .limit(2)
+      
+      if (!connection || connection.length < 2) {
+        Alert.alert(
+          'Conexión requerida',
+          'Debes conectar con este usuario antes de enviar mensajes. Envía una solicitud de conexión primero.',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Conectar', onPress: () => handleConnect() }
+          ]
+        )
+        return
+      }
+      
+      navigation.navigate('ChatScreen', { 
+        targetUserId: profileUser.id,
+        type: 'direct',
+        name: profileUser.name,
+        participant: {
+          id: profileUser.id,
+          nombre: profileUser.name,
+          avatar_url: profileUser.avatarUrl
+        }
+      })
+    } catch (error) {
+      console.error('Error checking connection:', error)
+      Alert.alert('Error', 'No se pudo verificar la conexión')
+    }
   }
 
   const handleShare = async () => {
-    Alert.alert('Compartir perfil', `Compartir perfil de ${profileUser?.name}`)
+    try {
+      const userName = profileUser?.full_name || profileUser?.nombre || profileUser?.username || 'este usuario'
+      await Share.share({
+        message: `¡Mira el perfil de ${userName} en Investí! 🚀\n\nÚnete a la comunidad de inversionistas: https://investi.app/profile/${userId}`,
+        title: 'Compartir perfil'
+      })
+    } catch (error) {
+      console.error('Error sharing profile:', error)
+    }
   }
 
   const handleMoreOptions = () => {
@@ -232,21 +382,29 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
     setSuggestedPeople(prev => prev.filter(p => p.id !== personId))
   }
   
-  const renderPostCard = (post: any, index: number) => (  
+  const renderPostCard = (post: any, index: number) => {
+    // Manejar campos alternativos del backend
+    const content = post.contenido || post.content || ''
+    const user = post.user || profileUser || { nombre: 'Usuario', avatar_url: null }
+    const userName = user.nombre || user.full_name || user.username || 'Usuario'
+    const userAvatar = user.avatar_url || user.photo_url
+    const mediaUrl = Array.isArray(post.media_url) ? post.media_url[0] : post.media_url
+    
+    return (
     <View key={index} style={styles.postCard}>  
       <View style={styles.postHeader}>  
         <View style={styles.postAuthorRow}>
-          {post.user?.avatar_url ? (
-            <Image source={{ uri: post.user.avatar_url }} style={styles.postAvatar} />
+          {userAvatar ? (
+            <Image source={{ uri: userAvatar }} style={styles.postAvatar} />
           ) : (
             <View style={[styles.postAvatar, styles.avatarPlaceholder]}>
               <Text style={styles.avatarInitials}>
-                {getInitials(post.user?.nombre || 'U')}
+                {getInitials(userName)}
               </Text>
             </View>
           )}
           <View style={styles.postAuthorInfo}>  
-            <Text style={styles.postAuthor}>{post.user?.nombre || 'Usuario'} ha compartido esto</Text>  
+            <Text style={styles.postAuthor}>{userName} ha compartido esto</Text>  
             <Text style={styles.postTime}>
               {new Date(post.created_at).toLocaleDateString('es-ES', { 
                 day: 'numeric', 
@@ -261,11 +419,11 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
         </TouchableOpacity>
       </View>  
       
-      <Text style={styles.postText} numberOfLines={3}>{post.contenido}</Text>
+      <Text style={styles.postText} numberOfLines={3}>{content}</Text>
       
-      {post.media_url && post.media_url.length > 0 && (
+      {mediaUrl && (
         <Image 
-          source={{ uri: post.media_url[0] }} 
+          source={{ uri: mediaUrl }} 
           style={styles.postImage}
           resizeMode="cover"
         />
@@ -302,7 +460,8 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
         </View>
       </View>
     </View>  
-  )
+    )
+  }
 
   const renderSuggestedPerson = (person: SuggestedPerson, index: number) => (
     <View key={index} style={styles.personCard}>
@@ -386,7 +545,7 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
             }}
           >
             <Text style={[styles.communityJoinButtonText, community.isMember && styles.communityJoinedButtonText]}>
-              {community.isMember ? 'Unido' : 'Unirse'}
+              {community.isMember ? 'Ya eres parte' : 'Unirse'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -424,7 +583,7 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
             <View style={styles.bannerPlaceholder} />
           )}
           {isOwnProfile && (
-            <TouchableOpacity style={styles.editBannerButton} onPress={handleEditProfile}>
+            <TouchableOpacity style={styles.editBannerButton} onPress={handleChangeCoverPhoto}>
               <Edit2 size={20} color="#fff" />
             </TouchableOpacity>
           )}
@@ -484,7 +643,7 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
               onPress={() => navigation.navigate('Followers', { userId: targetUserId })}
             >
               <Text style={styles.contactsLinkText}>
-                {profileUser.stats?.followersCount || 0} contactos
+                {connectionsData.mutualConnections} contactos
               </Text>
             </TouchableOpacity>
           </View>  
@@ -496,7 +655,7 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
             <>
               <TouchableOpacity  
                 style={styles.primaryButton}  
-                onPress={() => Alert.alert('Cambiar intereses', 'Función próximamente')}
+                onPress={() => navigation.navigate('EditInterests')}
               >  
                 <Text style={styles.primaryButtonText}>Cambiar mis intereses</Text>  
               </TouchableOpacity>
@@ -601,7 +760,7 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
               onPress={() => navigation.navigate('Followers', { userId: targetUserId })}
             >
               <Text style={styles.connectionLinkText}>
-                {profileUser.stats?.followersCount || 0} seguidores
+                {connectionsData.followers} seguidores
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -609,7 +768,7 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
               onPress={() => navigation.navigate('Following', { userId: targetUserId })}
             >
               <Text style={styles.connectionLinkText}>
-                {profileUser.stats?.followingCount || 0} siguiendo
+                {connectionsData.following} siguiendo
               </Text>
             </TouchableOpacity>
           </View>

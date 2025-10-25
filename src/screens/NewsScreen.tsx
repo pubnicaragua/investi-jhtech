@@ -13,6 +13,7 @@ import {
 } from "react-native"
 import { useTranslation } from "react-i18next"
 import { ArrowLeft, Bookmark, Share2, Clock } from "lucide-react-native"
+import { supabase } from "../supabase"
 
 const NEWS_CATEGORIES = [
   'Todas',
@@ -73,14 +74,34 @@ export function NewsScreen({ navigation }: any) {
     loadNews()
   }, [])
 
-  const loadNews = () => {
+  const loadNews = async () => {
     setLoading(true)
-    // Simular carga de datos
-    setTimeout(() => {
+    try {
+      const { data, error } = await supabase
+        .from('news')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(20)
+      
+      if (error) throw error
+      
+      const formattedNews = (data || []).map((item: any) => ({
+        id: item.id,
+        title: item.title || 'Sin título',
+        summary: item.summary || item.content || 'Sin descripción',
+        image: item.image_url || 'https://images.unsplash.com/photo-1639762681057-1e7ca56441a8?ixlib=rb-4.0.3',
+        date: new Date(item.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
+        category: item.category || 'General'
+      }))
+      
+      setNews(formattedNews.length > 0 ? formattedNews : mockNews)
+    } catch (error) {
+      console.error('Error loading news:', error)
       setNews(mockNews)
+    } finally {
       setLoading(false)
       setRefreshing(false)
-    }, 1000)
+    }
   }
 
   const onRefresh = () => {

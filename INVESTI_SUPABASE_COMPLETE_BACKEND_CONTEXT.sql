@@ -11,44 +11,6 @@
 -- =====================================================  
 -- SECCIÓN 1: ESTRUCTURA COMPLETA DE TABLAS (47 tablas)  
 -- =====================================================  
--- [Incluir todos los CREATE TABLE con columnas y tipos]  
-  
--- =====================================================  
--- SECCIÓN 2: FOREIGN KEYS Y RELACIONES (67 relaciones)  
--- =====================================================  
--- [Incluir todas las foreign keys que compartiste]  
-  
--- =====================================================  
--- SECCIÓN 3: FUNCIONES PERSONALIZADAS  
--- =====================================================  
--- [Incluir las 33 funciones que identificaste]  
-  
--- =====================================================  
--- SECCIÓN 4: TRIGGERS Y AUTOMATIZACIÓN  
--- =====================================================  
--- [Incluir todos los triggers activos]  
-  
--- =====================================================  
--- SECCIÓN 5: POLÍTICAS RLS (47 políticas)  
--- =====================================================  
--- [Incluir todas las políticas de seguridad]  
-  
--- =====================================================  
--- SECCIÓN 6: DATOS DE EJEMPLO POBLADOS  
--- =====================================================  
--- [Incluir datos reales de market_data, promotions, etc.]  
-  
--- =====================================================  
--- SECCIÓN 7: ENDPOINTS IMPLEMENTADOS VS FALTANTES  
--- =====================================================  
--- [Mapeo completo de pantallas y sus endpoints]  
-  
--- =====================================================  
--- SECCIÓN 8: SCRIPTS DE VALIDACIÓN  
--- =====================================================  
--- [Scripts para verificar integridad y funcionamiento]
-
-
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
@@ -98,6 +60,7 @@ CREATE TABLE public.chats (
   user2_id uuid,
   created_at timestamp with time zone DEFAULT now(),
   community_id uuid,
+  unread_count integer DEFAULT 0,
   CONSTRAINT chats_pkey PRIMARY KEY (id),
   CONSTRAINT chats_user1_id_fkey FOREIGN KEY (user1_id) REFERENCES public.users(id),
   CONSTRAINT chats_user2_id_fkey FOREIGN KEY (user2_id) REFERENCES public.users(id),
@@ -126,6 +89,19 @@ CREATE TABLE public.communities (
   member_count integer DEFAULT 0,
   name text,
   image_url text,
+  cover_image_url text,
+  banner_url text,
+  category text,
+  is_verified boolean DEFAULT false,
+  notifications_enabled boolean DEFAULT true,
+  allow_member_posts boolean DEFAULT true,
+  require_approval boolean DEFAULT false,
+  allow_invites boolean DEFAULT true,
+  type character varying DEFAULT 'public'::character varying CHECK (type::text = ANY (ARRAY['public'::character varying, 'private'::character varying]::text[])),
+  updated_at timestamp with time zone DEFAULT now(),
+  savings_goal numeric DEFAULT 0,
+  current_savings numeric DEFAULT 0,
+  savings_goal_description text,
   CONSTRAINT communities_pkey PRIMARY KEY (id),
   CONSTRAINT communities_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
 );
@@ -136,6 +112,7 @@ CREATE TABLE public.community_channels (
   description text,
   type text DEFAULT 'text'::text,
   created_at timestamp with time zone DEFAULT now(),
+  created_by text,
   CONSTRAINT community_channels_pkey PRIMARY KEY (id),
   CONSTRAINT community_channels_community_id_fkey FOREIGN KEY (community_id) REFERENCES public.communities(id)
 );
@@ -163,6 +140,16 @@ CREATE TABLE public.community_files (
   CONSTRAINT community_files_community_id_fkey FOREIGN KEY (community_id) REFERENCES public.communities(id),
   CONSTRAINT community_files_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
+CREATE TABLE public.community_goals (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  community_id uuid NOT NULL,
+  goal_id uuid NOT NULL,
+  relevance_score numeric DEFAULT 1.0,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT community_goals_pkey PRIMARY KEY (id),
+  CONSTRAINT community_goals_community_id_fkey FOREIGN KEY (community_id) REFERENCES public.communities(id),
+  CONSTRAINT community_goals_goal_id_fkey FOREIGN KEY (goal_id) REFERENCES public.goals(id)
+);
 CREATE TABLE public.community_invitations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   community_id uuid NOT NULL,
@@ -175,6 +162,20 @@ CREATE TABLE public.community_invitations (
   CONSTRAINT community_invitations_community_id_fkey FOREIGN KEY (community_id) REFERENCES public.communities(id),
   CONSTRAINT community_invitations_from_user_id_fkey FOREIGN KEY (from_user_id) REFERENCES public.users(id),
   CONSTRAINT community_invitations_to_user_id_fkey FOREIGN KEY (to_user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.community_join_requests (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  community_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  status text DEFAULT 'pending'::text CHECK (status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text])),
+  message text,
+  reviewed_by uuid,
+  reviewed_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT community_join_requests_pkey PRIMARY KEY (id),
+  CONSTRAINT community_join_requests_community_id_fkey FOREIGN KEY (community_id) REFERENCES public.communities(id),
+  CONSTRAINT community_join_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT community_join_requests_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES public.users(id)
 );
 CREATE TABLE public.community_media (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -195,6 +196,7 @@ CREATE TABLE public.community_members (
   user_id uuid NOT NULL,
   role text DEFAULT 'member'::text CHECK (role = ANY (ARRAY['member'::text, 'moderator'::text, 'admin'::text])),
   joined_at timestamp with time zone DEFAULT now(),
+  status text DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'inactive'::text, 'banned'::text])),
   CONSTRAINT community_members_pkey PRIMARY KEY (id),
   CONSTRAINT community_members_community_id_fkey FOREIGN KEY (community_id) REFERENCES public.communities(id),
   CONSTRAINT community_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
@@ -205,6 +207,8 @@ CREATE TABLE public.community_messages (
   user_id uuid,
   content text NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
+  media_url text,
+  message_type text,
   CONSTRAINT community_messages_pkey PRIMARY KEY (id),
   CONSTRAINT community_messages_channel_id_fkey FOREIGN KEY (channel_id) REFERENCES public.community_channels(id),
   CONSTRAINT community_messages_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
@@ -220,6 +224,129 @@ CREATE TABLE public.community_photos (
   CONSTRAINT community_photos_community_id_fkey FOREIGN KEY (community_id) REFERENCES public.communities(id),
   CONSTRAINT community_photos_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
+CREATE TABLE public.community_post (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  community_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  contenido text NOT NULL,
+  media_url ARRAY DEFAULT '{}'::text[],
+  likes_count integer DEFAULT 0,
+  comment_count integer DEFAULT 0,
+  shares_count integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  is_pinned boolean DEFAULT false,
+  pinned_by uuid,
+  pinned_at timestamp with time zone,
+  CONSTRAINT community_post_pkey PRIMARY KEY (id),
+  CONSTRAINT community_post_community_id_fkey FOREIGN KEY (community_id) REFERENCES public.communities(id),
+  CONSTRAINT community_post_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT community_post_pinned_by_fkey FOREIGN KEY (pinned_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.community_post_comments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  community_post_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  parent_id uuid,
+  contenido text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT community_post_comments_pkey PRIMARY KEY (id),
+  CONSTRAINT community_post_comments_post_id_fkey FOREIGN KEY (community_post_id) REFERENCES public.community_post(id),
+  CONSTRAINT community_post_comments_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT community_post_comments_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.community_post_comments(id)
+);
+CREATE TABLE public.community_post_likes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  community_post_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  is_like boolean NOT NULL DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT community_post_likes_pkey PRIMARY KEY (id),
+  CONSTRAINT community_post_likes_post_id_fkey FOREIGN KEY (community_post_id) REFERENCES public.community_post(id),
+  CONSTRAINT community_post_likes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.community_post_saves (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  community_post_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT community_post_saves_pkey PRIMARY KEY (id),
+  CONSTRAINT community_post_saves_post_id_fkey FOREIGN KEY (community_post_id) REFERENCES public.community_post(id),
+  CONSTRAINT community_post_saves_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.community_post_shares (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  community_post_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  shared_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT community_post_shares_pkey PRIMARY KEY (id),
+  CONSTRAINT community_post_shares_post_id_fkey FOREIGN KEY (community_post_id) REFERENCES public.community_post(id),
+  CONSTRAINT community_post_shares_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.community_settings (
+  community_id uuid NOT NULL,
+  is_private boolean DEFAULT false,
+  require_approval boolean DEFAULT false,
+  allow_member_posts boolean DEFAULT true,
+  allow_member_invites boolean DEFAULT true,
+  allow_comments boolean DEFAULT true,
+  allow_reactions boolean DEFAULT true,
+  show_member_count boolean DEFAULT true,
+  show_member_list boolean DEFAULT true,
+  enable_notifications boolean DEFAULT true,
+  notify_new_members boolean DEFAULT true,
+  notify_new_posts boolean DEFAULT true,
+  notify_new_comments boolean DEFAULT false,
+  auto_moderate boolean DEFAULT false,
+  profanity_filter boolean DEFAULT true,
+  spam_filter boolean DEFAULT true,
+  max_post_length integer DEFAULT 5000,
+  max_comment_length integer DEFAULT 1000,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT community_settings_pkey PRIMARY KEY (community_id),
+  CONSTRAINT community_settings_community_id_fkey FOREIGN KEY (community_id) REFERENCES public.communities(id)
+);
+CREATE TABLE public.conversation_participants (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  conversation_id uuid,
+  user_id uuid,
+  joined_at timestamp with time zone DEFAULT now(),
+  role text DEFAULT 'member'::text CHECK (role = ANY (ARRAY['admin'::text, 'member'::text])),
+  CONSTRAINT conversation_participants_pkey PRIMARY KEY (id),
+  CONSTRAINT conversation_participants_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id),
+  CONSTRAINT conversation_participants_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.conversations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  title text,
+  type text DEFAULT 'direct'::text CHECK (type = ANY (ARRAY['direct'::text, 'group'::text])),
+  created_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  last_message text,
+  last_message_at timestamp with time zone,
+  participant_one uuid,
+  participant_two uuid,
+  CONSTRAINT conversations_pkey PRIMARY KEY (id),
+  CONSTRAINT conversations_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id),
+  CONSTRAINT conversations_participant_one_fkey FOREIGN KEY (participant_one) REFERENCES public.users(id),
+  CONSTRAINT conversations_participant_two_fkey FOREIGN KEY (participant_two) REFERENCES public.users(id)
+);
+CREATE TABLE public.course_enrollments (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  course_id uuid NOT NULL,
+  enrolled_at timestamp with time zone DEFAULT now(),
+  completed_at timestamp with time zone,
+  progress_percentage numeric DEFAULT 0,
+  is_active boolean DEFAULT true,
+  last_accessed_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT course_enrollments_pkey PRIMARY KEY (id),
+  CONSTRAINT course_enrollments_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT course_enrollments_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id)
+);
 CREATE TABLE public.course_modules (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   course_id uuid,
@@ -228,6 +355,17 @@ CREATE TABLE public.course_modules (
   CONSTRAINT course_modules_pkey PRIMARY KEY (id),
   CONSTRAINT course_modules_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id)
 );
+CREATE TABLE public.course_topics (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name text NOT NULL,
+  description text,
+  icon text,
+  color text DEFAULT '#4A90E2'::text,
+  order_index integer DEFAULT 0,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT course_topics_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.courses (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   titulo text,
@@ -235,7 +373,25 @@ CREATE TABLE public.courses (
   nivel USER-DEFINED,
   created_at timestamp with time zone DEFAULT now(),
   imagen_url text,
-  CONSTRAINT courses_pkey PRIMARY KEY (id)
+  category text,
+  duracion_total integer,
+  total_lecciones integer,
+  topic uuid,
+  icon text,
+  color text DEFAULT '#4A90E2'::text,
+  title text,
+  description text,
+  level text,
+  duration integer,
+  price numeric DEFAULT 0,
+  currency text DEFAULT 'USD'::text,
+  is_published boolean DEFAULT true,
+  is_free boolean DEFAULT true,
+  updated_at timestamp with time zone DEFAULT now(),
+  thumbnail_url text,
+  instructor_id uuid,
+  CONSTRAINT courses_pkey PRIMARY KEY (id),
+  CONSTRAINT courses_instructor_id_fkey FOREIGN KEY (instructor_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.dismissed_suggestions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -245,6 +401,18 @@ CREATE TABLE public.dismissed_suggestions (
   CONSTRAINT dismissed_suggestions_pkey PRIMARY KEY (id),
   CONSTRAINT dismissed_suggestions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
   CONSTRAINT dismissed_suggestions_dismissed_user_id_fkey FOREIGN KEY (dismissed_user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.educational_tools (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  title text NOT NULL,
+  description text,
+  icon text,
+  route text,
+  is_premium boolean DEFAULT false,
+  is_active boolean DEFAULT true,
+  order_index integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT educational_tools_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.faqs (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -276,6 +444,8 @@ CREATE TABLE public.goals (
   description text,
   created_at timestamp with time zone DEFAULT now(),
   icon text,
+  category text,
+  updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT goals_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.interests (
@@ -305,6 +475,17 @@ CREATE TABLE public.knowledge_levels (
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT knowledge_levels_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.learning_path_courses (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  learning_path_id uuid NOT NULL,
+  course_id uuid NOT NULL,
+  order_index integer NOT NULL,
+  is_required boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT learning_path_courses_pkey PRIMARY KEY (id),
+  CONSTRAINT learning_path_courses_learning_path_id_fkey FOREIGN KEY (learning_path_id) REFERENCES public.learning_paths(id),
+  CONSTRAINT learning_path_courses_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id)
+);
 CREATE TABLE public.learning_paths (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   title text NOT NULL,
@@ -312,6 +493,7 @@ CREATE TABLE public.learning_paths (
   difficulty_level text,
   estimated_duration integer,
   created_at timestamp with time zone DEFAULT now(),
+  course_ids ARRAY,
   CONSTRAINT learning_paths_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.lesson_progress (
@@ -330,8 +512,12 @@ CREATE TABLE public.lessons (
   contenido_md text,
   orden integer,
   descripcion text,
+  course_id uuid,
+  duration integer DEFAULT 0,
+  tipo text DEFAULT 'video'::text,
   CONSTRAINT lessons_pkey PRIMARY KEY (id),
-  CONSTRAINT lessons_module_id_fkey FOREIGN KEY (module_id) REFERENCES public.course_modules(id)
+  CONSTRAINT lessons_module_id_fkey FOREIGN KEY (module_id) REFERENCES public.course_modules(id),
+  CONSTRAINT lessons_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id)
 );
 CREATE TABLE public.market_data (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -345,15 +531,30 @@ CREATE TABLE public.market_data (
   last_updated timestamp with time zone DEFAULT now(),
   CONSTRAINT market_data_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.message_reads (
+  conversation_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  last_read_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT message_reads_pkey PRIMARY KEY (conversation_id, user_id),
+  CONSTRAINT message_reads_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id),
+  CONSTRAINT message_reads_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
 CREATE TABLE public.messages (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   chat_id uuid,
   sender_id uuid,
   contenido text NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
+  receiver_id uuid,
+  media_url text,
+  message_type text DEFAULT 'text'::text CHECK (message_type = ANY (ARRAY['text'::text, 'image'::text, 'video'::text, 'file'::text, 'audio'::text, 'voice'::text])),
+  conversation_id uuid,
+  content text,
   CONSTRAINT messages_pkey PRIMARY KEY (id),
-  CONSTRAINT messages_chat_id_fkey FOREIGN KEY (chat_id) REFERENCES public.chats(id),
-  CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.users(id)
+  CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.users(id),
+  CONSTRAINT messages_receiver_id_fkey FOREIGN KEY (receiver_id) REFERENCES public.users(id),
+  CONSTRAINT messages_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES public.conversations(id),
+  CONSTRAINT messages_chat_id_fkey FOREIGN KEY (chat_id) REFERENCES public.chats(id)
 );
 CREATE TABLE public.news (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -387,11 +588,15 @@ CREATE TABLE public.notifications (
   read_at timestamp with time zone,
   post_id uuid,
   from_user_id uuid,
+  action_url text,
+  actor_id uuid,
+  target_object jsonb,
   CONSTRAINT notifications_pkey PRIMARY KEY (id),
   CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
   CONSTRAINT notifications_community_id_fkey FOREIGN KEY (community_id) REFERENCES public.communities(id),
   CONSTRAINT notifications_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.posts(id),
-  CONSTRAINT notifications_from_user_id_fkey FOREIGN KEY (from_user_id) REFERENCES public.users(id)
+  CONSTRAINT notifications_from_user_id_fkey FOREIGN KEY (from_user_id) REFERENCES public.users(id),
+  CONSTRAINT notifications_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.post_comments (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -425,6 +630,15 @@ CREATE TABLE public.post_saves (
   CONSTRAINT post_saves_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.posts(id),
   CONSTRAINT post_saves_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
+CREATE TABLE public.post_shares (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  post_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  shared_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT post_shares_pkey PRIMARY KEY (id),
+  CONSTRAINT post_shares_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.posts(id),
+  CONSTRAINT post_shares_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
 CREATE TABLE public.posts (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid,
@@ -448,6 +662,7 @@ CREATE TABLE public.posts (
   pinned_at timestamp with time zone,
   is_edited boolean DEFAULT false,
   updated_at timestamp with time zone DEFAULT now(),
+  shares_count integer DEFAULT 0,
   CONSTRAINT posts_pkey PRIMARY KEY (id),
   CONSTRAINT posts_community_id_fkey FOREIGN KEY (community_id) REFERENCES public.communities(id),
   CONSTRAINT posts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
@@ -557,6 +772,7 @@ CREATE TABLE public.user_budgets (
   amount numeric,
   period text DEFAULT 'monthly'::text,
   created_at timestamp with time zone DEFAULT now(),
+  is_active boolean DEFAULT true,
   CONSTRAINT user_budgets_pkey PRIMARY KEY (id),
   CONSTRAINT user_budgets_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
@@ -565,6 +781,8 @@ CREATE TABLE public.user_communities (
   user_id uuid,
   community_id uuid,
   joined_at timestamp with time zone DEFAULT now(),
+  role text DEFAULT 'member'::text CHECK (role = ANY (ARRAY['owner'::text, 'admin'::text, 'moderator'::text, 'member'::text])),
+  status text DEFAULT 'active'::text,
   CONSTRAINT user_communities_pkey PRIMARY KEY (id),
   CONSTRAINT user_communities_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
   CONSTRAINT user_communities_community_id_fkey FOREIGN KEY (community_id) REFERENCES public.communities(id)
@@ -580,6 +798,20 @@ CREATE TABLE public.user_connections (
   CONSTRAINT user_connections_from_user_id_fkey FOREIGN KEY (from_user_id) REFERENCES public.users(id),
   CONSTRAINT user_connections_to_user_id_fkey FOREIGN KEY (to_user_id) REFERENCES public.users(id)
 );
+CREATE TABLE public.user_course_progress (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  course_id uuid NOT NULL,
+  lesson_id uuid,
+  progress_percentage integer DEFAULT 0 CHECK (progress_percentage >= 0 AND progress_percentage <= 100),
+  completed_at timestamp with time zone,
+  started_at timestamp with time zone DEFAULT now(),
+  last_accessed_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_course_progress_pkey PRIMARY KEY (id),
+  CONSTRAINT user_course_progress_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT user_course_progress_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id),
+  CONSTRAINT user_course_progress_lesson_id_fkey FOREIGN KEY (lesson_id) REFERENCES public.lessons(id)
+);
 CREATE TABLE public.user_followers (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   follower_id uuid,
@@ -594,9 +826,41 @@ CREATE TABLE public.user_follows (
   follower_id uuid,
   following_id uuid,
   created_at timestamp with time zone DEFAULT now(),
+  source text DEFAULT 'manual'::text,
   CONSTRAINT user_follows_pkey PRIMARY KEY (id),
   CONSTRAINT user_follows_follower_id_fkey FOREIGN KEY (follower_id) REFERENCES public.users(id),
   CONSTRAINT user_follows_following_id_fkey FOREIGN KEY (following_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.user_goals (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  goal_id uuid,
+  priority integer DEFAULT 1,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_goals_pkey PRIMARY KEY (id),
+  CONSTRAINT user_goals_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT user_goals_goal_id_fkey FOREIGN KEY (goal_id) REFERENCES public.goals(id)
+);
+CREATE TABLE public.user_interests (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  interest_id uuid,
+  experience_level text DEFAULT 'beginner'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_interests_pkey PRIMARY KEY (id),
+  CONSTRAINT user_interests_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT user_interests_interest_id_fkey FOREIGN KEY (interest_id) REFERENCES public.interests(id)
+);
+CREATE TABLE public.user_knowledge (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid UNIQUE,
+  level text NOT NULL,
+  specific_areas ARRAY DEFAULT '{}'::text[],
+  learning_goals ARRAY DEFAULT '{}'::text[],
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_knowledge_pkey PRIMARY KEY (id),
+  CONSTRAINT user_knowledge_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.user_preferences (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -660,8 +924,32 @@ CREATE TABLE public.users (
   location text,
   banner_url text,
   is_verified boolean DEFAULT false,
+  onboarding_step text DEFAULT 'welcome'::text,
   CONSTRAINT users_pkey PRIMARY KEY (id),
   CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.video_bookmarks (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  video_id uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT video_bookmarks_pkey PRIMARY KEY (id),
+  CONSTRAINT video_bookmarks_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT video_bookmarks_video_id_fkey FOREIGN KEY (video_id) REFERENCES public.videos(id)
+);
+CREATE TABLE public.video_comments (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  video_id uuid NOT NULL,
+  content text NOT NULL,
+  parent_id uuid,
+  like_count integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT video_comments_pkey PRIMARY KEY (id),
+  CONSTRAINT video_comments_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT video_comments_video_id_fkey FOREIGN KEY (video_id) REFERENCES public.videos(id),
+  CONSTRAINT video_comments_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.video_comments(id)
 );
 CREATE TABLE public.video_content (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -673,6 +961,82 @@ CREATE TABLE public.video_content (
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT video_content_pkey PRIMARY KEY (id),
   CONSTRAINT video_content_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id)
+);
+CREATE TABLE public.video_likes (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  video_id uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT video_likes_pkey PRIMARY KEY (id),
+  CONSTRAINT video_likes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT video_likes_video_id_fkey FOREIGN KEY (video_id) REFERENCES public.videos(id)
+);
+CREATE TABLE public.video_progress (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  video_id uuid NOT NULL,
+  progress_seconds integer DEFAULT 0,
+  total_seconds integer NOT NULL,
+  progress_percentage numeric DEFAULT 0,
+  completed boolean DEFAULT false,
+  completed_at timestamp with time zone,
+  last_watched_at timestamp with time zone DEFAULT now(),
+  watch_time_seconds integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT video_progress_pkey PRIMARY KEY (id),
+  CONSTRAINT video_progress_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT video_progress_video_id_fkey FOREIGN KEY (video_id) REFERENCES public.videos(id)
+);
+CREATE TABLE public.video_subtitles (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  video_id uuid NOT NULL,
+  language_code text NOT NULL,
+  language_name text NOT NULL,
+  subtitle_url text NOT NULL,
+  is_auto_generated boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT video_subtitles_pkey PRIMARY KEY (id),
+  CONSTRAINT video_subtitles_video_id_fkey FOREIGN KEY (video_id) REFERENCES public.videos(id)
+);
+CREATE TABLE public.video_themes (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name text NOT NULL,
+  description text,
+  color text DEFAULT '#4A90E2'::text,
+  order_index integer DEFAULT 0,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT video_themes_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.videos (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  title text NOT NULL,
+  description text,
+  video_url text NOT NULL,
+  thumbnail_url text,
+  duration integer NOT NULL,
+  file_size bigint,
+  mime_type text,
+  quality text DEFAULT 'HD'::text CHECK (quality = ANY (ARRAY['SD'::text, 'HD'::text, 'FHD'::text, '4K'::text])),
+  course_id uuid,
+  lesson_id uuid,
+  instructor_id uuid,
+  category text,
+  tags ARRAY,
+  view_count integer DEFAULT 0,
+  like_count integer DEFAULT 0,
+  is_published boolean DEFAULT false,
+  is_free boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  theme_id_fk uuid,
+  theme_id uuid,
+  CONSTRAINT videos_pkey PRIMARY KEY (id),
+  CONSTRAINT videos_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id),
+  CONSTRAINT videos_lesson_id_fkey FOREIGN KEY (lesson_id) REFERENCES public.lessons(id),
+  CONSTRAINT videos_instructor_id_fkey FOREIGN KEY (instructor_id) REFERENCES public.users(id),
+  CONSTRAINT videos_theme_id_fk_fkey FOREIGN KEY (theme_id_fk) REFERENCES public.video_themes(id)
 );
 
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity,
-  Image, ActivityIndicator, RefreshControl, TextInput, Platform,
+  View, Text, StyleSheet, SafeAreaView, ScrollView, FlatList, TouchableOpacity,
+  Image, ActivityIndicator, RefreshControl, TextInput, Platform, Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +17,8 @@ import {
 import { useAuthGuard } from '../hooks/useAuthGuard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+const SCREEN_WIDTH = Dimensions.get('window').width;
+
 interface Course {
   id: string; title: string; description: string; category: string;
   level: string; duration: number; price: number; currency: string;
@@ -31,7 +33,7 @@ interface Video {
 
 interface VideoTheme { id: string; name: string; color: string; order_index: number; }
 interface CourseTopic { id: string; name: string; description: string; color: string; icon: string; order_index: number; }
-interface Tool { id: string; name: string; description: string; icon: string; route: string; is_premium: boolean; }
+interface Tool { id: string; name?: string; title?: string; description: string; icon: string; route: string; is_premium: boolean; }
 
 const getIconForTopic = (iconName: string) => {
   const icons: { [key: string]: any} = { 'target': Target, 'dollar-sign': DollarSign, 'trending-up': TrendingUp, 'bar-chart': BarChart3 };
@@ -191,7 +193,7 @@ export function EducacionScreen() {
       <TouchableOpacity key={tool.id} style={styles.toolCard} onPress={() => handleToolPress(tool)} activeOpacity={0.7}>
         <View style={styles.toolIconContainer}><IconComponent size={28} color="#4A90E2" /></View>
         <View style={styles.toolInfo}>
-          <Text style={styles.toolTitle}>{tool.name}</Text>
+          <Text style={styles.toolTitle}>{tool.title || tool.name}</Text>
           <Text style={styles.toolDescription} numberOfLines={2}>{tool.description}</Text>
         </View>
         <ChevronRight size={20} color="#ccc" />
@@ -205,7 +207,7 @@ export function EducacionScreen() {
         <View style={styles.toolGridIconContainer}>
           <Text style={styles.toolGridEmoji}>{tool.icon}</Text>
         </View>
-        <Text style={styles.toolGridTitle} numberOfLines={1}>{tool.name}</Text>
+        <Text style={styles.toolGridTitle} numberOfLines={1}>{tool.title || tool.name}</Text>
         <Text style={styles.toolGridDescription} numberOfLines={2}>{tool.description}</Text>
       </TouchableOpacity>
     );
@@ -253,9 +255,15 @@ export function EducacionScreen() {
                         <Text style={styles.seeAllText}>Ver todos</Text>
                       </TouchableOpacity>
                     </View>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScrollContent}>
-                      {videos.slice(0, 6).map(renderVideoItem)}
-                    </ScrollView>
+                    <FlatList
+                      horizontal
+                      data={videos.slice(0, 6)}
+                      renderItem={({ item }) => renderVideoItem(item)}
+                      keyExtractor={(item) => item.id}
+                      showsHorizontalScrollIndicator={false}
+                      bounces={false}
+                      contentContainerStyle={styles.horizontalScrollContent}
+                    />
                   </View>
                 )}
                 {courseTopics.map(topic => {
@@ -275,9 +283,15 @@ export function EducacionScreen() {
                           </View>
                         </View>
                       </View>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScrollContent}>
-                        {topicCourses.map(renderCourseItem)}
-                      </ScrollView>
+                      <FlatList
+                        horizontal
+                        data={topicCourses}
+                        renderItem={({ item }) => renderCourseItem(item)}
+                        keyExtractor={(item) => item.id}
+                        showsHorizontalScrollIndicator={false}
+                        bounces={false}
+                        contentContainerStyle={styles.horizontalScrollContent}
+                      />
                     </View>
                   );
                 })}
@@ -481,7 +495,7 @@ const styles = StyleSheet.create({
   toolInfo: { flex: 1 },
   toolTitle: { fontSize: 15, fontWeight: '600', color: '#333', marginBottom: 4 },
   toolDescription: { fontSize: 13, color: '#666', lineHeight: 18 },
-  toolGridCard: { width: '30%', backgroundColor: '#fff', padding: 12, borderRadius: 12, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1, alignItems: 'center' },
+  toolGridCard: { width: (SCREEN_WIDTH - 48) / 2.5, backgroundColor: '#fff', padding: 12, borderRadius: 12, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1, alignItems: 'center' },
   toolGridIconContainer: { width: 50, height: 50, borderRadius: 15, backgroundColor: 'rgba(74, 144, 226, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
   toolGridTitle: { fontSize: 12, fontWeight: '600', color: '#333', textAlign: 'center', marginBottom: 2 },
   toolGridDescription: { fontSize: 10, color: '#666', textAlign: 'center', lineHeight: 14 },

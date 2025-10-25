@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react"  
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, TextInput, RefreshControl, Image, Platform } from "react-native"  
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, TextInput, RefreshControl, Image, Platform, Alert, Modal } from "react-native"  
 import { useTranslation } from "react-i18next"  
 import { Search, TrendingUp, TrendingDown, Home, Users, MessageCircle, Bell, User } from "lucide-react-native"
 import { Ionicons } from '@expo/vector-icons'
@@ -7,7 +7,10 @@ import { useRoute } from '@react-navigation/native'
 import { LanguageToggle } from "../components/LanguageToggle"  
 import { useAuthGuard } from "../hooks/useAuthGuard"  
 import { getMarketData, getFeaturedStocks } from "../rest/api"  
-import { useSafeAreaInsets } from 'react-native-safe-area-context'  
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { getMarketStocks, getLatinAmericanStocks, searchStocks, MarketStock } from '../services/searchApiService'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { supabase } from '../supabase'  
   
 interface Stock {  
   id: string  
@@ -30,7 +33,10 @@ export function MarketInfoScreen({ navigation }: any) {
   const [stocks, setStocks] = useState<Stock[]>([])  
   const [featuredStocks, setFeaturedStocks] = useState<Stock[]>([])  
   const [loading, setLoading] = useState(true)  
-  const [refreshing, setRefreshing] = useState(false)  
+  const [refreshing, setRefreshing] = useState(false)
+  const [selectedFilter, setSelectedFilter] = useState('all')
+  const [selectedStock, setSelectedStock] = useState<Stock | null>(null)
+  const [showStockModal, setShowStockModal] = useState(false)  
   
   useAuthGuard()  
   
@@ -39,15 +45,59 @@ export function MarketInfoScreen({ navigation }: any) {
   const loadMarketData = useCallback(async () => {  
     try {  
       setLoading(true)  
-      const [allStocks, featured] = await Promise.all([  
-        getMarketData(),  
-        getFeaturedStocks()  
-      ])  
-      setStocks(allStocks)  
-      setFeaturedStocks(featured)  
+      
+      // Intentar obtener datos de la API real primero
+      const realStocks = await getMarketStocks();
+      const latinStocks = await getLatinAmericanStocks();
+      
+      if (realStocks.length > 0 || latinStocks.length > 0) {
+        // Combinar y eliminar duplicados por símbolo
+        const stocksMap = new Map<string, MarketStock>();
+        [...realStocks, ...latinStocks].forEach(stock => {
+          if (!stocksMap.has(stock.symbol)) {
+            stocksMap.set(stock.symbol, stock);
+          }
+        });
+        
+        // Convertir a array y mapear al formato de Stock
+        const allRealStocks = Array.from(stocksMap.values()).map((stock, index) => ({
+          id: `${stock.symbol}-${index}`, // ID único
+          symbol: stock.symbol,
+          company_name: stock.name,
+          current_price: stock.price,
+          price_change: stock.change,
+          price_change_percent: stock.changePercent,
+          color: stock.changePercent >= 0 ? '#10B981' : '#EF4444',
+          is_featured: index < 4,
+          logo_url: stock.logo,
+        }));
+        
+        setStocks(allRealStocks);
+        setFeaturedStocks(allRealStocks.filter(s => s.is_featured));
+      } else {
+        // Fallback a datos de Supabase si la API falla
+        const [allStocks, featured] = await Promise.all([  
+          getMarketData(),  
+          getFeaturedStocks()  
+        ])  
+        setStocks(allStocks)  
+        setFeaturedStocks(featured)
+      }
     } catch (error) {  
-      console.error('Error loading market data:', error)  
-    } finally {  setLoading(false)  
+      console.error('Error loading market data:', error)
+      // Fallback a datos de Supabase en caso de error
+      try {
+        const [allStocks, featured] = await Promise.all([  
+          getMarketData(),  
+          getFeaturedStocks()  
+        ])  
+        setStocks(allStocks)  
+        setFeaturedStocks(featured)
+      } catch (fallbackError) {
+        console.error('Fallback also failed:', fallbackError);
+      }
+    } finally {  
+      setLoading(false)  
       setRefreshing(false)  
     }  
   }, [])  
@@ -61,10 +111,48 @@ export function MarketInfoScreen({ navigation }: any) {
     loadMarketData()  
   }, [loadMarketData])  
   
-  const filteredStocks = stocks.filter(stock =>   
-    stock.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||  
-    stock.company_name.toLowerCase().includes(searchQuery.toLowerCase())  
-  )  
+  const filters = ['Todos', 'Chile', 'USA', 'Tecnología', 'Energía', 'Finanzas']
+
+  const handleAddToPortfolio = async (stock: Stock) => {
+    try {
+      const userId = await AsyncStorage.getItem('userId')
+      if (!userId) return
+
+      const { error } = await supabase
+        .from('user_portfolio')
+        .upsert({
+          user_id: userId,
+          stock_symbol: stock.symbol,
+          stock_name: stock.company_name,
+          quantity: 0,
+          current_price: stock.current_price
+        })
+      
+      if (!error) {
+        Alert.alert('✓ Agregado', 'Acción agregada a tu portafolio')
+      }
+    } catch (error) {
+      console.error('Error adding to portfolio:', error)
+    }
+  }
+
+  const handleSimulateInvestment = (stock: Stock) => {
+    setSelectedStock(stock)
+    setShowStockModal(true)
+  }
+
+  const filteredStocks = stocks.filter(stock => {
+    const matchesSearch = stock.symbol.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      stock.company_name.toLowerCase().includes(searchQuery.toLowerCase())
+    
+    if (selectedFilter === 'Todos') return matchesSearch
+    if (selectedFilter === 'Chile') return matchesSearch && stock.symbol.includes('.SN')
+    if (selectedFilter === 'USA') return matchesSearch && !stock.symbol.includes('.')
+    if (selectedFilter === 'Tecnología') return matchesSearch && ['AAPL', 'GOOGL', 'MSFT', 'TSLA', 'META', 'NVDA'].includes(stock.symbol)
+    if (selectedFilter === 'Energía') return matchesSearch && ['XOM', 'CVX', 'COP'].includes(stock.symbol)
+    if (selectedFilter === 'Finanzas') return matchesSearch && ['JPM', 'BAC', 'WFC', 'GS'].includes(stock.symbol)
+    return matchesSearch
+  })  
   
   return (  
     <View style={[styles.container, { paddingTop: insets.top }]}>  
@@ -99,6 +187,40 @@ export function MarketInfoScreen({ navigation }: any) {
           />  
         }  
       >  
+        {/* Filtros */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filtersContainer}
+          contentContainerStyle={styles.filtersContent}
+        >
+          {filters.map(filter => (
+            <TouchableOpacity
+              key={filter}
+              style={[
+                styles.filterChip,
+                selectedFilter === filter && styles.filterChipActive
+              ]}
+              onPress={() => setSelectedFilter(filter)}
+            >
+              <Text style={[
+                styles.filterText,
+                selectedFilter === filter && styles.filterTextActive
+              ]}>
+                {filter}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Disclaimer */}
+        <View style={styles.disclaimerContainer}>
+          <Text style={styles.disclaimerIcon}>⚠️</Text>
+          <Text style={styles.disclaimerText}>
+            <Text style={styles.disclaimerBold}>Ojo:</Text> esta es solo una simulación. No garantiza resultados reales ni constituye asesoría financiera. Invertir siempre conlleva riesgos. Te recomendamos informarte y, si es necesario, buscar orientación profesional antes de invertir.
+          </Text>
+        </View>
+  
         {/* Sección de acciones destacadas */}  
         <View style={styles.section}>  
           <View style={styles.sectionHeader}>  
@@ -147,7 +269,8 @@ export function MarketInfoScreen({ navigation }: any) {
   
           <View style={styles.stocksList}>  
             {filteredStocks.map((stock) => (  
-              <TouchableOpacity key={stock.id} style={styles.stockItem}>  
+              <View key={stock.id} style={styles.stockItemWrapper}>
+              <TouchableOpacity style={styles.stockItem} onPress={() => handleSimulateInvestment(stock)}>  
                 <View style={[styles.stockIcon, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e6e6e6' }]}>  
                   {stock.logo_url ? (
                     <Image source={{ uri: stock.logo_url }} style={styles.stockLogo} resizeMode="contain" />
@@ -177,7 +300,24 @@ export function MarketInfoScreen({ navigation }: any) {
                     </Text>  
                   </View>  
                 </View>  
-              </TouchableOpacity>  
+              </TouchableOpacity>
+              <View style={styles.stockActions}>
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={() => handleAddToPortfolio(stock)}
+                >
+                  <Ionicons name="briefcase-outline" size={18} color="#2673f3" />
+                  <Text style={styles.actionButtonText}>Portafolio</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={() => handleSimulateInvestment(stock)}
+                >
+                  <Ionicons name="calculator-outline" size={18} color="#10B981" />
+                  <Text style={styles.actionButtonText}>Simular</Text>
+                </TouchableOpacity>
+              </View>
+              </View>  
             ))}  
           </View>  
   
@@ -470,5 +610,84 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
-  },  
+  },
+  disclaimerContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF3CD',
+    borderLeftWidth: 4,
+    borderLeftColor: '#FFA500',
+    padding: 12,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    borderRadius: 8,
+    gap: 10,
+  },
+  disclaimerIcon: {
+    fontSize: 20,
+  },
+  disclaimerText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#856404',
+    lineHeight: 18,
+  },
+  disclaimerBold: {
+    fontWeight: '700',
+  },
+  filtersContainer: {
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  filtersContent: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  filterChipActive: {
+    backgroundColor: '#2673f3',
+    borderColor: '#2673f3',
+  },
+  filterText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  filterTextActive: {
+    color: '#FFFFFF',
+  },
+  stockItemWrapper: {
+    marginBottom: 12,
+  },
+  stockActions: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingTop: 8,
+    paddingLeft: 56,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  actionButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+  },
 })

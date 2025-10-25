@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,10 @@ import {
   SafeAreaView,
   ScrollView,
   Alert,
+  Image,
+  Modal,
+  Switch,
+  Linking,
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import {
@@ -53,24 +57,107 @@ export function SettingsScreen({ navigation }: any) {
     );
   };
 
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [showAngelInvestorModal, setShowAngelInvestorModal] = useState(false);
+
+  const handleNotifications = () => {
+    Alert.alert(
+      t("settings.notifications"),
+      "Configurar notificaciones",
+      [
+        { text: "Push", onPress: () => setNotificationsEnabled(!notificationsEnabled) },
+        { text: "Email", onPress: () => Alert.alert("Email", "Notificaciones por email activadas") },
+        { text: "Cancelar", style: "cancel" }
+      ]
+    );
+  };
+
+  const handlePrivacy = () => {
+    Alert.alert(
+      t("settings.dataPrivacy"),
+      "Nivel de privacidad",
+      [
+        { text: "Público", onPress: () => Alert.alert("✓", "Perfil público") },
+        { text: "Amigos", onPress: () => Alert.alert("✓", "Solo amigos") },
+        { text: "Privado", onPress: () => Alert.alert("✓", "Perfil privado") },
+        { text: "Cancelar", style: "cancel" }
+      ]
+    );
+  };
+
+  const handleSecurity = () => {
+    Alert.alert(
+      t("settings.loginSecurity"),
+      "Opciones de seguridad",
+      [
+        { text: "Cambiar contraseña", onPress: () => navigation.navigate("ChangePassword") },
+        { text: "Autenticación 2FA", onPress: () => Alert.alert("2FA", "Activar autenticación de dos factores") },
+        { text: "Cancelar", style: "cancel" }
+      ]
+    );
+  };
+
+  const handleAngelInvestor = () => {
+    setShowAngelInvestorModal(true);
+  };
+
+  const handleStartups = () => {
+    Alert.alert(
+      'Próximamente en v2.0 de Investí',
+      'Esta función estará disponible en la próxima versión de Investí.',
+      [{ text: 'OK' }]
+    );
+  };
+
+  const handleSupport = () => {
+    Alert.alert(
+      "Soporte",
+      "¿Necesitas ayuda? Contáctanos en:\n\ncontacto@investiiapp.com",
+      [
+        { text: "Cerrar", style: "cancel" },
+        { 
+          text: "Copiar email", 
+          onPress: () => {
+            // Copy to clipboard functionality would go here
+            Alert.alert("✓", "Email copiado al portapapeles")
+          }
+        }
+      ]
+    );
+  };
+
+  const handleOpenURL = async (url: string, label: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert("Error", `No se puede abrir el enlace: ${url}`);
+      }
+    } catch (error) {
+      console.error('Error opening URL:', error);
+      Alert.alert("Error", "No se pudo abrir el enlace");
+    }
+  };
+
   const handleComingSoon = (label: string) => {
     Alert.alert(label, "✨ Esta sección estará disponible pronto.");
   };
 
   const settingsItems = [
-    { icon: Lock, label: t("settings.loginSecurity") },
-    { icon: Shield, label: t("settings.dataPrivacy") },
-    { icon: Bell, label: t("settings.notifications") },
-    { icon: TrendingUp, label: t("settings.angelInvestor") },
-    { icon: Rocket, label: t("settings.startups") },
+    { icon: Lock, label: t("settings.loginSecurity"), onPress: handleSecurity },
+    { icon: Shield, label: t("settings.dataPrivacy"), onPress: handlePrivacy },
+    { icon: Bell, label: t("settings.notifications"), onPress: handleNotifications },
+    { icon: TrendingUp, label: t("settings.angelInvestor"), onPress: handleAngelInvestor, isAngelInvestor: true },
+    { icon: Rocket, label: t("settings.startups"), onPress: handleStartups },
   ];
 
   const supportItems = [
-    { icon: HelpCircle, label: t("settings.helpCenter") },
-    { icon: FileText, label: t("settings.privacyPolicy") },
-    { icon: Eye, label: t("settings.accessibility") },
-    { icon: Info, label: t("settings.recommendationsTransparency") },
-    { icon: FileCheck, label: t("settings.userLicense") },
+    { icon: HelpCircle, label: t("settings.helpCenter"), url: "https://www.investiiapp.com/ayuda" },
+    { icon: FileText, label: t("settings.privacyPolicy"), url: "https://www.investiiapp.com/privacidad" },
+    { icon: Eye, label: t("settings.accessibility"), url: "https://www.investiiapp.com/ayuda" },
+    { icon: Info, label: t("settings.recommendationsTransparency"), url: "https://www.investiiapp.com/terminos" },
+    { icon: FileCheck, label: t("settings.userLicense"), url: "https://www.investiiapp.com/terminos" },
   ];
 
   return (
@@ -84,7 +171,7 @@ export function SettingsScreen({ navigation }: any) {
           <ArrowLeft size={24} color="#111" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t("settings.title")}</Text>
-        <TouchableOpacity style={styles.headerRight}>
+        <TouchableOpacity style={styles.headerRight} onPress={handleSupport}>
           <Headphones size={24} color="#111" />
         </TouchableOpacity>
       </View>
@@ -107,13 +194,58 @@ export function SettingsScreen({ navigation }: any) {
             <TouchableOpacity
               key={index}
               style={styles.settingItem}
-              onPress={() => handleComingSoon(item.label)}
+              onPress={item.onPress}
             >
-              <item.icon size={22} color="#333" />
+              {item.isAngelInvestor ? (
+                <Image 
+                  source={require('../../assets/LogoAngelInvestors.png')} 
+                  style={styles.angelLogo}
+                  resizeMode="contain"
+                />
+              ) : (
+                <item.icon size={22} color="#333" />
+              )}
               <Text style={styles.settingItemText}>{item.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* Modal Angel Investor */}
+        <Modal
+          visible={showAngelInvestorModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowAngelInvestorModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Image 
+                source={require('../../assets/LogoAngelInvestors.png')} 
+                style={styles.modalLogo}
+                resizeMode="contain"
+              />
+              <Text style={styles.modalTitle}>Inversionista Ángel</Text>
+              <Text style={styles.modalDescription}>
+                Conviértete en un inversionista ángel y apoya a startups prometedoras.
+              </Text>
+              <TouchableOpacity 
+                style={styles.modalButton}
+                onPress={() => {
+                  setShowAngelInvestorModal(false);
+                  navigation.navigate("Inversionista");
+                }}
+              >
+                <Text style={styles.modalButtonText}>Explorar oportunidades</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.modalButtonSecondary}
+                onPress={() => setShowAngelInvestorModal(false)}
+              >
+                <Text style={styles.modalButtonSecondaryText}>Cerrar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         {/* Soporte */}
         <View style={styles.section}>
@@ -121,7 +253,7 @@ export function SettingsScreen({ navigation }: any) {
             <TouchableOpacity
               key={index}
               style={styles.settingItem}
-              onPress={() => handleComingSoon(item.label)}
+              onPress={() => handleOpenURL(item.url, item.label)}
             >
               <item.icon size={22} color="#333" />
               <Text style={styles.settingItemText}>{item.label}</Text>
@@ -223,5 +355,61 @@ const styles = StyleSheet.create({
   versionText: {
     fontSize: 14,
     color: "#667",
+  },
+  angelLogo: {
+    width: 22,
+    height: 22,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+    alignItems: 'center',
+  },
+  modalLogo: {
+    width: 80,
+    height: 80,
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#111',
+    marginBottom: 8,
+  },
+  modalDescription: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  modalButton: {
+    backgroundColor: '#2563EB',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    width: '100%',
+    marginBottom: 12,
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  modalButtonSecondary: {
+    paddingVertical: 12,
+  },
+  modalButtonSecondaryText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

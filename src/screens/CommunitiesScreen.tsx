@@ -293,7 +293,7 @@ export function CommunitiesScreen({ navigation }: any) {
                 <Check size={14} color="#fff" style={{ marginRight: 6 }} />
               )}
               <Text style={styles.joinBtnText}>
-                {isJoined ? "Unido" : "Unirse"}
+                {isJoined ? "Ya eres parte" : "Unirse"}
               </Text>
             </TouchableOpacity>
           </View>

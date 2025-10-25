@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TextInput,
   Image,
@@ -16,6 +15,7 @@ import {
   AppState,
   Alert,
 } from "react-native"
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from "react-i18next"
 import {
   Search,
@@ -68,6 +68,9 @@ export function HomeFeedScreen({ navigation }: any) {
   const [posts, setPosts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
@@ -144,7 +147,7 @@ export function HomeFeedScreen({ navigation }: any) {
     return name.substring(0, 2).toUpperCase()
   }
 
-  const loadFeed = async (uid?: string) => {
+  const loadFeed = async (uid?: string, resetPage = true) => {
     setError(null)
     try {
       const currentUid = uid || userId
@@ -152,6 +155,11 @@ export function HomeFeedScreen({ navigation }: any) {
       if (currentUid) {
         const data = await getUserFeed(currentUid)
         setPosts(data || [])
+        
+        if (resetPage) {
+          setPage(0)
+          setHasMore(true)
+        }
         
         const liked = new Set(data?.filter((p: any) => p.is_liked).map((p: any) => p.id) || [])
         const saved = new Set(data?.filter((p: any) => p.is_saved).map((p: any) => p.id) || [])
@@ -166,6 +174,33 @@ export function HomeFeedScreen({ navigation }: any) {
       setError("Error al cargar el feed")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadMorePosts = async () => {
+    if (loadingMore || !userId) return
+    
+    setLoadingMore(true)
+    try {
+      // Obtener los posts originales (sin duplicados)
+      const originalPosts = posts.filter(p => !p.id.includes('-'))
+      
+      // Si no hay posts originales, usar todos los posts
+      const postsToRepeat = originalPosts.length > 0 ? originalPosts : posts.slice(0, 20)
+      
+      // Crear nuevos posts con IDs únicos
+      const morePosts = postsToRepeat.map(post => ({
+        ...post,
+        id: `${post.id.split('-')[0]}-repeat-${Date.now()}-${Math.random()}` // ID único
+      }))
+      
+      setPosts([...posts, ...morePosts])
+      setPage(page + 1)
+      setHasMore(true) // SIEMPRE mantener true para scroll infinito
+    } catch (err) {
+      console.error("Error loading more posts:", err)
+    } finally {
+      setLoadingMore(false)
     }
   }
 
@@ -228,33 +263,63 @@ export function HomeFeedScreen({ navigation }: any) {
       const isSaved = savedPosts.has(postId)
       
       if (isSaved) {
+        // Eliminar de guardados
         setSavedPosts(prev => {
           const newSet = new Set(prev)
           newSet.delete(postId)
           return newSet
         })
+        // TODO: Llamar API para eliminar (unsavePost)
       } else {
+        // Guardar post
         setSavedPosts(prev => new Set(prev).add(postId))
-        await savePost(postId, userId, { source: 'home_feed' })
-        // Navegar a saved posts después de guardar
-        navigation.navigate('SavedPosts')
+        const result = await savePost(postId, userId)
+        
+        if (result === null) {
+          // Ya estaba guardado, solo actualizar UI
+          return
+        }
+        
+        // Mostrar confirmación
+        Alert.alert(
+          "✓ Post guardado",
+          "El post se guardó correctamente",
+          [
+            { text: "Ver guardados", onPress: () => navigation.navigate('SavedPosts') },
+            { text: "OK", style: "cancel" }
+          ]
+        )
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error saving post:", err)
+      Alert.alert("Error", "No se pudo guardar el post. Intenta de nuevo.")
+      // Revertir el estado en caso de error
+      if (savedPosts.has(postId)) {
+        setSavedPosts(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(postId)
+          return newSet
+        })
+      }
     }
   }
 
-  const handleShare = async (postId: string) => {
+  const handleShare = async (postId: string, postContent?: string) => {
     if (!userId) return
     
     try {
-      await sharePost(postId, userId)
+      await Share.share({
+        message: postContent || 'Mira esta publicación en Investi',
+        title: 'Compartir publicación',
+      });
       
-      const newCount = posts.find(p => p.id === postId)?.shares || 0
-      setPosts(prev => prev.map(p => p.id === postId ? { ...p, shares: newCount + 1 } : p))
+      await sharePost(postId, userId);
+      
+      const newCount = posts.find(p => p.id === postId)?.shares_count || 0
+      setPosts(prev => prev.map(p => p.id === postId ? { ...p, shares_count: newCount + 1 } : p))
       
       await Share.share({
-        message: `Mira esta publicación en Investi`,
+        message: postContent ? `${postContent}\n\nMira esta publicación en Investi` : `Mira esta publicación en Investi`,
         url: `https://investi.app/posts/${postId}`,
       })
     } catch (err) {
@@ -340,11 +405,29 @@ export function HomeFeedScreen({ navigation }: any) {
         })
         await unfollowUser(userId, targetUserId)
       } else {
+        // Primero actualizar UI optimistamente
         setFollowedUsers(prev => new Set(prev).add(targetUserId))
-        await followUser(userId, targetUserId)
+        
+        try {
+          await followUser(userId, targetUserId)
+        } catch (followError: any) {
+          // Si ya existe la relación (duplicate key), ignorar el error
+          if (followError?.code === '23505' || followError?.message?.includes('duplicate')) {
+            // Ya está siguiendo, mantener el estado
+            return
+          }
+          // Si es otro error, revertir el estado
+          setFollowedUsers(prev => {
+            const newSet = new Set(prev)
+            newSet.delete(targetUserId)
+            return newSet
+          })
+          throw followError
+        }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error following user:", err)
+      Alert.alert("Error", "No se pudo seguir al usuario. Intenta de nuevo.")
     }
   }
 
@@ -357,7 +440,8 @@ export function HomeFeedScreen({ navigation }: any) {
   }
 
   const handleSendMessage = (postId: string, targetUserId: string) => {
-    navigation.navigate("ChatScreen", { userId: targetUserId, postId })
+    // Navegar a la lista de chats (Messages/ChatList)
+    navigation.navigate("Messages" as never)
   }
 
   const handleNavigation = (routeName: string) => {
@@ -438,29 +522,30 @@ export function HomeFeedScreen({ navigation }: any) {
               </>
             )}
           </View>
+        </View>
+
+        <View style={styles.rightActions}>
+          <TouchableOpacity 
+            style={styles.moreButton} 
+            activeOpacity={0.7}
+            onPress={() => handlePostOptions(item.id, item.user_id)}
+          >
+            <MoreHorizontal size={20} color="#6B7280" strokeWidth={2} />
+          </TouchableOpacity>
           
           <TouchableOpacity 
-            style={styles.saveButtonInline}
+            style={styles.saveButton}
             onPress={() => handleSave(item.id)}
             activeOpacity={0.7}
           >
             <Bookmark 
-              size={14} 
+              size={20} 
               color="#6B7280"
               strokeWidth={2}
               fill={savedPosts.has(item.id) ? "#6B7280" : "none"}
             />
-            <Text style={styles.saveText}>Guardar publicación</Text>
           </TouchableOpacity>
         </View>
-
-        <TouchableOpacity 
-          style={styles.moreButton} 
-          activeOpacity={0.7}
-          onPress={() => handlePostOptions(item.id, item.user_id)}
-        >
-          <MoreHorizontal size={20} color="#6B7280" strokeWidth={2} />
-        </TouchableOpacity>
       </View>
 
       <TouchableOpacity 
@@ -555,7 +640,7 @@ export function HomeFeedScreen({ navigation }: any) {
     return (
       <View style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#3B82F6" />
           </View>
@@ -704,6 +789,16 @@ export function HomeFeedScreen({ navigation }: any) {
               contentContainerStyle={styles.feedContent} 
               refreshing={loading} 
               onRefresh={() => loadFeed()} 
+              onEndReached={loadMorePosts}
+              onEndReachedThreshold={0.5}
+              ListFooterComponent={
+                loadingMore ? (
+                  <View style={styles.loadingMoreContainer}>
+                    <ActivityIndicator size="small" color="#3B82F6" />
+                    <Text style={styles.loadingMoreText}>Cargando más...</Text>
+                  </View>
+                ) : null
+              }
             />
           )}
         </View>
@@ -1000,20 +1095,13 @@ const styles = StyleSheet.create({
   globeIcon: {
     fontSize: 11,
   },
-  saveButtonInline: {
+  rightActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
   },
-  saveText: {
-    fontSize: 12,
-    color: "#6B7280",
-    fontWeight: "500",
-  },
-  followText: {
-    color: "#3B82F6",
-    fontSize: 14,
-    fontWeight: "600",
+  saveButton: {
+    padding: 4,
   },
   moreButton: {
     padding: 4,
@@ -1140,5 +1228,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingVertical: 40,
+  },
+  loadingMoreContainer: {
+    paddingVertical: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingMoreText: {
+    fontSize: 14,
+    color: "#666",
+    marginTop: 8,
   },
 })

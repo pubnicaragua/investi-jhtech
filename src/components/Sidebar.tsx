@@ -236,12 +236,8 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
           </TouchableOpacity>  
   
           <TouchableOpacity style={styles.menuItem} onPress={handleChatPress} activeOpacity={0.7}>  
-            <Image 
-              source={require('../../assets/iri-icono-Sin-fondo.gif')} 
-              style={styles.iriMenuIcon}
-              resizeMode="contain"
-            />
-            <Text style={styles.menuText}>Chat con IRÏ</Text>  
+            <Sparkles size={24} color="#8B5CF6" strokeWidth={1.5} />
+            <Text style={styles.menuText}>Chatea con Irï</Text>  
           </TouchableOpacity>  
   
           <TouchableOpacity style={styles.menuItem} onPress={handleSettingsPress} activeOpacity={0.7}>

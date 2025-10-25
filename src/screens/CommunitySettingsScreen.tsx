@@ -493,6 +493,53 @@ export function CommunitySettingsScreen() {
   const isAdmin = userRole === 'admin' || userRole === 'owner'
   const isModerator = userRole === 'moderator' || isAdmin
 
+  const handleChangeImage = async () => {
+    try {
+      const ImagePicker = require('expo-image-picker')
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      })
+
+      if (!result.canceled && result.assets[0]) {
+        const uri = result.assets[0].uri
+        const fileName = `community_${communityId}_${Date.now()}.jpg`
+        
+        // Subir a Supabase Storage
+        const { supabase } = require('../supabase')
+        const formData = new FormData()
+        formData.append('file', {
+          uri,
+          type: 'image/jpeg',
+          name: fileName,
+        } as any)
+
+        const { data, error } = await supabase.storage
+          .from('community-images')
+          .upload(fileName, formData)
+
+        if (!error && data) {
+          const { data: { publicUrl } } = supabase.storage
+            .from('community-images')
+            .getPublicUrl(fileName)
+
+          await request('PATCH', '/communities', {
+            params: { id: `eq.${communityId}` },
+            body: { icono_url: publicUrl, image_url: publicUrl },
+          })
+
+          Alert.alert('✓ Actualizado', 'Imagen de comunidad actualizada')
+          await fetchCommunity()
+        }
+      }
+    } catch (error) {
+      console.error('Error changing image:', error)
+      Alert.alert('Error', 'No se pudo cambiar la imagen')
+    }
+  }
+
   // ============================================================================
   // SECCIONES DE CONFIGURACIÓN
   // ============================================================================
@@ -519,7 +566,7 @@ export function CommunitySettingsScreen() {
           label: 'Cambiar imagen',
           description: 'Actualizar foto de la comunidad',
           type: 'action',
-          onPress: () => Alert.alert('Próximamente', 'Función de cambio de imagen próximamente'),
+          onPress: handleChangeImage,
           requiresAdmin: true,
         },
       ],
@@ -768,7 +815,7 @@ export function CommunitySettingsScreen() {
           label: 'Solicitudes pendientes',
           description: `${pendingRequests} pendientes`,
           type: 'navigation',
-          onPress: () => Alert.alert('Próximamente', 'Pantalla de solicitudes próximamente'),
+          onPress: () => navigation.navigate('PendingRequests', { communityId }),
           requiresAdmin: true,
           badge: pendingRequests > 0 ? pendingRequests.toString() : undefined,
           badgeColor: '#ef4444',
@@ -779,7 +826,7 @@ export function CommunitySettingsScreen() {
           label: 'Moderadores',
           description: 'Gestionar moderadores',
           type: 'navigation',
-          onPress: () => Alert.alert('Próximamente', 'Pantalla de moderadores próximamente'),
+          onPress: () => navigation.navigate('ManageModerators', { communityId }),
           requiresAdmin: true,
         },
         {
@@ -787,7 +834,7 @@ export function CommunitySettingsScreen() {
           icon: Ban,
           label: 'Usuarios bloqueados',
           type: 'navigation',
-          onPress: () => Alert.alert('Próximamente', 'Pantalla de bloqueados próximamente'),
+          onPress: () => navigation.navigate('BlockedUsers', { communityId }),
           requiresAdmin: true,
         },
         {
@@ -796,7 +843,7 @@ export function CommunitySettingsScreen() {
           label: 'Reportes',
           description: 'Ver reportes de contenido',
           type: 'navigation',
-          onPress: () => Alert.alert('Próximamente', 'Pantalla de reportes próximamente'),
+          onPress: () => navigation.navigate('CommunityReports', { communityId }),
           requiresAdmin: true,
         },
       ],

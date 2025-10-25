@@ -11,6 +11,7 @@ import {
   Image,
   FlatList,
   Keyboard,
+  Modal,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, Camera, Check, Users, ChevronRight, Monitor, DollarSign, Rocket, Trophy, Palette, Music, Microscope, GraduationCap, Heart, Map, Lock, Unlock, School } from 'lucide-react-native'
@@ -106,6 +107,7 @@ export default function CreateCommunityScreen({ navigation }: any) {
   })
   const [suggestedUsers, setSuggestedUsers] = useState<User[]>([])
   const [showAllUsers, setShowAllUsers] = useState(false)
+  const [showInterestsModal, setShowInterestsModal] = useState(false)
 
   const scrollViewRef = useRef<ScrollView>(null)
   const nameInputRef = useRef<TextInput>(null)
@@ -547,42 +549,79 @@ export default function CreateCommunityScreen({ navigation }: any) {
           />
         </View>
 
-        {/* Intereses */}
+        {/* Intereses - Dropdown */}
         <View style={styles.stepContainer}>
           <Text style={styles.stepTitle}>Intereses</Text>
           <Text style={styles.stepSubtitle}>Selecciona los intereses de tu comunidad</Text>
-          <View style={styles.interestsContainer}>
-            {INTERESTS.map((interest) => {
-              const IconComponent = INTEREST_ICON_COMPONENTS[interest]
-              const iconColor = INTEREST_ICON_COLORS[interest] || '#2673f3'
-              const isSelected = formData.interests.includes(interest)
+          
+          <TouchableOpacity 
+            style={styles.dropdownButton}
+            onPress={() => setShowInterestsModal(true)}
+          >
+            <Text style={styles.dropdownButtonText}>
+              {formData.interests.length > 0 
+                ? `${formData.interests.length} interés(es) seleccionado(s)` 
+                : 'Seleccionar intereses'}
+            </Text>
+            <ChevronRight size={20} color="#666" />
+          </TouchableOpacity>
 
-              return (
-                <TouchableOpacity
-                  key={interest}
-                  style={[
-                    styles.interestChip,
-                    isSelected && styles.interestChipSelected
-                  ]}
-                  onPress={() => toggleInterest(interest)}
-                >
-                  <View style={[styles.iconContainer, isSelected && { backgroundColor: iconColor + '20' }]}>
-                    {IconComponent && <IconComponent size={20} color={isSelected ? iconColor : '#6B7280'} />}
-                  </View>
-                  <Text style={[
-                    styles.interestText,
-                    isSelected && styles.interestTextSelected
-                  ]}>
-                    {interest}
-                  </Text>
-                  {isSelected && (
-                    <Check size={16} color="#3B82F6" />
-                  )}
-                </TouchableOpacity>
-              )
-            })}
-          </View>
+          {formData.interests.length > 0 && (
+            <View style={styles.selectedInterestsContainer}>
+              {formData.interests.map((interest) => (
+                <View key={interest} style={styles.selectedInterestChip}>
+                  <Text style={styles.selectedInterestText}>{interest}</Text>
+                  <TouchableOpacity onPress={() => toggleInterest(interest)}>
+                    <Text style={styles.removeInterestText}>×</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
+
+        {/* Modal de Intereses */}
+        <Modal
+          visible={showInterestsModal}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setShowInterestsModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Seleccionar Intereses</Text>
+                <TouchableOpacity onPress={() => setShowInterestsModal(false)}>
+                  <Text style={styles.modalCloseText}>Listo</Text>
+                </TouchableOpacity>
+              </View>
+              
+              <ScrollView style={styles.modalBody}>
+                {INTERESTS.map((interest) => {
+                  const IconComponent = INTEREST_ICON_COMPONENTS[interest]
+                  const iconColor = INTEREST_ICON_COLORS[interest] || '#2673f3'
+                  const isSelected = formData.interests.includes(interest)
+
+                  return (
+                    <TouchableOpacity
+                      key={interest}
+                      style={styles.modalInterestItem}
+                      onPress={() => toggleInterest(interest)}
+                    >
+                      <View style={styles.modalInterestLeft}>
+                        <View style={[styles.iconContainer, { backgroundColor: iconColor + '20' }]}>
+                          {IconComponent && <IconComponent size={20} color={iconColor} />}
+                        </View>
+                        <Text style={styles.modalInterestText}>{interest}</Text>
+                      </View>
+                      {isSelected && <Check size={20} color="#3B82F6" />}
+                    </TouchableOpacity>
+                  )
+                })}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
 
         {/* Tipo de privacidad */}
         <View style={styles.stepContainer}>
@@ -962,5 +1001,94 @@ const styles = StyleSheet.create({
   },
   rotatedIcon: {
     transform: [{ rotate: '90deg' }],
+  },
+  dropdownButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+  },
+  dropdownButtonText: {
+    fontSize: 16,
+    color: '#374151',
+  },
+  selectedInterestsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  selectedInterestChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    gap: 6,
+  },
+  selectedInterestText: {
+    fontSize: 14,
+    color: '#3B82F6',
+  },
+  removeInterestText: {
+    fontSize: 20,
+    color: '#3B82F6',
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111',
+  },
+  modalCloseText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#3B82F6',
+  },
+  modalBody: {
+    padding: 16,
+  },
+  modalInterestItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  modalInterestLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  modalInterestText: {
+    fontSize: 16,
+    color: '#374151',
   },
 })

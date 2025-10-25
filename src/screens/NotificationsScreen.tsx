@@ -65,6 +65,8 @@ export function NotificationsScreen({ navigation }: any) {
       case 'comment': return 'Nuevo comentario'
       case 'follow': return 'Nuevo seguidor'
       case 'mention': return 'Mención'
+      case 'connection_request': return 'Solicitud de conexión'
+      case 'connection_accepted': return 'Conexión aceptada'
       case 'system': return 'Notificación del sistema'
       default: return 'Notificación'
     }
@@ -76,6 +78,8 @@ export function NotificationsScreen({ navigation }: any) {
       case 'comment': return <MessageCircle size={20} color="#007AFF" />
       case 'follow': return <UserPlus size={20} color="#34C759" />
       case 'mention': return <Users size={20} color="#FF9500" />
+      case 'connection_request': return <UserPlus size={20} color="#2673f3" />
+      case 'connection_accepted': return <UserPlus size={20} color="#34C759" />
       case 'system': return <Bell size={20} color="#8E8E93" />
       default: return <AlertCircle size={20} color="#8E8E93" />
     }
@@ -126,6 +130,15 @@ export function NotificationsScreen({ navigation }: any) {
           // Navigate to Profile - extract user ID from actor_id
           const userId = fullNotification.actor_id ||
                         (fullNotification.payload && JSON.parse(fullNotification.payload).follower_id)
+          if (userId) {
+            navigation.navigate('Profile', { userId })
+          }
+        } else if (fullNotification.type === 'connection_request') {
+          // Navigate to Connections screen to manage requests
+          navigation.navigate('Connections')
+        } else if (fullNotification.type === 'connection_accepted') {
+          // Navigate to Profile of the user who accepted
+          const userId = fullNotification.actor_id
           if (userId) {
             navigation.navigate('Profile', { userId })
           }

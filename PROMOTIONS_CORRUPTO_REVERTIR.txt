@@ -1,0 +1,11 @@
+URGENTE: PromotionsScreen.tsx ESTÁ CORRUPTO
+
+El archivo tiene errores de sintaxis porque el return() está dentro del objeto styles.
+
+SOLUCIÓN INMEDIATA:
+
+git checkout src/screens/PromotionsScreen.tsx
+
+Luego te daré las correcciones una por una de forma más controlada.
+
+NO PUEDO CONTINUAR hasta que reviertas el archivo.

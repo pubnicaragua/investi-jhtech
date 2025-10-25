@@ -6,11 +6,14 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ActivityIndicator,
+  Modal,
+  ScrollView,
 } from "react-native"
+import { SafeAreaView } from 'react-native-safe-area-context'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from "react-i18next"
-import { ArrowLeft } from "lucide-react-native"
+import { ArrowLeft, HelpCircle, X } from "lucide-react-native"
 import { getCurrentUserId, saveUserKnowledgeLevel } from "../rest/api"
 
 const knowledgeLevels = [
@@ -44,6 +47,7 @@ export function PickKnowledgeScreen({ navigation }: any) {
   const { t } = useTranslation()
   const [selectedLevel, setSelectedLevel] = useState<string>("")
   const [loading, setLoading] = useState(false)
+  const [showHelpModal, setShowHelpModal] = useState(false)
 
   const handleContinue = async () => {
     if (!selectedLevel) {
@@ -58,6 +62,10 @@ export function PickKnowledgeScreen({ navigation }: any) {
         return
       }
       await saveUserKnowledgeLevel(uid, selectedLevel)
+      
+      // Marcar paso como completado
+      await AsyncStorage.setItem('knowledge_selected', 'true')
+      
       navigation.navigate("CommunityRecommendations")
     } catch (error) {
       console.error("Error saving knowledge level:", error)
@@ -71,10 +79,13 @@ export function PickKnowledgeScreen({ navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
           <ArrowLeft size={24} color="#111" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.helpButton} onPress={() => setShowHelpModal(true)}>
+          <HelpCircle size={24} color="#2673f3" />
         </TouchableOpacity>
       </View>
 
@@ -123,7 +134,80 @@ export function PickKnowledgeScreen({ navigation }: any) {
             <Text style={styles.continueButtonText}>Continuar</Text>
           )}
         </TouchableOpacity>
+        <Text style={styles.disclaimer}>
+          💡 Tranquilo, podrás ajustar tu nivel de conocimiento más adelante en tu perfil
+        </Text>
       </View>
+
+      <Modal
+        visible={showHelpModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowHelpModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Guía de Niveles</Text>
+              <TouchableOpacity onPress={() => setShowHelpModal(false)}>
+                <X size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.modalScroll}>
+              <View style={styles.levelGuide}>
+                <View style={styles.guideItem}>
+                  <Text style={styles.guideEmoji}>🔴</Text>
+                  <View style={styles.guideContent}>
+                    <Text style={styles.guideTitle}>No tengo conocimiento</Text>
+                    <Text style={styles.guideDescription}>
+                      • Nunca has invertido{"\n"}
+                      • No conoces términos financieros básicos{"\n"}
+                      • Quieres aprender desde cero
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.guideItem}>
+                  <Text style={styles.guideEmoji}>🟠</Text>
+                  <View style={styles.guideContent}>
+                    <Text style={styles.guideTitle}>Tengo un poco de conocimiento</Text>
+                    <Text style={styles.guideDescription}>
+                      • Conoces conceptos básicos (ahorro, interés){"\n"}
+                      • Has leído sobre inversiones{"\n"}
+                      • Aún no has invertido o muy poco
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.guideItem}>
+                  <Text style={styles.guideEmoji}>🟡</Text>
+                  <View style={styles.guideContent}>
+                    <Text style={styles.guideTitle}>Tengo conocimiento</Text>
+                    <Text style={styles.guideDescription}>
+                      • Has invertido en acciones o fondos{"\n"}
+                      • Entiendes riesgo y diversificación{"\n"}
+                      • Sigues el mercado regularmente
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.guideItem}>
+                  <Text style={styles.guideEmoji}>🟢</Text>
+                  <View style={styles.guideContent}>
+                    <Text style={styles.guideTitle}>Soy experto</Text>
+                    <Text style={styles.guideDescription}>
+                      • Inviertes activamente hace años{"\n"}
+                      • Conoces análisis técnico y fundamental{"\n"}
+                      • Manejas portafolio diversificado
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -134,8 +218,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#f7f8fa",
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 20,
     paddingBottom: 20,
   },
   backButton: {
@@ -229,5 +316,78 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "600",
+  },
+  helpButton: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  disclaimer: {
+    fontSize: 13,
+    color: "#666",
+    textAlign: "center",
+    marginTop: 20,
+    paddingHorizontal: 30,
+    lineHeight: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    width: "100%",
+    maxHeight: "80%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e5e5",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#111",
+  },
+  modalScroll: {
+    padding: 20,
+  },
+  levelGuide: {
+    gap: 20,
+  },
+  guideItem: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 20,
+  },
+  guideEmoji: {
+    fontSize: 32,
+  },
+  guideContent: {
+    flex: 1,
+  },
+  guideTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111",
+    marginBottom: 6,
+  },
+  guideDescription: {
+    fontSize: 14,
+    color: "#666",
+    lineHeight: 20,
   },
 })

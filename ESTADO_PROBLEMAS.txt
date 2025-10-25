@@ -1,0 +1,28 @@
+ESTADO 23 PROBLEMAS - ACTUALIZADO
+
+✅ COMPLETADOS (7/23):
+1. CommunityRecommendations nombres ✅
+2. Guardar post duplicado ✅
+3. Botón guardar posición ✅
+4. Compartir perfil ✅
+5. Seguidores vs contactos ✅
+6. Notificaciones title (SQL listo, no hay createNotification en código)
+7. CreatePost encuesta ✅ (ya funciona bien)
+
+🔧 ATACANDO AHORA (16/23):
+8. MarketInfo filtros + simular
+9. Educación scroll bugs
+10. Herramientas cortadas + 3 nuevas
+11. Foto portada ProfileScreen
+12. Startups proximamente v2.0
+13. Seguir usuario estado + notif
+14. Chats archivados
+15. Lista contactos mensajes
+16. PromotionsScreen búsqueda Enter ✅
+17. Invitar dentro/fuera app
+18. CommunityDetail tabs deslizar
+19. GroupChat hardcode
+20. EditCommunity imagen
+21. CommunitySettings completo
+22. EditCommunity guardar imagen (mismo que 20)
+23. Chat unirse validación

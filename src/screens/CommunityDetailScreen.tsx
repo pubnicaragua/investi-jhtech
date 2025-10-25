@@ -377,15 +377,34 @@ export function CommunityDetailScreen() {
 
   const handleInvite = async () => {
     if (!community) return
-    try {
-      const shareMessage = `Únete a "${community.name}" en Investi\n\n${community.description}\n\nDescarga la app: https://investiiapp.com`
-      await Share.share({
-        message: shareMessage,
-        title: `Invitación a ${community.name}`
-      })
-    } catch (error) {
-      console.error('Error sharing:', error)
-    }
+    Alert.alert(
+      'Invitar',
+      '¿Cómo quieres invitar?',
+      [
+        {
+          text: 'Compartir fuera de la app',
+          onPress: async () => {
+            try {
+              const shareMessage = `Únete a "${community.name}" en Investi\n\n${community.description}\n\nDescarga la app: https://investiiapp.com`
+              await Share.share({
+                message: shareMessage,
+                title: `Invitación a ${community.name}`
+              })
+            } catch (error) {
+              console.error('Error sharing:', error)
+            }
+          }
+        },
+        {
+          text: 'Invitar conexión',
+          onPress: () => navigation.navigate('CommunityMembers', {
+            communityId: community.id,
+            mode: 'invite'
+          })
+        },
+        { text: 'Cancelar', style: 'cancel' }
+      ]
+    )
   }
 
   const handleMenuOption = (option: string) => {
@@ -780,11 +799,16 @@ export function CommunityDetailScreen() {
               <View style={styles.actionButtons}>
                 <TouchableOpacity
                   style={[styles.joinButton, isJoined && styles.joinedButton]}
-                  onPress={handleJoinCommunity}
-                  disabled={isJoined}
+                  onPress={() => {
+                    if (isJoined) {
+                      navigation.navigate('GroupChat', { communityId: community.id })
+                    } else {
+                      handleJoinCommunity()
+                    }
+                  }}
                 >
                   <Text style={[styles.joinButtonText, isJoined && styles.joinedButtonText]}>
-                    {isJoined ? 'Unido' : 'Unirse'}
+                    {isJoined ? 'Ir al chat' : 'Unirse'}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity

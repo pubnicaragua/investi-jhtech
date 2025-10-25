@@ -38,6 +38,7 @@ export function PromotionsScreen() {
   const [posts, setPosts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [searchInput, setSearchInput] = useState(initialQuery)
   const [searchQuery, setSearchQuery] = useState(initialQuery)
   const [selectedTab, setSelectedTab] = useState('Personas')
   const [selectedPostFilter, setSelectedPostFilter] = useState('De mis contactos')
@@ -213,26 +214,58 @@ export function PromotionsScreen() {
     (navigation as any).navigate("ChatScreen", { postId })
   }
 
-  // Datos filtrados memoizados para mejor rendimiento
-  const filteredPeople = useMemo(
-    () => people.filter(p => !dismissedPeople.has(p.id)),
-    [people, dismissedPeople]
-  )
+  // Datos filtrados memoizados para mejor rendimiento CON BÚSQUEDA REAL
+  const filteredPeople = useMemo(() => {
+    const visible = people.filter(p => !dismissedPeople.has(p.id))
+    
+    if (!searchQuery.trim()) return visible
+    
+    const query = searchQuery.toLowerCase().trim()
+    return visible.filter(person => {
+      const name = (person.full_name || person.nombre || person.username || '').toLowerCase()
+      const role = (person.role || '').toLowerCase()
+      const bio = (person.bio || '').toLowerCase()
+      
+      return name.includes(query) || role.includes(query) || bio.includes(query)
+    })
+  }, [people, dismissedPeople, searchQuery])
   
-  const filteredPromotions = useMemo(
-    () => promotions,
-    [promotions]
-  )
+  const filteredPromotions = useMemo(() => {
+    if (!searchQuery.trim()) return promotions
+    
+    const query = searchQuery.toLowerCase().trim()
+    return promotions.filter(promo => {
+      const title = (promo.title || '').toLowerCase()
+      const desc = (promo.description || '').toLowerCase()
+      
+      return title.includes(query) || desc.includes(query)
+    })
+  }, [promotions, searchQuery])
   
-  const filteredCommunities = useMemo(
-    () => communities,
-    [communities]
-  )
+  const filteredCommunities = useMemo(() => {
+    if (!searchQuery.trim()) return communities
+    
+    const query = searchQuery.toLowerCase().trim()
+    return communities.filter(comm => {
+      const name = (comm.name || comm.nombre || '').toLowerCase()
+      const desc = (comm.description || comm.descripcion || '').toLowerCase()
+      const category = (comm.category || '').toLowerCase()
+      
+      return name.includes(query) || desc.includes(query) || category.includes(query)
+    })
+  }, [communities, searchQuery])
   
-  const filteredPosts = useMemo(
-    () => posts,
-    [posts]
-  )
+  const filteredPosts = useMemo(() => {
+    if (!searchQuery.trim()) return posts
+    
+    const query = searchQuery.toLowerCase().trim()
+    return posts.filter(post => {
+      const content = (post.contenido || post.content || '').toLowerCase()
+      const userName = (post.user?.nombre || post.user?.full_name || '').toLowerCase()
+      
+      return content.includes(query) || userName.includes(query)
+    })
+  }, [posts, searchQuery])
 
   const styles = StyleSheet.create({
     container: {
@@ -715,12 +748,319 @@ export function PromotionsScreen() {
       alignItems: "center",
       justifyContent: "center",
     },
+    
+    communityCard: {
+      backgroundColor: "#FFFFFF",
+      borderRadius: 12,
+      marginBottom: 12,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    communityImg: {
+      width: "100%",
+      height: 150,
+      borderRadius: 12,
+      backgroundColor: "#E5E7EB",
+    },
+    communityInfo: {
+      padding: 16,
+    },
+    communityName: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: "#111827",
+      marginBottom: 4,
+    },
+    communityMembers: {
+      fontSize: 13,
+      color: "#6B7280",
+      marginBottom: 12,
+    },
   })
+
+  // REEMPLAZA TODO EL RETURN (línea 752 aprox) CON ESTO:
+
+  if (loading && !refreshing) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#0A66C2" />
+        <Text style={{ marginTop: 16, color: '#6B7280' }}>
+          {searchQuery ? `Buscando "${searchQuery}"...` : 'Cargando...'}
+        </Text>
+      </View>
+    )
+  }
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      <Text>PromotionsScreen - En construcción</Text>
+      
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <ArrowLeft size={24} color="#111827" />
+          </TouchableOpacity>
+          
+          <View style={styles.searchBox}>
+            <Search size={20} color="#6B7280" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Buscar personas, comunidades, posts..."
+              placeholderTextColor="#9CA3AF"
+              value={searchInput}
+              onChangeText={setSearchInput}
+              onSubmitEditing={() => setSearchQuery(searchInput)}
+              returnKeyType="search"
+              autoFocus={!!initialQuery}
+            />
+            {searchInput.length > 0 && (
+              <TouchableOpacity onPress={() => {
+                setSearchInput('')
+                setSearchQuery('')
+              }}>
+                <X size={20} color="#6B7280" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+        
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabs}>
+          {['Personas', 'Comunidades', 'Posts', 'Promociones'].map(tab => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tab, selectedTab === tab && styles.tabActive]}
+              onPress={() => setSelectedTab(tab)}
+            >
+              <Text style={[styles.tabText, selectedTab === tab && styles.tabTextActive]}>
+                {tab}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+      
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0A66C2']} />}
+      >
+        {selectedTab === 'Personas' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {searchQuery ? `"${searchQuery}"` : 'Personas sugeridas'}
+            </Text>
+            <Text style={styles.sectionSubtitle}>
+              {filteredPeople.length} personas
+            </Text>
+            
+            {filteredPeople.length === 0 ? (
+              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                <Users size={48} color="#D1D5DB" />
+                <Text style={{ marginTop: 16, color: '#6B7280' }}>
+                  No se encontraron personas
+                </Text>
+              </View>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.carousel}>
+                {filteredPeople.map((person) => (
+                  <View key={person.id} style={styles.personCard}>
+                    <TouchableOpacity style={styles.closeBtn} onPress={() => handleDismissPerson(person.id)}>
+                      <X size={16} color="#6B7280" />
+                    </TouchableOpacity>
+                    
+                    <View style={styles.personContent}>
+                      <Image 
+                        source={{ uri: person.avatar_url || person.photo_url || 'https://i.pravatar.cc/100' }} 
+                        style={styles.personAvatar} 
+                      />
+                      <Text style={styles.personName} numberOfLines={2}>
+                        {person.full_name || person.nombre || person.username || 'Usuario'}
+                      </Text>
+                      <Text style={styles.personRole} numberOfLines={2}>
+                        {person.role || 'Inversionista'}
+                      </Text>
+                      
+                      <TouchableOpacity 
+                        style={styles.connectBtn}
+                        onPress={() => handleConnect(person.id)}
+                      >
+                        <Text style={styles.connectText}>Conectar</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        )}
+        
+        {selectedTab === 'Comunidades' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {searchQuery ? `"${searchQuery}"` : 'Comunidades'}
+            </Text>
+            <Text style={styles.sectionSubtitle}>
+              {filteredCommunities.length} comunidades
+            </Text>
+            
+            {filteredCommunities.length === 0 ? (
+              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                <Users size={48} color="#D1D5DB" />
+                <Text style={{ marginTop: 16, color: '#6B7280' }}>
+                  No se encontraron comunidades
+                </Text>
+              </View>
+            ) : (
+              filteredCommunities.map((community) => (
+                <View key={community.id} style={styles.communityCard}>
+                  <Image 
+                    source={{ uri: community.image_url || community.icono_url || 'https://via.placeholder.com/300' }} 
+                    style={styles.communityImg}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.communityInfo}>
+                    <Text style={styles.communityName} numberOfLines={2}>
+                      {community.name || community.nombre || 'Comunidad'}
+                    </Text>
+                    <Text style={styles.communityMembers}>
+                      {community.member_count || 0} miembros
+                    </Text>
+                    
+                    <TouchableOpacity 
+                      style={styles.joinBtn}
+                      onPress={() => handleJoinCommunity(community.id)}
+                    >
+                      <Text style={styles.joinText}>Unirse</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        )}
+        
+        {selectedTab === 'Posts' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {searchQuery ? `"${searchQuery}"` : 'Publicaciones'}
+            </Text>
+            <Text style={styles.sectionSubtitle}>
+              {filteredPosts.length} posts
+            </Text>
+            
+            {filteredPosts.length === 0 ? (
+              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                <Newspaper size={48} color="#D1D5DB" />
+                <Text style={{ marginTop: 16, color: '#6B7280' }}>
+                  No se encontraron publicaciones
+                </Text>
+              </View>
+            ) : (
+              filteredPosts.map((post) => (
+                <View key={post.id} style={styles.postCard}>
+                  <View style={styles.postHeader}>
+                    <Image 
+                      source={{ uri: post.user?.avatar_url || 'https://i.pravatar.cc/100' }} 
+                      style={styles.postAvatar}
+                    />
+                    <View style={styles.postAuthorInfo}>
+                      <Text style={styles.postAuthor}>
+                        {post.user?.nombre || post.user?.full_name || 'Usuario'}
+                      </Text>
+                      <Text style={styles.postTime}>
+                        {new Date(post.created_at).toLocaleDateString()}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <Text style={styles.postContent} numberOfLines={4}>
+                    {post.contenido || post.content || ''}
+                  </Text>
+                  
+                  {post.media_url && post.media_url.length > 0 && (
+                    <Image 
+                      source={{ uri: Array.isArray(post.media_url) ? post.media_url[0] : post.media_url }} 
+                      style={styles.postImg}
+                      resizeMode="cover"
+                    />
+                  )}
+                  
+                  <View style={styles.postActions}>
+                    <TouchableOpacity style={styles.actionBtn} onPress={() => handleLike(post.id)}>
+                      <ThumbsUp 
+                        size={20} 
+                        color={likedPosts.has(post.id) ? '#0A66C2' : '#6B7280'}
+                        fill={likedPosts.has(post.id) ? '#0A66C2' : 'none'}
+                      />
+                      <Text style={[styles.actionText, likedPosts.has(post.id) && styles.actionTextActive]}>
+                        {post.likes_count || 0}
+                      </Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity style={styles.actionBtn} onPress={() => handleComment(post.id)}>
+                      <MessageCircle size={20} color="#6B7280" />
+                      <Text style={styles.actionText}>{post.comment_count || 0}</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity style={styles.actionBtn} onPress={() => handleShare(post.id, post.contenido || post.content)}>
+                      <Share2 size={20} color="#6B7280" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        )}
+        
+        {selectedTab === 'Promociones' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {searchQuery ? `"${searchQuery}"` : 'Promociones'}
+            </Text>
+            <Text style={styles.sectionSubtitle}>
+              {filteredPromotions.length} promociones
+            </Text>
+            
+            {filteredPromotions.length === 0 ? (
+              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                <TrendingUp size={48} color="#D1D5DB" />
+                <Text style={{ marginTop: 16, color: '#6B7280' }}>
+                  No hay promociones
+                </Text>
+              </View>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.carousel}>
+                {filteredPromotions.map((promo) => (
+                  <View key={promo.id} style={styles.promoCard}>
+                    <Image 
+                      source={{ uri: promo.image_url || 'https://via.placeholder.com/260x120' }} 
+                      style={styles.promoImg}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.promoInfo}>
+                      <Text style={styles.promoTitle} numberOfLines={2}>
+                        {promo.title || 'Promoción'}
+                      </Text>
+                      <Text style={styles.promoDiscount}>
+                        {promo.discount || 'Oferta especial'}
+                      </Text>
+                      <View style={styles.promoMeta}>
+                        <Clock size={12} color="rgba(255,255,255,0.9)" />
+                        <Text style={styles.promoMetaText}>
+                          {promo.valid_until || 'Sin fecha'}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        )}
+      </ScrollView>
     </View>
   )
 }

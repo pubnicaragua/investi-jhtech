@@ -154,7 +154,7 @@ export const CommunitiesListScreen = ({ navigation }: any) => {
               >  
                 <Text style={styles.joinButtonText}>  
                   {joinedCommunities.includes(community.id)  
-                    ? 'Unido'  
+                    ? 'Ya eres parte'  
                     : t('communities.join')  
                   }  
                 </Text>  

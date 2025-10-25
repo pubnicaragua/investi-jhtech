@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from "react"
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from "react-i18next"  
 import {  
   View,  
   Text,  
   TouchableOpacity,  
-  SafeAreaView,  
   StyleSheet,  
   ScrollView,  
   ActivityIndicator,  
   Alert,  
-} from "react-native"  
+} from "react-native"
+import { SafeAreaView } from 'react-native-safe-area-context'  
 import { 
   Flag, 
   Bitcoin, 
@@ -33,7 +34,7 @@ interface InvestmentInterest {
   popularity_score?: number
 }
 
-// 🎯 ICONOS LUCIDE - Mapeo por categoría
+// ICONOS LUCIDE - Mapeo por categoría
 const INTEREST_ICON_COMPONENTS: Record<string, any> = {
   'stocks': Flag,
   'crypto': Bitcoin,
@@ -111,6 +112,9 @@ export const PickInterestsScreen = ({ navigation }: any) => {
       if (uid) {  
         await saveUserInterests(uid, selectedInterests, 'beginner')
         console.log("Interests updated successfully")  
+        
+        // Marcar paso como completado
+        await AsyncStorage.setItem('interests_selected', 'true')
           
         navigation.navigate("PickKnowledge")  
       }  
@@ -140,7 +144,7 @@ export const PickInterestsScreen = ({ navigation }: any) => {
   }  
   
   return (  
-    <SafeAreaView style={styles.container}>  
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>  
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>  
           <Text style={styles.backButtonText}>{"<"}</Text>  
@@ -224,7 +228,7 @@ const styles = StyleSheet.create({
     alignItems: "center",  
     justifyContent: "space-between",  
     paddingHorizontal: 20,  
-    paddingTop: 10,  
+    paddingTop: 20,  
     paddingBottom: 20,  
   },  
   backButton: {  

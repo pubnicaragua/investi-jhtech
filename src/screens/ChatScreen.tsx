@@ -46,7 +46,12 @@ interface Message {
 }
   
 export function ChatScreen({ navigation, route }: any) {  
-  const { conversationId, type = "direct", name, participant } = route.params || {};  
+  const { conversationId: initialConversationId, type = "direct", name, participant, userId: targetUserId } = route.params || {};  
+  
+  // Validación crítica de parámetros
+  console.log('🔍 [ChatScreen] Route params:', { conversationId: initialConversationId, type, name, participant, targetUserId });
+  
+  const [conversationId, setConversationId] = useState<string | null>(initialConversationId || null);
   const [messages, setMessages] = useState<Message[]>([]);  
   const [chatInfo, setChatInfo] = useState<any>(null);  
   const [input, setInput] = useState("");  
@@ -122,7 +127,7 @@ export function ChatScreen({ navigation, route }: any) {
 
           // Marcar como leído si no es nuestro mensaje
           const currentUid = await getCurrentUserId();
-          if (currentUid && newMessage.sender_id !== currentUid) {
+          if (currentUid && newMessage.sender_id !== currentUid && conversationId) {
             try {
               await markMessagesAsRead(conversationId, currentUid);
             } catch (error) {
@@ -159,10 +164,44 @@ export function ChatScreen({ navigation, route }: any) {
       setLoading(true);  
       const uid = await getCurrentUserId();  
       setCurrentUserId(uid);  
+      
+      // Si no hay conversationId pero hay targetUserId, crear o buscar conversación
+      if (!conversationId && targetUserId && uid) {
+        try {
+          // Buscar conversación existente
+          const { data: existingConv, error: searchError } = await supabase
+            .from('conversations')
+            .select('id')
+            .or(`and(participant_one.eq.${uid},participant_two.eq.${targetUserId}),and(participant_one.eq.${targetUserId},participant_two.eq.${uid})`)
+            .single();
+          
+          if (existingConv) {
+            setConversationId(existingConv.id);
+          } else {
+            // Crear nueva conversación
+            const { data: newConv, error: createError } = await supabase
+              .from('conversations')
+              .insert({
+                type: 'direct',
+                participant_one: uid,
+                participant_two: targetUserId,
+                created_by: uid
+              })
+              .select('id')
+              .single();
+            
+            if (newConv) {
+              setConversationId(newConv.id);
+            }
+          }
+        } catch (err) {
+          console.error('Error creating/finding conversation:', err);
+        }
+      }
         
       await Promise.all([  
         loadChat(),  
-        loadMessages()  
+        conversationId ? loadMessages() : Promise.resolve()
       ]);  
     } catch (error) {  
       console.error('Error loading initial data:', error);  
@@ -193,6 +232,10 @@ export function ChatScreen({ navigation, route }: any) {
   
   const loadMessages = async () => {
     try {
+      if (!conversationId) {
+        console.warn('[ChatScreen] No conversationId, skipping loadMessages');
+        return;
+      }
       const response = await getConversationMessages(conversationId, 50);
       
       // Transform messages to match our interface
@@ -214,7 +257,7 @@ export function ChatScreen({ navigation, route }: any) {
       
       // Mark messages as read
       const uid = await getCurrentUserId();
-      if (uid) {
+      if (uid && conversationId) {
         await markMessagesAsRead(conversationId, uid);
       }
       
@@ -362,7 +405,9 @@ export function ChatScreen({ navigation, route }: any) {
       }
 
       // Mark messages as read after sending
-      await markMessagesAsRead(conversationId, uid);
+      if (conversationId) {
+        await markMessagesAsRead(conversationId, uid);
+      }
 
     } catch (err) {
       console.error("Error sending message:", err);

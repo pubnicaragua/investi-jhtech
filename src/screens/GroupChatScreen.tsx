@@ -90,6 +90,7 @@ export function GroupChatScreen() {
   const [channel, setChannel] = useState<Channel | null>(null)
   const [pendingMedia, setPendingMedia] = useState<{ type: string; uri: string; file: any } | null>(null)
   const [showAttachModal, setShowAttachModal] = useState(false)
+  const [communityStats, setCommunityStats] = useState({ members_count: 0, active_members_count: 0 })
   const flatListRef = useRef<FlatList>(null)
 
   // ============================================================================
@@ -161,6 +162,31 @@ export function GroupChatScreen() {
       if (channelData) {
         setChannel(channelData)
       }
+      
+      // Cargar estadísticas reales de la comunidad
+      const { data: communityData } = await supabase
+        .from('communities')
+        .select('member_count')
+        .eq('id', communityId)
+        .single()
+      
+      // Contar miembros activos (últimos 15 minutos)
+      const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString()
+      const { data: activeMembers } = await supabase
+        .from('user_communities')
+        .select('user:users!inner(is_online,last_seen_at)')
+        .eq('community_id', communityId)
+        .eq('status', 'active')
+      
+      const activeCount = activeMembers?.filter((m: any) => 
+        m.user?.is_online || (m.user?.last_seen_at && m.user.last_seen_at > fifteenMinutesAgo)
+      ).length || 0
+      
+      setCommunityStats({
+        members_count: communityData?.member_count || 0,
+        active_members_count: activeCount
+      })
+      
       return channelData
     } catch (error) {
       console.error('Error loading channel info:', error)
@@ -445,10 +471,10 @@ export function GroupChatScreen() {
           <View style={styles.headerSubtitleRow}>
             <Users size={12} color="#10B981" />
             <Text style={styles.headerSubtitle}>
-              {channel?.members_count || '1,098'} activos
+              {communityStats.active_members_count} activos
             </Text>
             <Text style={styles.headerDot}>•</Text>
-            <Text style={styles.headerSubtitle}>12k miembros</Text>
+            <Text style={styles.headerSubtitle}>{communityStats.members_count} miembros</Text>
           </View>
         </View>
         

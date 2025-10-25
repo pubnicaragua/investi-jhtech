@@ -48,6 +48,7 @@ import {
   Users,
   Bell,
   X,
+  Sparkles,
 } from "lucide-react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute } from '@react-navigation/native';  
@@ -296,13 +297,13 @@ export function ChatListScreen({ navigation }: any) {
         navigation.navigate('Settings');
         break;
       case 'notifications':
-        Alert.alert('Notificaciones', 'Configuración de notificaciones próximamente');
+        navigation.navigate('NotificationSettings');
         break;
       case 'archived':
-        Alert.alert('Archivados', 'Chats archivados próximamente');
+        navigation.navigate('ArchivedChats');
         break;
       case 'contacts':
-        Alert.alert('Contactos', 'Lista de contactos próximamente');
+        navigation.navigate('NewMessage');
         break;
     }
   };
@@ -500,14 +501,27 @@ export function ChatListScreen({ navigation }: any) {
           ))}
         </ScrollView>
 
-        <FlatList
-          data={users}
-          renderItem={renderUserStory}
-          keyExtractor={(item) => item.id}
+        <ScrollView
           horizontal
-          style={styles.stories}
           showsHorizontalScrollIndicator={false}
-        />
+          style={styles.stories}
+          contentContainerStyle={styles.storiesContent}
+        >
+          {/* Irï AI Chat */}
+          <TouchableOpacity
+            style={styles.storyItem}
+            onPress={() => navigation.navigate('IRIChatScreen')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.storyAvatar, styles.iriAvatarBorder]}>
+              <Sparkles size={32} color="#8B5CF6" strokeWidth={2} />
+            </View>
+            <Text style={styles.storyName} numberOfLines={1}>Irï</Text>
+          </TouchableOpacity>
+
+          {/* Users */}
+          {users.map((user) => renderUserStory({ item: user }))}
+        </ScrollView>
       </View>
 
       <FlatList
@@ -794,6 +808,22 @@ const styles = StyleSheet.create({
     marginTop: 6,
     maxWidth: 64,
     textAlign: "center",
+  },
+
+  storiesContent: {
+    paddingRight: 16,
+    gap: 16,
+  },
+
+  storyItem: {
+    alignItems: "center",
+  },
+
+  iriAvatarBorder: {
+    borderColor: "#8B5CF6",
+    backgroundColor: "#F3E8FF",
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   chatList: {

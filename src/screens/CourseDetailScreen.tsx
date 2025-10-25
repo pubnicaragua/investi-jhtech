@@ -7,9 +7,11 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ActivityIndicator,
-  Image
+  Image,
+  Modal,
+  Alert
 } from 'react-native'
-import { ArrowLeft, Play, Clock, BookOpen, Star } from 'lucide-react-native'
+import { ArrowLeft, Play, Clock, BookOpen, Star, X } from 'lucide-react-native'
 import { getCourseDetails } from '../api'
 
 export function CourseDetailScreen({ navigation, route }: any) {
@@ -17,6 +19,8 @@ export function CourseDetailScreen({ navigation, route }: any) {
   const [course, setCourse] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedLesson, setSelectedLesson] = useState<any>(null)
+  const [showLessonModal, setShowLessonModal] = useState(false)
 
   useEffect(() => {
     const loadCourse = async () => {
@@ -47,8 +51,8 @@ export function CourseDetailScreen({ navigation, route }: any) {
   }, [courseId])
 
   const handleLessonPress = (lesson: any) => {
-    // Por ahora solo mostramos las lecciones, navegación a videos pendiente
-    console.log('Lección seleccionada:', lesson.titulo)
+    setSelectedLesson(lesson)
+    setShowLessonModal(true)
   }
 
   const formatDuration = (minutes: number): string => {
@@ -190,6 +194,68 @@ export function CourseDetailScreen({ navigation, route }: any) {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Modal de Lección */}
+      <Modal
+        visible={showLessonModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowLessonModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{selectedLesson?.titulo}</Text>
+              <TouchableOpacity onPress={() => setShowLessonModal(false)}>
+                <X size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.modalBody}>
+              <Text style={styles.lessonDescription}>
+                {selectedLesson?.descripcion || 'Contenido de la lección'}
+              </Text>
+              
+              <View style={styles.lessonMeta}>
+                <View style={styles.metaItem}>
+                  <Clock size={16} color="#666" />
+                  <Text style={styles.metaText}>
+                    {selectedLesson?.duration ? formatDuration(selectedLesson.duration) : '15 min'}
+                  </Text>
+                </View>
+                {selectedLesson?.tipo && (
+                  <View style={styles.metaItem}>
+                    <BookOpen size={16} color="#666" />
+                    <Text style={styles.metaText}>{selectedLesson.tipo}</Text>
+                  </View>
+                )}
+              </View>
+
+              <Text style={styles.lessonContentText}>
+                Esta lección cubre los conceptos fundamentales que necesitas dominar. 
+                Aprenderás paso a paso con ejemplos prácticos y ejercicios interactivos.
+                {'\n\n'}
+                📚 Contenido incluido:
+                {'\n'}• Explicación teórica
+                {'\n'}• Ejemplos prácticos
+                {'\n'}• Ejercicios
+                {'\n'}• Material descargable
+              </Text>
+            </ScrollView>
+
+            <TouchableOpacity 
+              style={styles.startLessonButton}
+              onPress={() => {
+                setShowLessonModal(false)
+                Alert.alert('Lección', `Iniciando: ${selectedLesson?.titulo}`)
+              }}
+            >
+              <Play size={20} color="#fff" />
+              <Text style={styles.startLessonText}>Iniciar Lección</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -372,6 +438,65 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
     padding: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111',
+    flex: 1,
+  },
+  modalBody: {
+    padding: 20,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+  },
+  metaText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  lessonContentText: {
+    fontSize: 15,
+    color: '#444',
+    lineHeight: 24,
+    marginTop: 16,
+  },
+  startLessonButton: {
+    flexDirection: 'row',
+    backgroundColor: '#2673f3',
+    margin: 20,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  startLessonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 })
 

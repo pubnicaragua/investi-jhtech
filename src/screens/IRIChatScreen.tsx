@@ -1,6 +1,6 @@
 /**
  * IRIChatScreen.tsx
- * Pantalla de chat con IRI (Inteligencia Artificial) usando Grok API
+ * Pantalla de chat con Irï (Inteligencia Artificial) usando Grok API
  * 
  * Características:
  * - Chat en tiempo real con IA

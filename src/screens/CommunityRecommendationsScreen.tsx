@@ -91,10 +91,24 @@ export function CommunityRecommendationsScreen({ navigation, route }: any) {
 
       console.log('👤 Usuario actual:', user.id)
       
-      const [recommendedByGoals, suggestedPeopleData] = await Promise.all([
-        getRecommendedCommunitiesByGoals(user.id, 6),
-        getSuggestedPeople(user.id, 6)
-      ])
+      // Usar las nuevas funciones SQL mejoradas
+      const { data: recommendedByGoals, error: commError } = await supabase
+        .rpc('get_recommended_communities', { user_id_param: user.id, limit_param: 10 });
+      
+      const { data: suggestedPeopleData, error: peopleError } = await supabase
+        .rpc('get_recommended_people', { user_id_param: user.id, limit_param: 10 });
+      
+      if (commError) {
+        console.error('Error getting recommended communities:', commError);
+        // Fallback a método anterior
+        const fallbackComm = await getRecommendedCommunitiesByGoals(user.id, 6);
+        const fallbackPeople = await getSuggestedPeople(user.id, 6);
+        
+        const [recommendedByGoals, suggestedPeopleData] = await Promise.all([
+          Promise.resolve(fallbackComm),
+          Promise.resolve(fallbackPeople)
+        ]);
+      }
       
       console.log('🎯 Comunidades recomendadas por algoritmo:', recommendedByGoals?.length || 0)
       
@@ -143,10 +157,10 @@ export function CommunityRecommendationsScreen({ navigation, route }: any) {
       if (suggestedPeopleData && suggestedPeopleData.length > 0) {
         finalPeople = suggestedPeopleData.slice(0, 4).map((person: any) => ({
           id: person.id || person.user_id,
-          name: person.name || person.nombre || 'Usuario',
-          avatar_url: person.avatar_url || 'https://i.pravatar.cc/100',
-          profession: person.profession || person.bio || 'Inversionista',
-          expertise_areas: person.expertise_areas || ['Inversiones para principiantes'],
+          name: person.full_name || person.name || person.nombre || person.username || 'Usuario',
+          avatar_url: person.avatar_url || person.photo_url || 'https://i.pravatar.cc/100',
+          profession: person.profession || person.role || person.bio || 'Inversionista',
+          expertise_areas: person.expertise_areas || person.interests || ['Inversiones para principiantes'],
           mutual_connections: person.mutual_connections || 0,
           compatibility_score: person.compatibility_score || 75,
           reason: person.reason || 'Intereses similares'
@@ -321,11 +335,16 @@ export function CommunityRecommendationsScreen({ navigation, route }: any) {
   const handleFollowPerson = async (personId: string) => {
     try {
       if (user?.id) {
-        await followUserNew(user.id, personId, 'suggestions')
+        const result = await followUserNew(user.id, personId, 'suggestions')
+        // Si result es null, significa que ya lo seguía (error 23505)
+        // De todas formas, agregarlo a followedPeople para actualizar UI
         setFollowedPeople((prev) => [...prev, personId])
       }
-    } catch (error) {
-      console.error('Error following person:', error)
+    } catch (error: any) {
+      // Solo mostrar error si NO es el error de "ya siguiendo"
+      if (error?.code !== '23505') {
+        console.error('Error following person:', error)
+      }
     }
   }
   const handleDismissPerson = (personId: string) => {
@@ -450,7 +469,7 @@ export function CommunityRecommendationsScreen({ navigation, route }: any) {
                           <UserPlus size={14} color="#fff" style={{ marginRight: 6 }} />
                         )}
                         <Text style={styles.joinBtnText}>
-                          {isJoined ? "Unido" : "Unirse"}
+                          {isJoined ? "Ya eres parte" : "Unirse"}
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -547,8 +566,10 @@ export function CommunityRecommendationsScreen({ navigation, route }: any) {
                     disabled={followedPeople.includes(person.id)}
                     activeOpacity={0.8}
                   >
-                    {followedPeople.includes(person.id) && (
+                    {followedPeople.includes(person.id) ? (
                       <Check size={14} color="#fff" style={{ marginRight: 4 }} />
+                    ) : (
+                      <UserPlus size={14} color="#fff" style={{ marginRight: 4 }} />
                     )}
                     <Text style={styles.connectBtnText}>
                       {followedPeople.includes(person.id) ? "Conectado" : "Conectar"}

@@ -14,6 +14,7 @@ import { WelcomeScreen } from "./src/screens/WelcomeScreen"
 import { LanguageSelectionScreen } from "./src/screens/LanguageSelectionScreen"
 import { SignInScreen } from "./src/screens/SignInScreen"
 import { SignUpScreen } from "./src/screens/SignUpScreen"
+import { ForgotPasswordScreen } from "./src/screens/ForgotPasswordScreen"
 import AuthCallbackScreen from "./src/screens/AuthCallbackScreen"
 import { HomeFeedScreen } from "./src/screens/HomeFeedScreen"
 import { UploadAvatarScreen } from "./src/screens/UploadAvatarScreen"
@@ -89,7 +90,8 @@ const linking: LinkingOptions<any> = {
       Welcome: "/welcome",  
       LanguageSelection: "/language-selection",
       SignIn: "/signin",  
-  SignUp: "/signup",  
+  SignUp: "/signup",
+  ForgotPassword: "/forgot-password",
   AuthCallback: "/auth/callback",
       UploadAvatar: "/upload-avatar",  
       PickGoals: "/pick-goals",  
@@ -220,13 +222,11 @@ export function RootStack() {
           
           console.log('📋 Navigation: Onboarding step from DB:', userData?.onboarding_step)
           
-          // Verificar también AsyncStorage como fallback
-          const onboardingComplete = await AsyncStorage.getItem('onboarding_complete')
-          console.log('📋 Navigation: Onboarding complete (AsyncStorage):', onboardingComplete)
-          
-          // Si el onboarding_step es 'completed' O AsyncStorage dice que está completo, ir a HomeFeed
-          if (userData?.onboarding_step === 'completed' || onboardingComplete === 'true') {
-            console.log('✅ Navigation: Usuario autenticado y onboarding completo, yendo a HomeFeed')
+          // PRIORIDAD 1: Si la base de datos dice 'completed', ir directo a HomeFeed
+          if (userData?.onboarding_step === 'completed') {
+            console.log('✅ Navigation: Onboarding completo en DB, yendo a HomeFeed')
+            // Sincronizar AsyncStorage con la base de datos
+            await AsyncStorage.setItem('onboarding_complete', 'true')
             setInitialRoute("HomeFeed")
           } else {
             // Si no completó onboarding, verificar en qué paso quedó
@@ -363,7 +363,15 @@ export function RootStack() {
             gestureEnabled: false,
             animationTypeForReplace: isAuthenticated ? 'push' : 'pop' 
           }}  
-        />  
+        />
+        <Stack.Screen  
+          name="ForgotPassword"  
+          component={ForgotPasswordScreen}  
+          options={{ 
+            gestureEnabled: true,
+            headerShown: false
+          }}  
+        />
 
         {/* OAuth callback handler (deep link target) */}
         <Stack.Screen

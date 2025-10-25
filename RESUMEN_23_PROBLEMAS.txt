@@ -1,0 +1,168 @@
+═══════════════════════════════════════════════════════════════════════════════
+  📋 RESUMEN 23 PROBLEMAS CRÍTICOS - 24 OCTUBRE 2024
+═══════════════════════════════════════════════════════════════════════════════
+
+🎯 ARCHIVOS CREADOS:
+1. sql/FIX_23_PROBLEMS.sql - SQL con todas las correcciones de BD
+2. INSTRUCCIONES_23_PROBLEMAS.md - Guía completa paso a paso
+3. RESUMEN_23_PROBLEMAS.txt - Este archivo
+
+═══════════════════════════════════════════════════════════════════════════════
+  ✅ PROBLEMAS RESUELTOS EN CÓDIGO (2/23)
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ 2. Guardar post duplicado
+   - Archivo: src/screens/HomeFeedScreen.tsx
+   - Cambio: Maneja error 23505 silenciosamente
+   - Estado: LISTO
+
+✅ 16. PromotionsScreen búsqueda Enter
+   - Archivo: src/screens/PromotionsScreen.tsx
+   - Cambio: Búsqueda solo al dar Enter, no en tiempo real
+   - Estado: LISTO
+
+═══════════════════════════════════════════════════════════════════════════════
+  📝 PROBLEMAS DOCUMENTADOS CON SOLUCIÓN (21/23)
+═══════════════════════════════════════════════════════════════════════════════
+
+PRIORIDAD ALTA (hacer primero):
+
+⚠️ 1. CommunityRecommendations - nombres usuarios
+   - SQL: get_recommended_people() creada
+   - Código: Ya mapea correctamente
+   - Acción: Ejecutar SQL
+
+⚠️ 6. Notificaciones sin title
+   - SQL: Columnas title y body agregadas
+   - Código: Actualizar createNotification
+   - Acción: Ejecutar SQL + modificar api.ts
+
+⚠️ 8. MarketInfo filtros + simular
+   - SQL: Tablas user_portfolio e investment_simulations creadas
+   - Código: Agregar filtros y botones
+   - Acción: Ejecutar SQL + modificar MarketInfoScreen.tsx
+
+⚠️ 13. Seguir usuario estado + notif
+   - SQL: Trigger notify_on_follow creado
+   - Código: Verificar followingUsers antes de mostrar botón
+   - Acción: Ejecutar SQL + modificar HomeFeedScreen.tsx
+
+⚠️ 20. EditCommunity imagen + tests
+   - SQL: N/A
+   - Código: Subir imagen ANTES de guardar otros cambios
+   - Acción: Modificar EditCommunityScreen.tsx
+
+⚠️ 21. CommunitySettings completo
+   - SQL: N/A
+   - Código: Implementar todos los switches
+   - Acción: Modificar CommunitySettingsScreen.tsx
+
+⚠️ 23. Chat unirse validación
+   - SQL: N/A
+   - Código: Verificar isMember antes de mostrar "Unirse"
+   - Acción: Modificar CommunityDetailScreen.tsx
+
+PRIORIDAD MEDIA:
+
+📌 3. Botón guardar posición
+   - Mover botón al lado derecho debajo de 3 puntos
+
+📌 4. Compartir perfil funcional
+   - Implementar Share.share() en ProfileScreen
+
+📌 5. Seguidores vs contactos
+   - Usar get_user_connections_count() en ProfileScreen
+
+📌 7. CreatePost encuesta opciones
+   - Mostrar TODAS las opciones en frontend
+
+📌 9. Educación scroll bugs
+   - Cambiar ScrollView horizontal a FlatList
+   - Agregar bounces={false}
+
+📌 10. Herramientas cortadas + 3 nuevas
+   - SQL: 3 herramientas agregadas
+   - Código: Cambiar ancho de tarjetas
+   - Acción: Ejecutar SQL + modificar EducacionScreen.tsx
+
+📌 11. Foto portada ProfileScreen
+   - SQL: Columna cover_photo_url agregada
+   - Código: Botón cambiar portada
+   - Acción: Ejecutar SQL + modificar ProfileScreen.tsx
+
+📌 18. CommunityDetail tabs deslizar
+   - Cambiar de TouchableOpacity a TabView
+
+📌 19. GroupChat hardcode
+   - SQL: Campo active_members_count agregado
+   - Código: Cargar datos reales
+   - Acción: Ejecutar SQL + modificar GroupChatScreen.tsx
+
+📌 22. EditCommunity guardar imagen
+   - Mismo que problema 20
+
+PRIORIDAD BAJA (mejoras UX):
+
+💡 12. Startups proximamente v2.0
+   - Cambiar navegación por Alert
+
+💡 14. Chats archivados
+   - Eliminar o implementar
+
+💡 15. Lista contactos mensajes
+   - Navegar a NewMessage
+
+💡 17. Invitar dentro/fuera app
+   - Implementar Share + SelectConnection
+
+═══════════════════════════════════════════════════════════════════════════════
+  🚀 PASOS SIGUIENTES
+═══════════════════════════════════════════════════════════════════════════════
+
+PASO 1: EJECUTAR SQL (CRÍTICO)
+```bash
+# En Supabase SQL Editor:
+sql/FIX_23_PROBLEMS.sql
+```
+
+PASO 2: APLICAR CAMBIOS DE CÓDIGO
+Lee INSTRUCCIONES_23_PROBLEMAS.md y aplica los cambios uno por uno.
+
+Orden recomendado:
+1. Problema 6 (notificaciones)
+2. Problema 8 (MarketInfo)
+3. Problema 13 (seguir usuario)
+4. Problema 20 (EditCommunity)
+5. Problema 21 (CommunitySettings)
+6. Problema 23 (Chat unirse)
+7. Resto según prioridad
+
+PASO 3: TESTING
+- Guardar post (no error duplicado) ✅
+- Búsqueda Promotions (solo Enter) ✅
+- Seguir usuario (no aparece de nuevo)
+- Editar comunidad (imagen guarda)
+- Ver perfil (seguidores correctos)
+
+═══════════════════════════════════════════════════════════════════════════════
+  📊 ESTADÍSTICAS
+═══════════════════════════════════════════════════════════════════════════════
+
+Total problemas: 23
+Resueltos en código: 2
+Documentados con solución: 21
+SQL queries creadas: 15+
+Funciones SQL nuevas: 3
+Tablas nuevas: 2
+Triggers nuevos: 2
+
+Tiempo estimado implementación completa: 3-4 horas
+
+═══════════════════════════════════════════════════════════════════════════════
+  ✅ LISTO PARA CONTINUAR
+═══════════════════════════════════════════════════════════════════════════════
+
+Todos los problemas están identificados, documentados y con solución propuesta.
+Sigue INSTRUCCIONES_23_PROBLEMAS.md para implementar el resto.
+
+¡Éxito! 🚀

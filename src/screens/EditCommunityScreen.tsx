@@ -265,14 +265,44 @@ export default function EditCommunityScreen() {
 
     try {
       setSaving(true)
+      let finalImageUrl = community?.icono_url || community?.image_url
 
+      // PRIMERO: Subir imagen si hay una nueva
+      if (imageUri) {
+        const { supabase } = require('../supabase')
+        const fileName = `community_${communityId}_${Date.now()}.jpg`
+        
+        const formData = new FormData()
+        formData.append('file', {
+          uri: imageUri,
+          type: 'image/jpeg',
+          name: fileName,
+        } as any)
+
+        const { data, error } = await supabase.storage
+          .from('community-images')
+          .upload(fileName, formData)
+
+        if (!error && data) {
+          const { data: { publicUrl } } = supabase.storage
+            .from('community-images')
+            .getPublicUrl(fileName)
+          finalImageUrl = publicUrl
+        }
+      }
+
+      // DESPUÉS: Actualizar todo junto incluyendo la imagen
       await request('PATCH', '/communities', {
         params: { id: `eq.${communityId}` },
         body: {
           name: name.trim(),
           nombre: name.trim(),
+          description: description.trim(),
           descripcion: description.trim(),
           category: category,
+          location: location.trim(),
+          icono_url: finalImageUrl,
+          image_url: finalImageUrl,
           updated_at: new Date().toISOString(),
         },
       })
