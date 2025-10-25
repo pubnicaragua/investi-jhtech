@@ -60,6 +60,9 @@ import { DebugStorageScreen } from './src/screens/DebugStorageScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
 import FollowersScreen from './src/screens/FollowersScreen';
 import FollowingScreen from './src/screens/FollowingScreen';
+import { CalculadoraInteresScreen } from './src/screens/CalculadoraInteresScreen';
+import { SimuladorJubilacionScreen } from './src/screens/SimuladorJubilacionScreen';
+import { ComparadorInversionesScreen } from './src/screens/ComparadorInversionesScreen';
 
 import { getCurrentUser, getMe } from "./src/rest/api"
 import { supabase } from "./src/supabase"
@@ -625,6 +628,9 @@ export function RootStack() {
         <Stack.Screen name="PlanificadorFinanciero" component={PlanificadorFinancieroScreen} />
         <Stack.Screen name="CazaHormigas" component={CazaHormigasScreen} />
         <Stack.Screen name="ReportesAvanzados" component={ReportesAvanzadosScreen} />
+        <Stack.Screen name="CalculadoraInteres" component={CalculadoraInteresScreen} />
+        <Stack.Screen name="SimuladorJubilacion" component={SimuladorJubilacionScreen} />
+        <Stack.Screen name="ComparadorInversiones" component={ComparadorInversionesScreen} />
   
         {/* Development Menu */}  
         {isDevelopment && (  

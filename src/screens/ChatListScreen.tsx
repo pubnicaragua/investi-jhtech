@@ -520,7 +520,11 @@ export function ChatListScreen({ navigation }: any) {
           </TouchableOpacity>
 
           {/* Users */}
-          {users.map((user) => renderUserStory({ item: user }))}
+          {users.map((user) => (
+            <View key={user.id}>
+              {renderUserStory({ item: user })}
+            </View>
+          ))}
         </ScrollView>
       </View>
 

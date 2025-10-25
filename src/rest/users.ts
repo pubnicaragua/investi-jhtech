@@ -72,7 +72,7 @@ export async function getUserProfile(userId: string) {
     })
 
     // Paso 3: Contar followers
-    const followersResponse = await request("GET", "/user_followers", {
+    const followersResponse = await request("GET", "/user_follows", {
       params: {
         following_id: `eq.${userId}`,
         select: "follower_id"
@@ -80,7 +80,7 @@ export async function getUserProfile(userId: string) {
     })
 
     // Paso 4: Contar following
-    const followingResponse = await request("GET", "/user_followers", {
+    const followingResponse = await request("GET", "/user_follows", {
       params: {
         follower_id: `eq.${userId}`,
         select: "following_id"

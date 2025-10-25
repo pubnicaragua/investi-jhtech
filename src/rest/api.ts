@@ -227,7 +227,7 @@ export async function getUserProfile(userId: string) {
     })
     
     // Paso 3: Contar followers
-    const followersResponse = await request("GET", "/user_followers", {
+    const followersResponse = await request("GET", "/user_follows", {
       params: {
         following_id: `eq.${userId}`,
         select: "follower_id"
@@ -235,7 +235,7 @@ export async function getUserProfile(userId: string) {
     })
     
     // Paso 4: Contar following
-    const followingResponse = await request("GET", "/user_followers", {
+    const followingResponse = await request("GET", "/user_follows", {
       params: {
         follower_id: `eq.${userId}`,
         select: "following_id"
@@ -2497,6 +2497,8 @@ export async function getCommunityDetailsComplete(communityId: string) {
 // Get suggested people for user
 export async function getSuggestedPeople(userId: string, limit = 10) {
   try {
+    console.log('🔍 [getSuggestedPeople] Buscando personas para userId:', userId, 'limit:', limit)
+    
     // Intentar con v2 primero (filtra mejor)
     const { data: dataV2, error: errorV2 } = await supabase
       .rpc('get_suggested_people_v2', {
@@ -2505,9 +2507,12 @@ export async function getSuggestedPeople(userId: string, limit = 10) {
       })
     
     if (!errorV2 && dataV2 && dataV2.length > 0) {
-      console.log('✅ Personas sugeridas con algoritmo v2:', dataV2.length)
+      console.log('✅ [getSuggestedPeople] Personas sugeridas con algoritmo v2:', dataV2.length, 'personas')
+      console.log('📋 [getSuggestedPeople] IDs:', dataV2.map((p: any) => p.id).join(', '))
       return dataV2
     }
+    
+    console.log('⚠️ [getSuggestedPeople] v2 falló o vacío, intentando v1. Error:', errorV2?.message)
     
     // Fallback a función original
     const { data, error } = await supabase
@@ -2517,13 +2522,14 @@ export async function getSuggestedPeople(userId: string, limit = 10) {
       })
     
     if (error) {
-      console.error('Error fetching suggested people:', error)
+      console.error('❌ [getSuggestedPeople] Error con v1:', error)
       return []
     }
     
+    console.log('✅ [getSuggestedPeople] Personas con v1:', data?.length || 0)
     return data || []
   } catch (error: any) {
-    console.error('Error fetching suggested people:', error)
+    console.error('❌ [getSuggestedPeople] Exception:', error)
     return []
   }
 }

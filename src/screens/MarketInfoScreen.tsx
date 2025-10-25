@@ -115,30 +115,46 @@ export function MarketInfoScreen({ navigation }: any) {
 
   const handleAddToPortfolio = async (stock: Stock) => {
     try {
-      const userId = await AsyncStorage.getItem('userId')
-      if (!userId) return
-
+      console.log('📊 Agregar a portafolio:', stock.symbol)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        Alert.alert('Error', 'Debes iniciar sesión')
+        return
+      }
+      
       const { error } = await supabase
         .from('user_portfolio')
-        .upsert({
-          user_id: userId,
+        .insert({
+          user_id: user.id,
           stock_symbol: stock.symbol,
           stock_name: stock.company_name,
-          quantity: 0,
-          current_price: stock.current_price
+          purchase_price: stock.current_price,
+          quantity: 1,
         })
       
       if (!error) {
-        Alert.alert('✓ Agregado', 'Acción agregada a tu portafolio')
+        Alert.alert('✓ Agregado', `${stock.symbol} agregado a tu portafolio`)
+      } else {
+        console.error('Error al agregar:', error)
+        Alert.alert('Info', 'Ya tienes esta acción en tu portafolio')
       }
     } catch (error) {
       console.error('Error adding to portfolio:', error)
+      Alert.alert('Error', 'No se pudo agregar al portafolio')
     }
   }
 
   const handleSimulateInvestment = (stock: Stock) => {
-    setSelectedStock(stock)
-    setShowStockModal(true)
+    console.log('🎯 Simular inversión:', stock.symbol)
+    // Navegar a InvestmentSimulatorScreen con los datos del stock
+    navigation.navigate('InvestmentSimulator', {
+      stock: {
+        symbol: stock.symbol,
+        name: stock.company_name,
+        price: stock.current_price,
+        change: stock.price_change_percent
+      }
+    })
   }
 
   const filteredStocks = stocks.filter(stock => {

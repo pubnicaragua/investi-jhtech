@@ -317,11 +317,11 @@ export function ChatScreen({ navigation, route }: any) {
 
         // Upload in background
         setUploading(true);
-        const uploadResult = await uploadChatFile(conversationId, uid, pendingMedia.file);
+        const uploadResult = await uploadChatFile(conversationId || '', uid, pendingMedia.file);
 
         // Send message with uploaded URL
         sentMessage = await sendChatMessage({
-          conversation_id: conversationId,
+          conversation_id: conversationId || undefined,
           user_id: uid,
           other_user_id: participant.id,
           content: content,
@@ -375,7 +375,7 @@ export function ChatScreen({ navigation, route }: any) {
 
         // Send to server
         sentMessage = await sendChatMessage({
-          conversation_id: conversationId,
+          conversation_id: conversationId || undefined,
           user_id: uid,
           other_user_id: participant.id,
           content: messageText,
@@ -493,7 +493,7 @@ export function ChatScreen({ navigation, route }: any) {
       const fileName = file.fileName || file.name || `file_${Date.now()}`;
       const mimeType = file.type || file.mimeType;
 
-      const uploadResult = await uploadChatFile(conversationId, uid, file);
+      const uploadResult = await uploadChatFile(conversationId || '', uid, file);
 
       let content = fileName;
       if (content.includes('application/') || content.includes('text/plain') || content.includes('charset=')) {
@@ -501,7 +501,7 @@ export function ChatScreen({ navigation, route }: any) {
       }
 
       await sendChatMessage({
-        conversation_id: conversationId,
+        conversation_id: conversationId || undefined,
         user_id: uid,
         other_user_id: participant.id,
         content: content,
