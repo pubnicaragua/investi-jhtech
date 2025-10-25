@@ -157,20 +157,9 @@ export function MarketInfoScreen({ navigation }: any) {
         }
       };
       
-      // Navegar al root navigator y luego a InvestmentSimulator
-      const rootNav = navigation.getParent()?.getParent();
-      if (rootNav) {
-        console.log('✅ [MarketInfo] Navegando con root navigator');
-        rootNav.navigate('InvestmentSimulator', stockData);
-      } else {
-        console.log('⚠️ [MarketInfo] Root navigator no encontrado, usando parent');
-        const parentNav = navigation.getParent();
-        if (parentNav) {
-          parentNav.navigate('InvestmentSimulator', stockData);
-        } else {
-          (navigation as any).navigate('InvestmentSimulator', stockData);
-        }
-      }
+      // Navegar directamente (está en el mismo Drawer)
+      console.log('✅ [MarketInfo] Navegando a InvestmentSimulator');
+      navigation.navigate('InvestmentSimulator', stockData);
     } catch (error) {
       console.error('❌ Error navigating to simulator:', error);
       Alert.alert('Error', 'No se pudo abrir el simulador');

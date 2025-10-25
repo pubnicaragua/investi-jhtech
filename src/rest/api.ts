@@ -1014,12 +1014,34 @@ export async function getPostDetail(postId: string) {
  * - CommunityDetailScreen
  */
 export async function likePost(post_id: string, user_id: string, is_like = true) {  
-  try {  
-    return await request("POST", "/post_likes", {  
-      body: { post_id, user_id, is_like },  
-    })  
+  try {
+    // Verificar si ya existe el like
+    const existing = await request("GET", "/post_likes", {
+      params: {
+        post_id: `eq.${post_id}`,
+        user_id: `eq.${user_id}`,
+        select: "id"
+      }
+    });
+    
+    if (existing && existing.length > 0) {
+      // Ya existe, eliminar (unlike)
+      console.log('💔 [likePost] Unlike post:', post_id);
+      return await request("DELETE", "/post_likes", {
+        params: {
+          post_id: `eq.${post_id}`,
+          user_id: `eq.${user_id}`
+        }
+      });
+    } else {
+      // No existe, crear (like)
+      console.log('❤️ [likePost] Like post:', post_id);
+      return await request("POST", "/post_likes", {  
+        body: { post_id, user_id, is_like },  
+      });
+    }
   } catch (error: any) {  
-    if (error.code === "23505") return null // Ya dio like  
+    console.error('❌ [likePost] Error:', error);
     return null  
   }  
 }  
@@ -2828,11 +2850,16 @@ export async function performQuickAction(postId: string, action: string, userId:
 
 export async function savePost(postId: string, userId: string) {
   try {
-    return await request("POST", "/saved_posts", {
+    console.log('💾 [savePost] Guardando post:', postId, 'para usuario:', userId);
+    return await request("POST", "/post_saves", {
       body: { post_id: postId, user_id: userId }
     })
   } catch (error: any) {
-    if (error.code === "23505") return null // Already saved
+    console.error('❌ [savePost] Error:', error);
+    if (error.code === "23505") {
+      console.log('⚠️ [savePost] Post ya guardado');
+      return null; // Already saved
+    }
     throw error
   }
 }

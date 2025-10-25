@@ -313,22 +313,78 @@ export function HomeFeedScreen({ navigation }: any) {
   const loadNotifications = async (uid: string) => {
     try {
       const data = await getNotifications(uid)
-      const unread = data?.filter((n: any) => !n.read).length || 0
+      const unread = data?.filter((n: any) => !n.is_read && !n.read).length || 0
       setUnreadCount(unread)
+      console.log('🔔 [HomeFeed] Notificaciones no leídas:', unread)
     } catch (err) {
       console.error("Error loading notifications:", err)
     }
   }
+  
+  // Suscripción a notificaciones en tiempo real
+  useEffect(() => {
+    if (!userId) return
+    
+    const channel = supabase
+      .channel('notifications_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`
+        },
+        () => {
+          console.log('🔔 [HomeFeed] Nueva notificación, recargando...')
+          loadNotifications(userId)
+        }
+      )
+      .subscribe()
+    
+    return () => {
+      channel.unsubscribe()
+    }
+  }, [userId])
 
   const loadConversations = async (uid: string) => {
     try {
       const data = await getUserConversations(uid)
       const unread = data?.filter((c: any) => c.unread_count > 0).length || 0
       setUnreadMessagesCount(unread)
+      console.log('💬 [HomeFeed] Mensajes no leídos:', unread)
     } catch (err) {
       console.error("Error loading conversations:", err)
     }
   }
+  
+  // Suscripción a mensajes en tiempo real
+  useEffect(() => {
+    if (!userId) return
+    
+    const channel = supabase
+      .channel('messages_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages'
+        },
+        (payload: any) => {
+          // Solo recargar si el mensaje no es del usuario actual
+          if (payload.new.sender_id !== userId) {
+            console.log('💬 [HomeFeed] Nuevo mensaje, recargando...')
+            loadConversations(userId)
+          }
+        }
+      )
+      .subscribe()
+    
+    return () => {
+      channel.unsubscribe()
+    }
+  }, [userId])
 
   const handleSearch = () => {
     if (!searchQuery.trim()) return
@@ -338,27 +394,46 @@ export function HomeFeedScreen({ navigation }: any) {
   const handleLike = async (postId: string) => {
     if (!userId) return
     
+    const wasLiked = likedPosts.has(postId)
+    
     try {
-      const isLiked = likedPosts.has(postId)
-      
-      if (isLiked) {
+      // Actualizar UI inmediatamente (optimistic update)
+      if (wasLiked) {
         setLikedPosts(prev => {
           const newSet = new Set(prev)
           newSet.delete(postId)
           return newSet
         })
         setPosts(prev => prev.map(post => 
-          post.id === postId ? { ...post, likes: Math.max((post.likes || 0) - 1, 0) } : post
+          post.id === postId ? { ...post, likes: Math.max((post.likes || 0) - 1, 0), is_liked: false } : post
         ))
       } else {
         setLikedPosts(prev => new Set(prev).add(postId))
         setPosts(prev => prev.map(post => 
-          post.id === postId ? { ...post, likes: (post.likes || 0) + 1 } : post
+          post.id === postId ? { ...post, likes: (post.likes || 0) + 1, is_liked: true } : post
         ))
-        await likePost(postId, userId)
       }
+      
+      // Llamar API (like o unlike)
+      await likePost(postId, userId)
     } catch (err) {
       console.error("Error liking post:", err)
+      // Revertir cambio si falla
+      if (wasLiked) {
+        setLikedPosts(prev => new Set(prev).add(postId))
+        setPosts(prev => prev.map(post => 
+          post.id === postId ? { ...post, likes: (post.likes || 0) + 1, is_liked: true } : post
+        ))
+      } else {
+        setLikedPosts(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(postId)
+          return newSet
+        })
+        setPosts(prev => prev.map(post => 
+          post.id === postId ? { ...post, likes: Math.max((post.likes || 0) - 1, 0), is_liked: false } : post
+        ))
+      }
     }
   }
 

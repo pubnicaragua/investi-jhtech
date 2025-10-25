@@ -187,13 +187,38 @@ export function PostDetailScreen() {
   const handleShare = async () => {
     if (!post) return
     try {
-      await RNShare.share({ message: `${post.contenido || post.content}\n\n- Compartido desde Investi` })
-      await request('PATCH', '/posts', {
-        params: { id: `eq.${postId}` },
-        body: { shares_count: (post.shares_count || 0) + 1 },
-      })
+      Alert.alert(
+        'Compartir publicación',
+        '¿Cómo deseas compartir?',
+        [
+          {
+            text: 'Enviar mensaje',
+            onPress: () => {
+              navigation.navigate('ChatList', {
+                sharePost: {
+                  id: post.id,
+                  content: post.contenido || post.content || ''
+                }
+              });
+            }
+          },
+          {
+            text: 'Compartir fuera de la app',
+            onPress: async () => {
+              await RNShare.share({ 
+                message: `${post.contenido || post.content}\n\n- Compartido desde Investi` 
+              });
+              setPost({ ...post, shares_count: (post.shares_count || 0) + 1 });
+            }
+          },
+          {
+            text: 'Cancelar',
+            style: 'cancel'
+          }
+        ]
+      );
     } catch (error) {
-      console.error('Error sharing post:', error)
+      console.error('Error sharing:', error)
     }
   }
 
@@ -450,6 +475,7 @@ export function PostDetailScreen() {
               </TouchableOpacity>
               <TouchableOpacity style={styles.actionButton} onPress={handleSave}>
                 <Bookmark size={22} color={post.has_saved ? '#2673f3' : '#666'} fill={post.has_saved ? '#2673f3' : 'none'} />
+                <Text style={styles.actionButtonText}>Guardar</Text>
               </TouchableOpacity>
             </View>
           </View>

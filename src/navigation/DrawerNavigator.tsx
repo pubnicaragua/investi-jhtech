@@ -1,6 +1,8 @@
 import React from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { HomeFeedScreen } from '../screens/HomeFeedScreen';
+import { MarketInfoScreen } from '../screens/MarketInfoScreen';
+import { InvestmentSimulatorScreen } from '../screens/InvestmentSimulatorScreen';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
 import { useNavigation } from '@react-navigation/native';
@@ -99,7 +101,24 @@ export function DrawerNavigator() {
           )
         }}
       />
-      {/* Aquí puedes agregar más pantallas al drawer */}
+      <Drawer.Screen 
+        name="MarketInfo" 
+        component={MarketInfoScreen} 
+        options={{
+          title: 'Market Info',
+          headerShown: false,
+          drawerItemStyle: { display: 'none' } // Ocultar del drawer
+        }}
+      />
+      <Drawer.Screen 
+        name="InvestmentSimulator" 
+        component={InvestmentSimulatorScreen} 
+        options={{
+          title: 'Simulador de Inversión',
+          headerShown: true,
+          drawerItemStyle: { display: 'none' } // Ocultar del drawer
+        }}
+      />
     </Drawer.Navigator>
   );
 }
