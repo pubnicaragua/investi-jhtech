@@ -111,6 +111,25 @@ export function SignUpScreen({ navigation }: any) {
 
     setLoading(true)
     try {
+      // 0. VALIDAR si el email ya existe en la base de datos
+      const { data: existingUserByEmail } = await supabase
+        .from('users')
+        .select('id, email')
+        .eq('email', email.trim().toLowerCase())
+        .single()
+
+      if (existingUserByEmail) {
+        Alert.alert(
+          "Cuenta existente",
+          "Este correo ya está registrado. Por favor inicia sesión.",
+          [
+            { text: "Cancelar", style: "cancel" },
+            { text: "Ir a Iniciar Sesión", onPress: () => navigation.navigate("SignIn") }
+          ]
+        )
+        return
+      }
+
       // 1. Crear usuario en Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
@@ -123,21 +142,76 @@ export function SignUpScreen({ navigation }: any) {
         }
       })
 
-      if (authError) throw authError
+      if (authError) {
+        // Verificar si es error de email duplicado
+        if (authError.message?.includes("already") || authError.message?.includes("registered")) {
+          Alert.alert(
+            "Cuenta existente",
+            "Este correo ya está registrado. Por favor inicia sesión.",
+            [
+              { text: "Cancelar", style: "cancel" },
+              { text: "Ir a Iniciar Sesión", onPress: () => navigation.navigate("SignIn") }
+            ]
+          )
+          return
+        }
+        throw authError
+      }
       
       if (!authData.user) {
         throw new Error("No se pudo crear el usuario")
       }
 
-      // 2. Verificar si el perfil ya existe, si no, crearlo
+      // 2. Verificar si el perfil ya existe
       const { data: existingUser } = await supabase
         .from('users')
-        .select('id')
+        .select('id, email, onboarding_step')
         .eq('id', authData.user.id)
         .single()
 
-      if (!existingUser) {
-        // Solo insertar si no existe
+      if (existingUser) {
+        // Usuario YA EXISTE en BD
+        console.log("⚠️ Usuario ya existe en BD:", existingUser.email)
+        console.log("📊 onboarding_step actual:", existingUser.onboarding_step)
+        
+        // CASO 1: Usuario completó onboarding → Rechazar
+        if (existingUser.onboarding_step === 'completed') {
+          console.error("❌ Usuario ya completó onboarding")
+          Alert.alert(
+            "Cuenta existente",
+            "Este correo ya está registrado y completó el onboarding. Por favor inicia sesión.",
+            [
+              { text: "Cancelar", style: "cancel" },
+              { text: "Ir a Iniciar Sesión", onPress: () => navigation.navigate("SignIn") }
+            ]
+          )
+          return
+        }
+        
+        // CASO 2: Usuario NO completó onboarding → CONTINUAR
+        console.log("✅ Usuario existe pero NO completó onboarding → Continuar")
+        console.log("🔄 Reseteando onboarding_step a 'upload_avatar'")
+        
+        // FORZAR onboarding_step a 'upload_avatar' para empezar desde el inicio
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({
+            full_name: fullName.trim(),
+            nombre: fullName.trim(),
+            username: username.trim().toLowerCase(),
+            onboarding_step: 'upload_avatar' // ✅ FORZAR inicio de onboarding
+          })
+          .eq('id', authData.user.id)
+        
+        if (updateError) {
+          console.error("❌ Error actualizando usuario:", updateError)
+          Alert.alert("Error", "No se pudo actualizar el perfil")
+          return
+        }
+        
+        console.log("✅ onboarding_step actualizado a 'upload_avatar'")
+      } else {
+        // 3. Crear perfil de usuario (usuario nuevo)
         const { error: profileError } = await supabase
           .from('users')
           .insert({
@@ -146,17 +220,19 @@ export function SignUpScreen({ navigation }: any) {
             full_name: fullName.trim(),
             nombre: fullName.trim(),
             username: username.trim().toLowerCase(),
+            onboarding_step: 'upload_avatar', // CRÍTICO: Establecer paso inicial
           })
 
         if (profileError) {
-          console.error("Error creating profile:", profileError)
-          // No lanzar error aquí, el usuario ya fue creado en auth
+          console.error("❌ Error creating profile:", profileError)
+          Alert.alert("Error", "No se pudo crear el perfil de usuario")
+          return
         }
-      } else {
-        console.log("✅ User profile already exists, skipping insert")
+        
+        console.log("✅ Nuevo usuario creado, iniciará onboarding")
       }
 
-      // 3. Limpiar flags de onboarding anteriores
+      // 3. Limpiar flags de onboarding anteriores para forzar onboarding completo
       await AsyncStorage.multiRemove([
         'onboarding_complete',
         'avatar_uploaded',
@@ -164,15 +240,22 @@ export function SignUpScreen({ navigation }: any) {
         'interests_selected',
         'knowledge_selected'
       ])
+      
+      // 4. Pequeño delay para asegurar que BD se actualice
+      console.log("⏳ Esperando propagación de BD...")
+      await new Promise(resolve => setTimeout(resolve, 500))
+      console.log("✅ BD actualizada, procediendo con auto-login")
 
-      // 4. Auto-login después del registro
-      await authSignIn(email.trim().toLowerCase(), password)
-
-      Alert.alert(
-        "¡Cuenta creada!",
-        "Tu cuenta ha sido creada exitosamente. Ahora completa tu perfil.",
-        [{ text: "Continuar", onPress: () => navigation.navigate("UploadAvatar") }]
-      )
+      // 5. NO hacer auto-login, navegar directamente
+      // El usuario ya está autenticado por el signUp de Supabase
+      console.log('✅ SignUp exitoso - Navegando DIRECTAMENTE a UploadAvatar')
+      
+      // 6. RESETEAR stack de navegación INMEDIATAMENTE
+      console.log('📸 RESETEANDO navegación a UploadAvatar')
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'UploadAvatar' }],
+      })
 
     } catch (error: any) {
       console.error("SignUp error:", error)

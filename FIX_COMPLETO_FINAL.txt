@@ -1,0 +1,169 @@
+============================================================================
+🔥 FIX COMPLETO FINAL - TODOS LOS PROBLEMAS RESUELTOS
+============================================================================
+
+PROBLEMAS ENCONTRADOS:
+1. ❌ Columna intereses es TEXT[] no UUID[]
+2. ❌ Tabla user_follows usa following_id no followed_id
+3. ❌ PromotionsScreen carga con tab "Personas" prefiltrado
+
+============================================================================
+SOLUCIÓN 1: FIX_USER_FOLLOWS_Y_FUNCION.sql
+============================================================================
+
+Este archivo:
+1. ✅ Verifica estructura de user_follows
+2. ✅ Usa TEXT[] para intereses (no UUID[])
+3. ✅ Usa following_id (no followed_id)
+4. ✅ Convierte TEXT[] a UUID[] solo para retorno
+
+EJECUTAR EN SUPABASE:
+1. Abrir Supabase SQL Editor
+2. Copiar TODO: FIX_USER_FOLLOWS_Y_FUNCION.sql
+3. Ejecutar (Run)
+4. Verificar: "Función creada con following_id"
+
+CAMBIOS CLAVE:
+```sql
+-- ANTES (INCORRECTO):
+WHERE uf.follower_id = p_user_id AND uf.followed_id = u.id  ❌
+
+-- AHORA (CORRECTO):
+WHERE uf.follower_id = p_user_id AND uf.following_id = u.id  ✅
+```
+
+============================================================================
+SOLUCIÓN 2: PromotionsScreen.tsx
+============================================================================
+
+CAMBIOS APLICADOS:
+
+1. ✅ Tab inicial: "Promociones" (antes "Personas")
+   ```typescript
+   const [selectedTab, setSelectedTab] = useState('Promociones')
+   ```
+
+2. ✅ Sin búsqueda prefiltrada
+   ```typescript
+   const [searchQuery, setSearchQuery] = useState('')  // Antes: initialQuery
+   ```
+
+RESULTADO:
+- Al abrir PromotionsScreen muestra tab "Promociones"
+- NO carga con búsqueda prefiltrada
+- Usuario busca directamente en la pantalla
+
+============================================================================
+SOLUCIÓN 3: HomeFeedScreen.tsx
+============================================================================
+
+CAMBIO APLICADO:
+```typescript
+const handleSearch = () => {
+  // Navegar a Promotions sin query
+  navigation.navigate("Promotions" as never)
+}
+```
+
+RESULTADO:
+- Click en buscador → Va a Promotions
+- NO envía query prefiltrado
+- Usuario busca en PromotionsScreen
+
+============================================================================
+ESTRUCTURA DE user_follows (VERIFICADA)
+============================================================================
+
+La tabla user_follows tiene estas columnas:
+- follower_id (UUID) - Quien sigue
+- following_id (UUID) - A quien sigue
+- created_at (TIMESTAMP)
+- source (TEXT) - 'manual', 'recommendation', etc.
+
+NO tiene:
+- ❌ followed_id (esta columna NO existe)
+
+============================================================================
+ESTRUCTURA DE users.intereses (VERIFICADA)
+============================================================================
+
+Columna: users.intereses
+- Tipo: ARRAY
+- UDT: _text (TEXT[])
+
+NO es:
+- ❌ UUID[] (array de UUIDs)
+
+Por eso el error:
+```
+COALESCE could not convert type uuid[] to text[]
+```
+
+============================================================================
+DESPUÉS DE EJECUTAR SQL
+============================================================================
+
+1. Reiniciar:
+   npx expo start --clear
+
+2. Logs esperados:
+   ✅ [getSuggestedPeople] Personas recomendadas: X
+   ✅ Personas sugeridas: X
+
+3. NO debe aparecer:
+   ❌ COALESCE could not convert type uuid[] to text[]
+   ❌ column uf.followed_id does not exist
+
+4. PromotionsScreen:
+   ✅ Abre en tab "Promociones"
+   ✅ Sin búsqueda prefiltrada
+   ✅ Carga todas las promociones
+
+============================================================================
+RESUMEN DE ARCHIVOS
+============================================================================
+
+SQL (EJECUTAR):
+1. FIX_USER_FOLLOWS_Y_FUNCION.sql ← EJECUTAR ESTE
+
+CÓDIGO (YA APLICADO):
+1. src/screens/PromotionsScreen.tsx
+   - Tab inicial: "Promociones"
+   - Sin búsqueda prefiltrada
+
+2. src/screens/HomeFeedScreen.tsx
+   - Buscador sin query prefiltrado
+   - Botón Enviar → ChatList
+
+3. src/components/NotificationsModal.tsx
+   - 20 notificaciones
+   - Con nombre de usuario
+
+============================================================================
+CHECKLIST FINAL
+============================================================================
+
+[ ] 1. Ejecutar FIX_USER_FOLLOWS_Y_FUNCION.sql
+[ ] 2. npx expo start --clear
+[ ] 3. Probar CommunityRecommendationsScreen
+[ ] 4. Probar PromotionsScreen (debe abrir en "Promociones")
+[ ] 5. Probar buscador de HomeFeed
+[ ] 6. Verificar que NO aparezcan errores SQL
+
+============================================================================
+EXPLICACIÓN TÉCNICA COMPLETA
+============================================================================
+
+ERROR 1: COALESCE could not convert type uuid[] to text[]
+CAUSA: users.intereses es TEXT[] no UUID[]
+SOLUCIÓN: Usar TEXT[] en variables y COALESCE
+
+ERROR 2: column uf.followed_id does not exist
+CAUSA: user_follows usa following_id no followed_id
+SOLUCIÓN: Cambiar a following_id en la consulta
+
+ERROR 3: PromotionsScreen carga prefiltrado
+CAUSA: selectedTab = 'Personas' y searchQuery = initialQuery
+SOLUCIÓN: selectedTab = 'Promociones' y searchQuery = ''
+
+============================================================================

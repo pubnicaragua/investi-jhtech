@@ -1,0 +1,163 @@
+============================================================================
+VALIDACIÓN: RECOMENDACIONES DE PERSONAS
+============================================================================
+
+FUNCIÓN SQL: get_recommended_people_final()
+- Ubicación: EJECUTAR_AHORA_TODAS_LAS_CORRECCIONES.sql
+- Estado: ✅ CREADA Y EJECUTADA (trigger confirmado)
+- Parámetros: p_user_id, p_limit
+- Retorna: Personas con scoring basado en intereses, metas y nivel
+
+============================================================================
+FUNCIÓN TYPESCRIPT: getSuggestedPeople()
+============================================================================
+
+Ubicación: src/rest/api.ts - Línea 2595
+Estado: ✅ CORREGIDA
+
+Código:
+```typescript
+export async function getSuggestedPeople(userId: string, limit = 20) {
+  const { data, error } = await supabase
+    .rpc('get_recommended_people_final', {
+      p_user_id: userId,
+      p_limit: limit
+    })
+  return data || []
+}
+```
+
+============================================================================
+PANTALLAS QUE USAN getSuggestedPeople()
+============================================================================
+
+1. ✅ CommunityRecommendationsScreen.tsx - Línea 100
+   - Llamada: getSuggestedPeople(user.id, 10)
+   - Estado: CORREGIDO (antes usaba RPC incorrecto)
+   - Muestra: Tarjetas de personas sugeridas
+
+2. ✅ ProfileScreen.tsx - Línea 163
+   - Llamada: getSuggestedPeople(userId)
+   - Estado: FUNCIONAL
+   - Muestra: Personas sugeridas en perfil
+
+3. ✅ PromotionsScreen.tsx - Línea 92
+   - Llamada: getSuggestedPeople(uid, 10)
+   - Estado: FUNCIONAL
+   - Tab: "Personas"
+
+4. ✅ CreateCommunityScreen.tsx - Línea 156
+   - Llamada: getSuggestedPeople(uid, 20)
+   - Estado: FUNCIONAL
+   - Uso: Sugerir miembros al crear comunidad
+
+5. ✅ NewMessageScreen.tsx - Línea 86
+   - Llamada: getSuggestedPeople(uid, 20)
+   - Estado: FUNCIONAL
+   - Uso: Sugerir personas para nuevo mensaje
+
+6. ✅ ChatListScreen.tsx - Línea 213
+   - Llamada: getSuggestedPeople(uid, 8)
+   - Estado: FUNCIONAL
+   - Uso: Sugerir personas para iniciar chat
+
+7. ❌ CommunityDetailScreen.tsx
+   - NO USA getSuggestedPeople
+   - NO recomienda personas dentro de grupos
+   - PENDIENTE: Agregar si es necesario
+
+============================================================================
+CORRECCIONES APLICADAS HOY
+============================================================================
+
+1. CommunityRecommendationsScreen.tsx
+   ANTES:
+   - Usaba: .rpc('get_recommended_people', ...) ❌ (no existe)
+   - Variable suggestedPeopleData solo en bloque if
+   
+   AHORA:
+   - Usa: getSuggestedPeople(user.id, 10) ✅
+   - Variable declarada correctamente
+   - Manejo de errores mejorado
+
+2. Datos Mock Eliminados
+   ANTES:
+   - Mostraba "person-1", "person-2" si no había datos
+   
+   AHORA:
+   - Array vacío si no hay personas reales
+   - NO muestra datos falsos
+
+============================================================================
+LOGS ESPERADOS
+============================================================================
+
+Al abrir CommunityRecommendationsScreen:
+
+```
+👤 Usuario actual: [uuid]
+🔍 [getSuggestedPeople] Buscando personas para userId: [uuid] limit: 10
+✅ [getSuggestedPeople] Personas recomendadas: X
+📊 [getSuggestedPeople] Scores: [...]
+✅ Personas sugeridas: X
+🎯 Comunidades recomendadas: Y
+👥 Personas sugeridas: X
+```
+
+Si no hay personas:
+```
+⚠️ [getSuggestedPeople] No se encontraron personas recomendadas
+✅ Personas sugeridas: 0
+⚠️ No hay personas sugeridas disponibles
+```
+
+============================================================================
+POSIBLES CAUSAS SI NO MUESTRA PERSONAS
+============================================================================
+
+1. Usuario no completó onboarding
+   - Verificar: onboarding_step = 'completed'
+   - Verificar: tiene intereses, nivel_finanzas, metas
+
+2. No hay otros usuarios con onboarding completo
+   - Verificar: SELECT COUNT(*) FROM users WHERE onboarding_step = 'completed'
+
+3. No hay usuarios con intereses/metas similares
+   - La función requiere al menos 1 coincidencia
+
+4. Función SQL no ejecutada
+   - Verificar: SELECT * FROM get_recommended_people_final('[user_id]', 10)
+
+============================================================================
+PRUEBAS RECOMENDADAS
+============================================================================
+
+1. En Supabase SQL Editor:
+```sql
+-- Verificar función existe
+SELECT routine_name 
+FROM information_schema.routines 
+WHERE routine_name = 'get_recommended_people_final';
+
+-- Probar con tu user_id
+SELECT * FROM get_recommended_people_final('c7812eb1-c3b1-429f-aabe-ba8da052201f', 10);
+
+-- Ver usuarios disponibles
+SELECT id, full_name, onboarding_step, intereses, nivel_finanzas
+FROM users
+WHERE onboarding_step = 'completed'
+  AND (avatar_url IS NOT NULL OR photo_url IS NOT NULL)
+LIMIT 20;
+```
+
+2. En la app:
+- Abrir CommunityRecommendationsScreen
+- Revisar logs en consola
+- Verificar que muestre personas
+
+3. Si no muestra:
+- Compartir logs completos
+- Compartir resultado de query SQL
+- Verificar datos de tu usuario
+
+============================================================================

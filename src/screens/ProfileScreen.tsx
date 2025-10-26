@@ -146,16 +146,24 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
           setFeed([])
         }
 
-        // Asignar comunidades si existen
-        if (userData.communities && Array.isArray(userData.communities)) {
-          const mappedCommunities = userData.communities.map((comm: any) => ({
-            id: comm.id,
-            name: comm.name || comm.nombre,
-            imageUrl: comm.icono_url || comm.image_url,
-            memberCount: comm.members_count || 0,
-            isMember: true
-          }))
-          setCommunities(mappedCommunities)
+        // Cargar comunidades sugeridas (NO las del usuario)
+        try {
+          const { getRecommendedCommunitiesByGoals } = await import('../rest/api')
+          const suggestedCommunities = await getRecommendedCommunitiesByGoals(userId, 5)
+          
+          if (suggestedCommunities && Array.isArray(suggestedCommunities)) {
+            const mappedCommunities = suggestedCommunities.map((comm: any) => ({
+              id: comm.id,
+              name: comm.name || comm.nombre,
+              imageUrl: comm.icono_url || comm.image_url,
+              memberCount: comm.members_count || 0,
+              isMember: false // CRÍTICO: Son comunidades sugeridas, no del usuario
+            }))
+            setCommunities(mappedCommunities)
+          }
+        } catch (error) {
+          console.error('⚠️ Error loading suggested communities:', error)
+          setCommunities([])
         }
 
         // Obtener personas sugeridas del backend
@@ -174,20 +182,30 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
           setSuggestedPeople([])
         }
 
-        // Cargar conexiones reales
+        // Cargar conexiones reales desde tabla followers
         try {
-          const { data: connections } = await supabase
-            .rpc('get_user_connections_count', { user_id_param: userId })
+          // Contar seguidores (usuarios que siguen a este usuario)
+          const { count: followersCount } = await supabase
+            .from('followers')
+            .select('*', { count: 'exact', head: true })
+            .eq('following_id', userId)
           
-          if (connections && connections.length > 0) {
-            setConnectionsData({
-              followers: Number(connections[0].followers_count) || 0,
-              following: Number(connections[0].following_count) || 0,
-              mutualConnections: Number(connections[0].mutual_connections_count) || 0
-            })
-          }
+          // Contar siguiendo (usuarios que este usuario sigue)
+          const { count: followingCount } = await supabase
+            .from('followers')
+            .select('*', { count: 'exact', head: true })
+            .eq('follower_id', userId)
+          
+          console.log(`📊 Conexiones: ${followersCount} seguidores, ${followingCount} siguiendo`)
+          
+          setConnectionsData({
+            followers: followersCount || 0,
+            following: followingCount || 0,
+            mutualConnections: 0 // Calcular después si es necesario
+          })
         } catch (error) {
           console.error('Error loading connections:', error)
+          setConnectionsData({ followers: 0, following: 0, mutualConnections: 0 })
         }
 
         // CRÍTICO: Verificar si ya estoy siguiendo a este usuario
@@ -265,10 +283,10 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
     try {
       const ImagePicker = require('expo-image-picker')
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [16, 9],
-        quality: 0.8,
+        quality: 0.5, // Reducir calidad para evitar errores de red
       })
 
       if (!result.canceled && result.assets[0]) {
@@ -276,33 +294,57 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
         const currentUserId = await getCurrentUserId()
         if (!currentUserId) return
         
-        const fileName = `cover_${currentUserId}_${Date.now()}.jpg`
+        console.log('📤 Subiendo cover photo...', uri)
+        
+        const fileName = `${currentUserId}/cover_${Date.now()}.jpg`
         const { supabase } = require('../supabase')
+        
+        // Método correcto para React Native: usar FormData
+        const formData = new FormData()
+        formData.append('file', {
+          uri,
+          type: 'image/jpeg',
+          name: fileName,
+        } as any)
+        
         const { data, error } = await supabase.storage
           .from('avatars')
-          .upload(fileName, {
-            uri,
-            type: 'image/jpeg',
-            name: fileName
+          .upload(fileName, formData, {
+            contentType: 'image/jpeg',
+            upsert: true
           })
         
-        if (!error && data) {
+        if (error) {
+          console.error('❌ Error uploading cover photo:', error)
+          Alert.alert('Error al subir', `No se pudo subir la foto: ${error.message}`)
+          return
+        }
+        
+        if (data) {
           const { data: { publicUrl } } = supabase.storage
             .from('avatars')
             .getPublicUrl(fileName)
           
-          await supabase
+          console.log('✅ Cover photo subida:', publicUrl)
+          
+          const { error: updateError } = await supabase
             .from('users')
             .update({ cover_photo_url: publicUrl })
             .eq('id', currentUserId)
           
-          Alert.alert('✓ Actualizado', 'Foto de portada actualizada')
-          loadProfile()
+          if (updateError) {
+            console.error('❌ Error updating cover_photo_url:', updateError)
+            Alert.alert('Error', 'No se pudo actualizar el perfil')
+          } else {
+            console.log('✅ Cover photo actualizada en BD')
+            Alert.alert('✓ Actualizado', 'Foto de portada actualizada')
+            await loadProfile()
+          }
         }
       }
-    } catch (error) {
-      console.error('Error:', error)
-      Alert.alert('Error', 'No se pudo cambiar la foto')
+    } catch (error: any) {
+      console.error('❌ Error en handleChangeCoverPhoto:', error)
+      Alert.alert('Error', `No se pudo cambiar la foto: ${error.message || 'Error desconocido'}`)
     }
   }
 
@@ -366,8 +408,9 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
   const handleShare = async () => {
     try {
       const userName = profileUser?.full_name || profileUser?.nombre || profileUser?.username || 'este usuario'
+      const profileId = targetUserId || profileUser?.id || ''
       await Share.share({
-        message: `¡Mira el perfil de ${userName} en Investí! 🚀\n\nÚnete a la comunidad de inversionistas: https://investi.app/profile/${userId}`,
+        message: `¡Mira el perfil de ${userName} en Investí! 🚀\n\nÚnete a la comunidad de inversionistas: https://investi.app/profile/${profileId}`,
         title: 'Compartir perfil'
       })
     } catch (error) {
@@ -672,7 +715,15 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
             <>
               <TouchableOpacity  
                 style={styles.primaryButton}  
-                onPress={() => navigation.navigate('EditInterests')}
+                onPress={() => {
+                  // Navegar al Stack Navigator padre
+                  const parentNav = navigation.getParent()
+                  if (parentNav) {
+                    parentNav.navigate('EditInterests')
+                  } else {
+                    Alert.alert('Error', 'No se pudo abrir la pantalla')
+                  }
+                }}
               >  
                 <Text style={styles.primaryButtonText}>Cambiar mis intereses</Text>  
               </TouchableOpacity>
@@ -1049,11 +1100,11 @@ const styles = StyleSheet.create({
   },
   banner: {  
     width: '100%',  
-    height: 140,  
+    height: 160,  
   },
   bannerPlaceholder: {
     width: '100%',
-    height: 140,
+    height: 160,
     backgroundColor: '#1E3A5F',
   },
   editBannerButton: {
@@ -1081,15 +1132,20 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   avatarContainer: {  
-    borderWidth: 4,
+    borderWidth: 5,
     borderColor: '#fff',
-    borderRadius: 68,
+    borderRadius: 75,
     backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
   },  
   avatar: {  
-    width: 128,  
-    height: 128,  
-    borderRadius: 64,  
+    width: 140,  
+    height: 140,  
+    borderRadius: 70,  
     backgroundColor: '#F3F4F6',
   },
   avatarPlaceholder: {
@@ -1129,10 +1185,11 @@ const styles = StyleSheet.create({
     gap: 6,
   },  
   userName: {  
-    fontSize: 22,  
-    fontWeight: '700',  
+    fontSize: 24,  
+    fontWeight: '800',  
     color: '#000',
     maxWidth: SCREEN_WIDTH - 100,
+    letterSpacing: -0.5,
   },  
   verifiedBadge: {
     backgroundColor: '#0A66C2',
@@ -1143,10 +1200,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   userBio: {  
-    fontSize: 15,  
+    fontSize: 16,  
     color: '#000',  
-    marginBottom: 6,  
-    lineHeight: 22,  
+    marginBottom: 8,  
+    lineHeight: 24,
+    letterSpacing: -0.1,
   },  
   userLocation: {  
     fontSize: 14,  
@@ -1175,14 +1233,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#0A66C2',
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 4,
+    paddingVertical: 12,
+    borderRadius: 24,
+    gap: 6,
+    shadowColor: '#0A66C2',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   primaryButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: '#fff',
+    letterSpacing: 0.3,
   },
   primaryButtonOutline: {
     flex: 1,
@@ -1190,16 +1254,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#fff',
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1.5,
+    paddingVertical: 12,
+    borderRadius: 24,
+    borderWidth: 2,
     borderColor: '#0A66C2',
-    gap: 4,
+    gap: 6,
+    shadowColor: '#0A66C2',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 2,
   },
   primaryButtonOutlineText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: '#0A66C2',
+    letterSpacing: 0.3,
   },
   followingButton: {
     backgroundColor: '#fff',

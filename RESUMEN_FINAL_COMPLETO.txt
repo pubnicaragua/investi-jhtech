@@ -1,0 +1,172 @@
+============================================================================
+🔥 RESUMEN FINAL COMPLETO - EJECUTAR AHORA
+============================================================================
+
+PROBLEMA RAÍZ: users.intereses contiene TEXTOS no UUIDs
+
+Ejemplo de datos en la columna:
+- intereses: ["crypto", "finanzas", "blockchain"]  ← TEXTOS
+- NO son UUIDs como: ["550e8400-e29b-41d4-a716-446655440000"]
+
+Por eso el error:
+❌ invalid input syntax for type uuid: "crypto"
+
+============================================================================
+SOLUCIÓN: FIX_INTERESES_TEXTO.sql
+============================================================================
+
+Este archivo:
+1. ✅ Elimina función get_recommended_people_final
+2. ✅ Crea función que devuelve TEXT[] (no UUID[])
+3. ✅ NO intenta convertir "crypto" a UUID
+4. ✅ Usa following_id (no followed_id)
+
+EJECUTAR EN SUPABASE:
+1. Abrir Supabase SQL Editor
+2. Copiar TODO: FIX_INTERESES_TEXTO.sql
+3. Ejecutar (Run)
+4. Verificar: "Función creada con TEXT[] para intereses"
+5. Probar: SELECT * FROM get_recommended_people_final('17e255b9-5f66-4740-9b74-26b5693b3dee', 10);
+
+CAMBIO CLAVE:
+```sql
+-- ❌ ANTES (INCORRECTO):
+CASE 
+  WHEN u.intereses IS NOT NULL THEN 
+    (SELECT array_agg(i::UUID) FROM unnest(u.intereses) AS i)  -- Error: "crypto"::UUID
+  ELSE ARRAY[]::UUID[]
+END as intereses
+
+-- ✅ AHORA (CORRECTO):
+COALESCE(u.intereses, ARRAY[]::TEXT[]) as intereses  -- TEXT[] directamente
+```
+
+============================================================================
+CORRECCIONES EN CÓDIGO
+============================================================================
+
+1. ✅ PromotionsScreen.tsx - UI COMPLETA
+   - Muestra TODAS las secciones siempre:
+     * Promociones para ti
+     * Personas que podrías conocer
+     * Comunidades que podrían gustarte
+     * Publicaciones
+   
+   - Tab inicial: "Promociones"
+   - Sin búsqueda prefiltrada
+   - Diseño completo como en la imagen
+
+2. ✅ HomeFeedScreen.tsx
+   - Buscador navega sin query prefiltrado
+   - Botón Enviar → ChatList
+
+3. ✅ NotificationsModal.tsx
+   - 20 notificaciones
+   - Con nombre de usuario
+   - Navegación correcta
+
+============================================================================
+ESTRUCTURA VERIFICADA
+============================================================================
+
+user_follows:
+- follower_id (UUID)
+- following_id (UUID)  ← CORRECTO
+- created_at (TIMESTAMP)
+- source (VARCHAR)
+
+users.intereses:
+- Tipo: ARRAY
+- UDT: _text (TEXT[])
+- Contiene: ["crypto", "finanzas", "blockchain"]  ← TEXTOS
+
+============================================================================
+DESPUÉS DE EJECUTAR SQL
+============================================================================
+
+1. Reiniciar:
+   npx expo start --clear
+
+2. Logs esperados:
+   ✅ [getSuggestedPeople] Personas recomendadas: X
+   ✅ Personas sugeridas: X
+
+3. NO debe aparecer:
+   ❌ invalid input syntax for type uuid: "crypto"
+   ❌ column uf.followed_id does not exist
+
+4. PromotionsScreen:
+   ✅ Muestra todas las secciones
+   ✅ Promociones en cards azules
+   ✅ Personas con avatar y botón Conectar
+   ✅ Comunidades con imagen y miembros
+   ✅ Publicaciones completas con acciones
+
+============================================================================
+ARCHIVOS FINALES
+============================================================================
+
+SQL (EJECUTAR):
+1. FIX_INTERESES_TEXTO.sql ← EJECUTAR ESTE
+
+CÓDIGO (YA APLICADO):
+1. src/screens/PromotionsScreen.tsx
+   - UI completa restaurada
+   - Todas las secciones visibles
+   - Tab inicial: Promociones
+
+2. src/screens/HomeFeedScreen.tsx
+   - Buscador sin prefiltro
+   - Botón Enviar → ChatList
+
+3. src/components/NotificationsModal.tsx
+   - 20 notificaciones
+   - Con nombres
+
+============================================================================
+EXPLICACIÓN TÉCNICA
+============================================================================
+
+ERROR: invalid input syntax for type uuid: "crypto"
+
+CAUSA:
+La columna users.intereses almacena TEXTOS descriptivos:
+- "crypto"
+- "finanzas"
+- "blockchain"
+- "inversiones"
+
+NO almacena UUIDs de una tabla de intereses.
+
+SOLUCIÓN:
+Devolver TEXT[] directamente sin intentar convertir a UUID[].
+
+La función ahora retorna:
+```sql
+RETURNS TABLE (
+  ...
+  intereses TEXT[],  -- TEXT[] en lugar de UUID[]
+  ...
+)
+```
+
+Y en el SELECT:
+```sql
+COALESCE(u.intereses, ARRAY[]::TEXT[]) as intereses
+```
+
+Sin conversión a UUID.
+
+============================================================================
+CHECKLIST FINAL
+============================================================================
+
+[ ] 1. Ejecutar FIX_INTERESES_TEXTO.sql en Supabase
+[ ] 2. Verificar: "Función creada con TEXT[] para intereses"
+[ ] 3. Probar query: SELECT * FROM get_recommended_people_final(...)
+[ ] 4. npx expo start --clear
+[ ] 5. Probar CommunityRecommendationsScreen
+[ ] 6. Probar PromotionsScreen (debe mostrar TODO)
+[ ] 7. Verificar que NO aparezcan errores SQL
+
+============================================================================

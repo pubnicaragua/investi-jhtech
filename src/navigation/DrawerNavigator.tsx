@@ -3,10 +3,13 @@ import { createDrawerNavigator } from '@react-navigation/drawer';
 import { HomeFeedScreen } from '../screens/HomeFeedScreen';
 import { MarketInfoScreen } from '../screens/MarketInfoScreen';
 import { InvestmentSimulatorScreen } from '../screens/InvestmentSimulatorScreen';
+import { CalculadoraDividendosScreen } from '../screens/CalculadoraDividendosScreen';
+import { AnalizadorRatiosScreen } from '../screens/AnalizadorRatiosScreen';
+import { SimuladorPortafolioScreen } from '../screens/SimuladorPortafolioScreen';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
 import { useNavigation } from '@react-navigation/native';
-import { User, Settings, HelpCircle, LogOut, Home } from 'lucide-react-native';
+import { User, Settings, HelpCircle, LogOut, Home, TrendingUp, BarChart3, PieChart } from 'lucide-react-native';
 import { authSignOut } from '../rest/api'
 
 const Drawer = createDrawerNavigator();
@@ -117,6 +120,42 @@ export function DrawerNavigator() {
           title: 'Simulador de Inversión',
           headerShown: true,
           drawerItemStyle: { display: 'none' } // Ocultar del drawer
+        }}
+      />
+      <Drawer.Screen 
+        name="CalculadoraDividendos" 
+        component={CalculadoraDividendosScreen} 
+        options={{
+          title: 'Calculadora de Dividendos',
+          headerShown: false,
+          drawerLabel: 'Calculadora de Dividendos',
+          drawerIcon: ({ color, size }) => (
+            <TrendingUp size={size} color={color} />
+          )
+        }}
+      />
+      <Drawer.Screen 
+        name="AnalizadorRatios" 
+        component={AnalizadorRatiosScreen} 
+        options={{
+          title: 'Analizador de Ratios',
+          headerShown: false,
+          drawerLabel: 'Analizador de Ratios',
+          drawerIcon: ({ color, size }) => (
+            <BarChart3 size={size} color={color} />
+          )
+        }}
+      />
+      <Drawer.Screen 
+        name="SimuladorPortafolio" 
+        component={SimuladorPortafolioScreen} 
+        options={{
+          title: 'Simulador de Portafolio',
+          headerShown: false,
+          drawerLabel: 'Simulador de Portafolio',
+          drawerIcon: ({ color, size }) => (
+            <PieChart size={size} color={color} />
+          )
         }}
       />
     </Drawer.Navigator>

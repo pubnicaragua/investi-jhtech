@@ -14,7 +14,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
@@ -23,8 +22,10 @@ import {
   Modal,
   Linking
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, Send, Users, MoreVertical, Paperclip, Image as ImageIcon, Video as VideoIcon, FileText } from 'lucide-react-native'
 import { Video } from 'expo-av'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useRoute, useNavigation } from '@react-navigation/native'
 import { 
   getChannelMessages,
@@ -204,7 +205,7 @@ export function GroupChatScreen() {
       Alert.alert('Permiso requerido', 'Se necesita acceso a la galería')
       return
     }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.8 })
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.8 })
     if (!result.canceled) {
       setPendingMedia({ type: 'image', uri: result.assets[0].uri, file: result.assets[0] })
     }
@@ -216,7 +217,7 @@ export function GroupChatScreen() {
       Alert.alert('Permiso requerido', 'Se necesita acceso a la galería')
       return
     }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Videos, allowsEditing: true, quality: 0.8 })
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['videos'], allowsEditing: true, quality: 0.8 })
     if (!result.canceled) {
       setPendingMedia({ type: 'video', uri: result.assets[0].uri, file: result.assets[0] })
     }
@@ -494,7 +495,11 @@ export function GroupChatScreen() {
 
       {/* Media rendering */}
       {item.media_url && item.message_type === 'image' && (
-        <Image source={{ uri: item.media_url }} style={styles.messageImage} />
+        <Image 
+          source={{ uri: item.media_url }} 
+          style={styles.messageImage} 
+          resizeMode="cover"
+        />
       )}
       {item.media_url && item.message_type === 'video' && (
         <Video source={{ uri: item.media_url }} style={styles.messageImage} useNativeControls />
@@ -524,7 +529,7 @@ export function GroupChatScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2673f3" />
           <Text style={styles.loadingText}>Cargando chat...</Text>
@@ -538,14 +543,17 @@ export function GroupChatScreen() {
   // ============================================================================
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header - Pixel Perfect según diseño */}
-      <View style={styles.header}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header Mejorado con Gradient */}
+      <LinearGradient 
+        colors={['#2673f3', '#1e5fd9']} 
+        style={styles.header}
+      >
         <TouchableOpacity 
           style={styles.backButton} 
           onPress={() => navigation.goBack()}
         >
-          <ArrowLeft size={24} color="#111" />
+          <ArrowLeft size={24} color="#fff" />
         </TouchableOpacity>
         
         <View style={styles.headerInfo}>
@@ -554,12 +562,12 @@ export function GroupChatScreen() {
           </Text>
           <View style={styles.headerSubtitleRow}>
             {typingUsers.size > 0 ? (
-              <Text style={[styles.headerSubtitle, { color: '#10B981', fontStyle: 'italic' }]}>
+              <Text style={[styles.headerSubtitle, { color: 'rgba(255,255,255,0.9)', fontStyle: 'italic' }]}>
                 {typingUsers.size === 1 ? 'Alguien está escribiendo...' : `${typingUsers.size} personas escribiendo...`}
               </Text>
             ) : (
               <>
-                <Users size={12} color="#10B981" />
+                <Users size={12} color="rgba(255,255,255,0.9)" />
                 <Text style={styles.headerSubtitle}>
                   {communityStats.active_members_count} activos
                 </Text>
@@ -571,9 +579,9 @@ export function GroupChatScreen() {
         </View>
         
         <TouchableOpacity style={styles.moreButton}>
-          <MoreVertical size={24} color="#111" />
+          <MoreVertical size={24} color="#fff" />
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
       {/* Mensajes */}
       <KeyboardAvoidingView
@@ -607,7 +615,11 @@ export function GroupChatScreen() {
         {pendingMedia && (
           <View style={styles.mediaPreview}>
             {pendingMedia.type === 'image' && (
-              <Image source={{ uri: pendingMedia.uri }} style={styles.previewImage} />
+              <Image 
+                source={{ uri: pendingMedia.uri }} 
+                style={styles.previewImage} 
+                resizeMode="cover"
+              />
             )}
             {(pendingMedia.type === 'video' || pendingMedia.type === 'document') && (
               <View style={styles.previewTextContainer}>
@@ -708,16 +720,20 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   
-  // Header - Según diseño de la imagen
+  // Header - Mejorado con Gradient
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e5e5',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
   },
   backButton: {
     padding: 4,
@@ -728,10 +744,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
     marginBottom: 2,
+    letterSpacing: 0.3,
   },
   headerSubtitleRow: {
     flexDirection: 'row',
@@ -740,7 +757,7 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#666',
+    color: 'rgba(255,255,255,0.85)',
   },
   headerDot: {
     fontSize: 12,
@@ -764,25 +781,30 @@ const styles = StyleSheet.create({
   
   // Mensajes - Diseño moderno
   message: {
-    padding: 12,
-    borderRadius: 16,
-    marginVertical: 4,
+    padding: 14,
+    borderRadius: 20,
+    marginVertical: 6,
     maxWidth: '75%',
   },
   myMessage: {
     alignSelf: 'flex-end',
     backgroundColor: '#2673f3',
-    borderBottomRightRadius: 4,
+    borderBottomRightRadius: 6,
+    shadowColor: '#2673f3',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
   otherMessage: {
     alignSelf: 'flex-start',
     backgroundColor: '#fff',
-    borderBottomLeftRadius: 4,
+    borderBottomLeftRadius: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
   },
   messageHeader: {
     flexDirection: 'row',
@@ -794,6 +816,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
+    backgroundColor: '#eee',
   },
   sender: {
     fontWeight: '600',
@@ -802,8 +825,9 @@ const styles = StyleSheet.create({
   },
   messageText: {
     color: '#111',
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 22,
+    letterSpacing: -0.1,
   },
   myMessageText: {
     color: '#fff',
@@ -821,39 +845,42 @@ const styles = StyleSheet.create({
   // Input Container - Pixel Perfect
   inputContainer: {
     flexDirection: 'row',
-    padding: 12,
-    paddingBottom: Platform.OS === 'ios' ? 12 : 12,
+    padding: 16,
+    paddingBottom: Platform.OS === 'ios' ? 16 : 16,
     backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#e5e5e5',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
     alignItems: 'flex-end',
-    gap: 8,
+    gap: 12,
   },
   input: {
     flex: 1,
     borderWidth: 1,
     borderColor: '#e5e5e5',
-    borderRadius: 22,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    paddingTop: 10,
-    fontSize: 15,
+    borderRadius: 24,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    paddingTop: 12,
+    fontSize: 16,
     maxHeight: 100,
     backgroundColor: '#f8f9fa',
     color: '#111',
   },
   sendButton: {
     backgroundColor: '#2673f3',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#2673f3',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 5,
   },
   sendButtonDisabled: {
     backgroundColor: '#e5e5e5',
@@ -964,11 +991,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   messageImage: {
-    width: 200,
-    height: 200,
-    borderRadius: 8,
+    width: 220,
+    height: 220,
+    borderRadius: 12,
     marginTop: 8,
-    borderWidth: 0
+    backgroundColor: '#eee',
   },
   fileContainer: {
     flexDirection: 'row',

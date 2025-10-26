@@ -782,7 +782,7 @@ export function CommunityDetailScreen() {
               {/* Cantidad de miembros y tipo en una fila */}
               <View style={styles.communityMetaRow}>
                 <Text style={styles.communityMetaText}>
-                  {community.members_count || 0}k miembros
+                  {community.members_count || 0} miembros
                 </Text>
                 {community.type === 'public' && (
                   <Text style={styles.communityTypeText}>Comunidad pública</Text>
@@ -828,7 +828,8 @@ export function CommunityDetailScreen() {
             style={styles.tabsScrollView}
             contentContainerStyle={styles.tabsContainer}
             scrollEnabled={true}
-            
+            bounces={true}
+            alwaysBounceHorizontal={true}
           >
             
             <Pressable
@@ -972,7 +973,7 @@ export function CommunityDetailScreen() {
                 <Text style={styles.chatsTitle}>Mensajes</Text>
                 <Text style={styles.chatsSubtitle}>{community.name}</Text>
                 <Text style={styles.chatsActive}>{activeUsersCount} activos</Text>
-                <Text style={styles.chatsMembersCount}>{community.members_count || 0}k miembros</Text>
+                <Text style={styles.chatsMembersCount}>{community.members_count || 0} miembros</Text>
               </View>
   
               {channels.length > 0 ? (
@@ -1292,12 +1293,12 @@ export function CommunityDetailScreen() {
     },
     communityHeader: {
       position: "relative",
-      height: 230,
+      height: 250,
       backgroundColor: "#fff",
     },
     coverImage: {
       width: "100%",
-      height: 180,
+      height: 200,
       backgroundColor: "#0f3a5f",
     },
     coverImageFallback: {
@@ -1318,9 +1319,9 @@ export function CommunityDetailScreen() {
       elevation: 5,
     },
     communityAvatar: {
-      width: 110,
-      height: 110,
-      borderRadius: 55,
+      width: 120,
+      height: 120,
+      borderRadius: 60,
     },
     communitySection: {
       backgroundColor: "#1B2A4A",
@@ -1341,12 +1342,13 @@ export function CommunityDetailScreen() {
       borderBottomColor: "#e5e5e5",
     },
     communityName: {
-      fontSize: 18,
-      fontWeight: "700",
+      fontSize: 22,
+      fontWeight: "800",
       color: "#fff",
-      marginBottom: 6,
+      marginBottom: 8,
       textAlign: "center",
-      paddingTop:10,
+      paddingTop: 12,
+      letterSpacing: -0.5,
     },
     communityMetaRow: {
       flexDirection: "row",
@@ -1355,13 +1357,15 @@ export function CommunityDetailScreen() {
       marginBottom: 20,
     },
     communityMetaText: {
-      fontSize: 13,
+      fontSize: 14,
       color: "#fff",
+      fontWeight: "600",
     },
     communityTypeText: {
-      paddingLeft:14,
-      fontSize: 13,
+      paddingLeft: 14,
+      fontSize: 14,
       color: "#fff",
+      fontWeight: "600",
     },
     actionButtons: {
       flexDirection: "row",
@@ -1372,17 +1376,23 @@ export function CommunityDetailScreen() {
     joinButton: {
       flex: 1,
       backgroundColor: "#1877F2",
-      paddingVertical: 10,
-      borderRadius: 20,
+      paddingVertical: 14,
+      borderRadius: 24,
       alignItems: "center",
+      shadowColor: "#1877F2",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 4,
     },
     joinedButton: {
       backgroundColor: "#1877F2",
     },
     joinButtonText: {
       color: "#F5F5F5",
-      fontSize: 15,
-      fontWeight: "600",
+      fontSize: 16,
+      fontWeight: "700",
+      letterSpacing: 0.3,
     },
     joinedButtonText: {
       color: "#F5F5F5",
@@ -1390,26 +1400,34 @@ export function CommunityDetailScreen() {
     inviteButton: {
       flex: 1,
       backgroundColor: "#fff",
-      paddingVertical: 10,
-      borderRadius: 20,
+      paddingVertical: 14,
+      borderRadius: 24,
       alignItems: "center",
-      borderWidth: 1,
+      borderWidth: 2,
       borderColor: "#2673f3",
+      shadowColor: "#2673f3",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 6,
+      elevation: 2,
     },
     inviteButtonText: {
       color: "#2673f3",
-      fontSize: 15,
-      fontWeight: "600",
+      fontSize: 16,
+      fontWeight: "700",
+      letterSpacing: 0.3,
     },
     tabsScrollView: {
       backgroundColor: "#fff",
       borderBottomWidth: 1,
       borderBottomColor: "#e5e5e5",
+      maxHeight: 60,
     },
     tabsContainer: {
+      flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 10,
-      minHeight: 60, // igual o mayor que tabsScrollView
+      gap: 8,
     },
     tab: {
       flexDirection: "row",

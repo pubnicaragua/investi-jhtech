@@ -60,6 +60,9 @@ export type RootStackParamList = {
       change: number;
     };
   };
+  CalculadoraDividendos: undefined;
+  AnalizadorRatios: undefined;
+  SimuladorPortafolio: undefined;
   Inversiones: undefined;
   Inversionista: undefined;
   PlanificadorFinanciero: undefined;
@@ -69,10 +72,17 @@ export type RootStackParamList = {
   // Education
   Educacion: undefined;
   CourseDetail: { courseId: string };
+  LessonDetail: { lessonId: string; courseId: string };
   LearningPaths: undefined;
   
   // Chat & Messages
-  ChatList: undefined;
+  ChatList: {
+    sharePost?: {
+      id: string;
+      content: string;
+      author: string;
+    };
+  };
   ChatScreen: { chatId?: string };
   GroupChat: { groupId: string };
   Messages: undefined;
@@ -84,6 +94,16 @@ export type RootStackParamList = {
   
   // Notifications
   Notifications: undefined;
+  NotificationSettings: undefined;
+  
+  // Chats
+  ArchivedChats: undefined;
+  
+  // Community Management
+  EditInterests: undefined;
+  PendingRequests: { communityId: string };
+  ManageModerators: { communityId: string };
+  BlockedUsers: { communityId: string };
   
   // Debug
   DebugStorage: undefined;
@@ -102,14 +122,18 @@ export type RootStackParamList = {
 };
 
 export type OnboardingStackParamList = {
-  CommunityRecommendations: undefined;
+  UploadAvatar: undefined;
   InvestmentGoals: undefined;
-  InvestmentKnowledge: {
-    selectedGoals?: string[];
-  };
   InvestmentInterests: {
     selectedGoals?: string[];
+  };
+  InvestmentKnowledge: {
+    selectedGoals?: string[];
     knowledgeLevel?: string;
+  };
+  CommunityRecommendations: undefined;
+  CreateCommunityPost: {
+    communityId: string;
   };
   OnboardingComplete: {
     selectedGoals?: string[];

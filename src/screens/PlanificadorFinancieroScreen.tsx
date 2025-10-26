@@ -195,10 +195,6 @@ export function PlanificadorFinancieroScreen() {
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Planificador Financiero</Text>
-          <View style={styles.premiumBadge}>
-            <Crown size={12} color="#FFD700" />
-            <Text style={styles.premiumText}>PREMIUM</Text>
-          </View>
         </View>
       </View>
 

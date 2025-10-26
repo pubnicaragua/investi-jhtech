@@ -14,25 +14,17 @@ import {
 } from 'react-native'
 import { ArrowLeft, Mail, CheckCircle } from 'lucide-react-native'
 import { supabase } from '../supabase'
-import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg'
+import Svg, { Path, Circle, Rect } from 'react-native-svg'
 
-const MountainBackground = () => (
-  <Svg height="200" width="100%" style={styles.mountainSvg}>
-    <Defs>
-      <LinearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
-        <Stop offset="0%" stopColor="#667eea" stopOpacity="0.8" />
-        <Stop offset="100%" stopColor="#764ba2" stopOpacity="0.6" />
-      </LinearGradient>
-    </Defs>
-    <Path
-      d="M0,100 L50,50 L100,80 L150,40 L200,70 L250,30 L300,60 L350,20 L400,50 L400,200 L0,200 Z"
-      fill="url(#grad1)"
-    />
-    <Path
-      d="M0,120 L60,80 L120,100 L180,60 L240,90 L300,50 L360,80 L400,40 L400,200 L0,200 Z"
-      fill="url(#grad1)"
-      opacity="0.5"
-    />
+const InvestiBackground = () => (
+  <Svg height="250" width="100%" style={styles.backgroundSvg} viewBox="0 0 400 250">
+    {/* Círculos decorativos con colores Investi */}
+    <Circle cx="50" cy="50" r="80" fill="#2673f3" opacity="0.08" />
+    <Circle cx="350" cy="100" r="120" fill="#2673f3" opacity="0.05" />
+    <Circle cx="200" cy="180" r="60" fill="#1e40af" opacity="0.06" />
+    {/* Líneas decorativas */}
+    <Rect x="0" y="220" width="400" height="3" fill="#2673f3" opacity="0.1" />
+    <Rect x="0" y="230" width="400" height="2" fill="#3b82f6" opacity="0.08" />
   </Svg>
 )
 
@@ -81,7 +73,7 @@ export function ForgotPasswordScreen({ navigation }: any) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-        <MountainBackground />
+        <InvestiBackground />
         
         <View style={styles.successContainer}>
           <View style={styles.successIconContainer}>
@@ -128,7 +120,7 @@ export function ForgotPasswordScreen({ navigation }: any) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <MountainBackground />
+        <InvestiBackground />
 
         <View style={styles.header}>
           <TouchableOpacity
@@ -183,7 +175,7 @@ export function ForgotPasswordScreen({ navigation }: any) {
             onPress={() => navigation.goBack()}
             activeOpacity={0.7}
           >
-            <ArrowLeft size={16} color="#667eea" />
+            <ArrowLeft size={16} color="#2673f3" />
             <Text style={styles.backLinkText}>Volver al inicio de sesión</Text>
           </TouchableOpacity>
         </View>
@@ -200,7 +192,7 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
-  mountainSvg: {
+  backgroundSvg: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -269,12 +261,12 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   resetButton: {
-    backgroundColor: '#667eea',
+    backgroundColor: '#2673f3',
     borderRadius: 12,
     height: 56,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#667eea',
+    shadowColor: '#2673f3',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -297,7 +289,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   backLinkText: {
-    color: '#667eea',
+    color: '#2673f3',
     fontSize: 15,
     fontWeight: '500',
   },
@@ -326,7 +318,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   emailText: {
-    color: '#667eea',
+    color: '#2673f3',
     fontWeight: '600',
   },
   instructionsText: {
@@ -338,14 +330,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   backToLoginButton: {
-    backgroundColor: '#667eea',
+    backgroundColor: '#2673f3',
     borderRadius: 12,
     height: 56,
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
     marginBottom: 16,
-    shadowColor: '#667eea',
+    shadowColor: '#2673f3',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -360,7 +352,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   resendText: {
-    color: '#667eea',
+    color: '#2673f3',
     fontSize: 15,
     fontWeight: '500',
   },

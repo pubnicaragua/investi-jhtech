@@ -1,0 +1,299 @@
+================================================================================
+                        COMANDOS RÁPIDOS - INVESTÍ APP
+================================================================================
+
+COMPILACIÓN Y DESARROLLO
+================================================================================
+
+# Limpiar todo y recompilar
+npm install && npx react-native start --reset-cache
+
+# Compilar Android
+npx react-native run-android
+
+# Compilar con Expo
+expo start
+
+# Ver logs en tiempo real
+adb logcat | grep -i react
+
+# Instalar APK debug
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+
+# Generar APK release
+cd android && ./gradlew assembleRelease
+
+# Instalar APK release
+adb install -r android/app/build/outputs/apk/release/app-release.apk
+
+================================================================================
+
+VERIFICACIÓN Y TESTING
+================================================================================
+
+# Verificar tipos de TypeScript
+npm run type-check
+
+# Ejecutar tests
+npm test
+
+# Limpiar caché de Metro
+npx react-native start --reset-cache
+
+# Resetear caché de npm
+npm cache clean --force
+
+# Verificar dispositivos conectados
+adb devices
+
+# Abrir Android Studio
+android-studio
+
+================================================================================
+
+BASE DE DATOS - SUPABASE
+================================================================================
+
+# Ejecutar SQL desde archivo
+# 1. Ir a https://app.supabase.com
+# 2. SQL Editor
+# 3. Copiar contenido de SQL_CAMBIOS_NECESARIOS.sql
+# 4. Ejecutar
+
+# Verificar tablas creadas
+SELECT table_name FROM information_schema.tables 
+WHERE table_schema = 'public';
+
+# Verificar columnas de tabla
+SELECT column_name, data_type FROM information_schema.columns 
+WHERE table_name = 'lessons';
+
+# Verificar índices
+SELECT indexname FROM pg_indexes 
+WHERE tablename = 'lessons';
+
+================================================================================
+
+VARIABLES DE ENTORNO
+================================================================================
+
+# Crear .env
+echo "EXPO_PUBLIC_GROK_API_KEY=tu_api_key_aqui" > .env
+
+# Verificar que .env está configurado
+cat .env
+
+# Recargar variables de entorno
+source .env
+
+================================================================================
+
+GIT Y VERSIONAMIENTO
+================================================================================
+
+# Ver estado
+git status
+
+# Agregar cambios
+git add .
+
+# Commit
+git commit -m "Resolver 16 problemas críticos"
+
+# Push
+git push origin main
+
+# Ver historial
+git log --oneline -10
+
+# Ver cambios
+git diff
+
+================================================================================
+
+INSTALACIÓN DE DEPENDENCIAS
+================================================================================
+
+# Instalar todas las dependencias
+npm install
+
+# Instalar dependencia específica
+npm install nombre-paquete
+
+# Instalar dependencia de desarrollo
+npm install --save-dev nombre-paquete
+
+# Actualizar dependencias
+npm update
+
+# Ver dependencias instaladas
+npm list
+
+================================================================================
+
+DEBUGGING
+================================================================================
+
+# Abrir React Native Debugger
+# 1. Instalar: npm install -g react-native-debugger
+# 2. Ejecutar: react-native-debugger
+# 3. En app: Cmd+D (iOS) o Cmd+M (Android)
+# 4. Seleccionar "Debug JS Remotely"
+
+# Ver logs de Supabase
+# 1. Ir a https://app.supabase.com
+# 2. Logs → Postgres Logs
+
+# Ver logs de API
+# 1. Ir a https://app.supabase.com
+# 2. Logs → API Logs
+
+# Ver errores de TypeScript
+npx tsc --noEmit
+
+================================================================================
+
+PUBLICACIÓN
+================================================================================
+
+# Generar APK release
+cd android && ./gradlew assembleRelease
+
+# Generar AAB (App Bundle) para Play Store
+cd android && ./gradlew bundleRelease
+
+# Ubicación de APK
+android/app/build/outputs/apk/release/app-release.apk
+
+# Ubicación de AAB
+android/app/build/outputs/bundle/release/app-release.aab
+
+# Firmar APK (si es necesario)
+jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 \
+  -keystore my-release-key.keystore \
+  app-release-unsigned.apk alias_name
+
+================================================================================
+
+LIMPIEZA Y MANTENIMIENTO
+================================================================================
+
+# Limpiar gradle
+cd android && ./gradlew clean
+
+# Limpiar node_modules
+rm -rf node_modules
+
+# Limpiar caché npm
+npm cache clean --force
+
+# Limpiar caché de Metro
+npx react-native start --reset-cache
+
+# Limpiar caché de Expo
+expo cache clean
+
+# Limpiar todo
+rm -rf node_modules && npm cache clean --force && cd android && ./gradlew clean
+
+================================================================================
+
+INFORMACIÓN DEL PROYECTO
+================================================================================
+
+# Ver versión de React Native
+npx react-native --version
+
+# Ver versión de Expo
+expo --version
+
+# Ver versión de Node
+node --version
+
+# Ver versión de npm
+npm --version
+
+# Ver información del proyecto
+cat app.json
+
+# Ver información de compilación
+cat android/app/build.gradle
+
+================================================================================
+
+ATAJOS ÚTILES
+================================================================================
+
+# Compilar y ejecutar en un comando
+npm install && npx react-native run-android
+
+# Limpiar y compilar
+rm -rf node_modules && npm install && npx react-native start --reset-cache
+
+# Ver logs y compilar
+adb logcat | grep -i react & npx react-native run-android
+
+# Generar APK y instalar
+cd android && ./gradlew assembleRelease && adb install -r app/build/outputs/apk/release/app-release.apk
+
+================================================================================
+
+NOTAS IMPORTANTES
+================================================================================
+
+1. Siempre ejecutar "npm install" después de cambiar dependencias
+2. Limpiar caché de Metro si hay problemas
+3. Verificar que .env está configurado antes de compilar
+4. Ejecutar SQL en Supabase antes de compilar
+5. Probar en dispositivo real antes de publicar
+6. Hacer backup antes de cambios importantes
+7. Usar git para versionamiento
+8. Revisar logs si hay errores
+
+================================================================================
+
+PROBLEMAS COMUNES Y SOLUCIONES
+================================================================================
+
+Problema: "Cannot find module"
+Solución: npm install && npx react-native start --reset-cache
+
+Problema: "Type error in TypeScript"
+Solución: npx tsc --noEmit
+
+Problema: "Network request failed"
+Solución: Verificar conexión a internet y API keys
+
+Problema: "Gradle build failed"
+Solución: cd android && ./gradlew clean && ./gradlew assembleDebug
+
+Problema: "Metro bundler error"
+Solución: npx react-native start --reset-cache
+
+Problema: "API key not found"
+Solución: Verificar .env y reiniciar servidor
+
+Problema: "Database error"
+Solución: Ejecutar SQL en Supabase
+
+Problema: "Navigation error"
+Solución: Verificar tipos en navigation.ts
+
+================================================================================
+
+RECURSOS ÚTILES
+================================================================================
+
+React Native: https://reactnative.dev
+Expo: https://expo.dev
+Supabase: https://supabase.com
+React Navigation: https://reactnavigation.org
+Groq API: https://console.groq.com
+Google Play: https://play.google.com/console
+
+================================================================================
+
+Generado: 25 de Octubre de 2025
+Última actualización: 25 de Octubre de 2025
+
+================================================================================

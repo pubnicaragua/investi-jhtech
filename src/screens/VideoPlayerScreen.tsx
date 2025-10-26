@@ -12,7 +12,8 @@ import {
   Image,
   Alert,
   ActivityIndicator,
-  TextInput
+  TextInput,
+  Linking
 } from 'react-native'
 import {
   ArrowLeft,
@@ -349,32 +350,32 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
         </TouchableOpacity>
       </View>
 
-      {/* Video Player - YouTube Embed */}
+      {/* Video Player - Thumbnail con botón para abrir YouTube */}
       <View style={styles.videoContainer}>
-        {videoData.video_url ? (
-          <iframe
-            src={videoData.video_url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/') + '?autoplay=0&rel=0&modestbranding=1'}
-            style={{
-              width: '100%',
-              height: '100%',
-              border: 'none',
-            }}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
-        ) : (
-          <View style={styles.noVideoContainer}>
-            <Image
-              source={{ uri: videoData.thumbnail_url }}
-              style={styles.videoThumbnail}
-              resizeMode="cover"
-            />
-            <View style={styles.noVideoOverlay}>
-              <Play size={64} color="#fff" />
-              <Text style={styles.noVideoText}>Video no disponible</Text>
-            </View>
+        <Image
+          source={{ uri: videoData.thumbnail_url }}
+          style={styles.videoThumbnail}
+          resizeMode="cover"
+        />
+        <TouchableOpacity 
+          style={styles.playOverlay}
+          onPress={() => {
+            if (videoData.video_url) {
+              Linking.openURL(videoData.video_url)
+                .catch(err => {
+                  console.error('Error opening video:', err)
+                  Alert.alert('Error', 'No se pudo abrir el video')
+                })
+            } else {
+              Alert.alert('Video no disponible', 'Este video aún no está disponible')
+            }
+          }}
+        >
+          <View style={styles.playButtonLarge}>
+            <Play size={48} color="#fff" fill="#fff" />
           </View>
-        )}
+          <Text style={styles.playText}>Ver video en YouTube</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Video Info */}
@@ -919,6 +920,32 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     marginTop: 12,
+  },
+  playOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playButtonLarge: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#fff',
+  },
+  playText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 16,
   },
 })
 

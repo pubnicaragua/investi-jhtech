@@ -1,5 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { UploadAvatarScreen } from '../screens/UploadAvatarScreen';
 import { PickGoalsScreen } from '../screens/PickGoalsScreen';
 import { InvestmentKnowledgeScreen } from '../screens/InvestmentKnowledgeScreen';
 import { PickInterestsScreen } from '../screens/PickInterestsScreen';
@@ -22,15 +23,18 @@ export function OnboardingNavigator({ onComplete }: OnboardingNavigatorProps) {
         contentStyle: { backgroundColor: '#fff' },
         animation: 'slide_from_right',
       }}
+      initialRouteName="UploadAvatar"
     >
+      {/* PASO 0: Subir Avatar (SOLO para usuarios nuevos desde SignUp) */}
       <Stack.Screen 
-        name="CommunityRecommendations" 
-        component={CommunityRecommendationsScreen} 
+        name="UploadAvatar" 
+        component={UploadAvatarScreen} 
         options={{
           gestureEnabled: false,
         }}
       />
-      
+
+      {/* PASO 1: Seleccionar Metas */}
       <Stack.Screen 
         name="InvestmentGoals" 
         component={PickGoalsScreen} 
@@ -38,22 +42,35 @@ export function OnboardingNavigator({ onComplete }: OnboardingNavigatorProps) {
           gestureEnabled: false,
         }}
       />
-      <Stack.Screen 
-        name="InvestmentKnowledge" 
-        component={InvestmentKnowledgeScreen} 
-        options={{
-          gestureEnabled: true,
-        }}
-      />
       
+      {/* PASO 2: Seleccionar Intereses */}
       <Stack.Screen 
         name="InvestmentInterests" 
         component={PickInterestsScreen} 
         options={{
-          gestureEnabled: true,
+          gestureEnabled: false,
+        }}
+      />
+      
+      {/* PASO 3: Nivel de Conocimiento */}
+      <Stack.Screen 
+        name="InvestmentKnowledge" 
+        component={InvestmentKnowledgeScreen} 
+        options={{
+          gestureEnabled: false,
+        }}
+      />
+      
+      {/* PASO 4: Recomendaciones de Comunidades */}
+      <Stack.Screen 
+        name="CommunityRecommendations" 
+        component={CommunityRecommendationsScreen} 
+        options={{
+          gestureEnabled: false,
         }}
       />
 
+      {/* OPCIONAL: Crear Post en Comunidad */}
       <Stack.Screen 
         name="CreateCommunityPost" 
         component={CreateCommunityPostScreen} 
@@ -62,7 +79,8 @@ export function OnboardingNavigator({ onComplete }: OnboardingNavigatorProps) {
         }}
       />
       
-<Stack.Screen 
+      {/* FINAL: Onboarding Completo */}
+      <Stack.Screen 
         name="OnboardingComplete" 
         options={{
           gestureEnabled: false,

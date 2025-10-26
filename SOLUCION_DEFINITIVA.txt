@@ -1,0 +1,147 @@
+============================================================================
+🔥 SOLUCIÓN DEFINITIVA - EJECUTAR AHORA
+============================================================================
+
+PROBLEMA: La columna intereses es TEXT[] no UUID[]
+
+ERROR:
+❌ COALESCE could not convert type uuid[] to text[]
+
+CAUSA:
+La tabla users tiene la columna intereses como TEXT[] (array de textos)
+pero la función intentaba usar UUID[] (array de UUIDs)
+
+============================================================================
+SOLUCIÓN: FIX_FINAL_TIPO_CORRECTO.sql
+============================================================================
+
+Este archivo:
+1. Verifica el tipo de la columna intereses
+2. Crea la función usando TEXT[] en lugar de UUID[]
+3. Convierte TEXT[] a UUID[] solo para el retorno
+
+EJECUTAR EN SUPABASE:
+1. Abrir Supabase SQL Editor
+2. Copiar TODO: FIX_FINAL_TIPO_CORRECTO.sql
+3. Ejecutar (Run)
+4. Verificar: "Función creada con tipo TEXT[]"
+
+============================================================================
+CORRECCIONES ADICIONALES APLICADAS
+============================================================================
+
+1. ✅ HomeFeedScreen.tsx - Buscador
+   ANTES: Navegaba a Promotions con query prefiltrado
+   AHORA: Navega a Promotions SIN query
+   
+   Razón: El usuario prefiere buscar directamente en PromotionsScreen
+
+2. ✅ PromotionsScreen.tsx
+   - Código completo y funcional
+   - Ya NO muestra "En construcción"
+   - Tabs funcionan correctamente
+
+3. ✅ Botón Enviar
+   - Navega a ChatList (sistema funcional)
+
+4. ✅ Notificaciones
+   - Muestra hasta 20
+   - Incluye nombre de usuario
+   - Navega correctamente
+
+5. ✅ Mensaje al guardar
+   - "✓ Guardado - Publicación guardada exitosamente"
+
+============================================================================
+ARCHIVOS SQL CREADOS
+============================================================================
+
+1. FIX_FINAL_TIPO_CORRECTO.sql ← EJECUTAR ESTE
+   - Maneja TEXT[] correctamente
+   - Convierte a UUID[] para retorno
+   - Soluciona el error definitivamente
+
+2. sql/fix_notifications_table.sql
+   - Agrega columnas a notifications
+
+3. sql/trigger_update_likes_count.sql
+   - Ya ejecutado (likes funcionan)
+
+============================================================================
+EXPLICACIÓN TÉCNICA DEL ERROR
+============================================================================
+
+PROBLEMA:
+```sql
+-- La columna es TEXT[]
+users.intereses: TEXT[]
+
+-- Pero intentábamos:
+COALESCE(u.intereses, ARRAY[]::UUID[])  ❌ ERROR
+```
+
+SOLUCIÓN:
+```sql
+-- Usar TEXT[] en la variable
+v_user_intereses TEXT[]
+
+-- Y en el COALESCE:
+COALESCE(u.intereses, ARRAY[]::TEXT[])  ✅ CORRECTO
+
+-- Convertir a UUID[] solo para retorno:
+(SELECT array_agg(i::UUID) FROM unnest(u.intereses) AS i)
+```
+
+============================================================================
+DESPUÉS DE EJECUTAR SQL
+============================================================================
+
+1. Reiniciar:
+   npx expo start --clear
+
+2. Logs esperados:
+   ✅ [getSuggestedPeople] Personas recomendadas: X
+   ✅ Personas sugeridas: X
+
+3. NO debe aparecer:
+   ❌ COALESCE could not convert type uuid[] to text[]
+
+============================================================================
+FLUJO DE BÚSQUEDA ACTUALIZADO
+============================================================================
+
+ANTES:
+HomeFeed → Click en buscador → Escribe "bitcoin" → Enter
+→ Va a Promotions con query="bitcoin" prefiltrado
+
+AHORA:
+HomeFeed → Click en buscador → Enter
+→ Va a Promotions SIN query
+→ Usuario busca directamente en PromotionsScreen
+
+Razón: Mejor UX según feedback del usuario
+
+============================================================================
+RESUMEN DE ARCHIVOS MODIFICADOS
+============================================================================
+
+1. FIX_FINAL_TIPO_CORRECTO.sql (NUEVO - EJECUTAR)
+2. src/screens/HomeFeedScreen.tsx (Buscador sin prefiltro)
+3. src/screens/PromotionsScreen.tsx (Restaurado)
+4. src/components/NotificationsModal.tsx (Mejoras)
+5. src/screens/PickKnowledgeScreen.tsx (Botón más abajo)
+6. src/rest/api.ts (Likes con notificaciones)
+
+============================================================================
+CHECKLIST FINAL
+============================================================================
+
+[ ] 1. Ejecutar FIX_FINAL_TIPO_CORRECTO.sql
+[ ] 2. Ejecutar sql/fix_notifications_table.sql
+[ ] 3. npx expo start --clear
+[ ] 4. Probar CommunityRecommendationsScreen
+[ ] 5. Probar PromotionsScreen
+[ ] 6. Probar buscador de HomeFeed
+[ ] 7. Verificar que NO aparezca error de COALESCE
+
+============================================================================

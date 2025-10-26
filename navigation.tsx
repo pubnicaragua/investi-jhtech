@@ -63,6 +63,7 @@ import FollowingScreen from './src/screens/FollowingScreen';
 import { CalculadoraInteresScreen } from './src/screens/CalculadoraInteresScreen';
 import { SimuladorJubilacionScreen } from './src/screens/SimuladorJubilacionScreen';
 import { ComparadorInversionesScreen } from './src/screens/ComparadorInversionesScreen';
+import { InvestmentSimulatorScreen } from './src/screens/InvestmentSimulatorScreen';
 
 import { getCurrentUser, getMe } from "./src/rest/api"
 import { supabase } from "./src/supabase"
@@ -175,11 +176,26 @@ export function RootStack() {
       console.log('🚀 Navigation: Determinando ruta inicial...')
       console.log('🔐 Navigation: isAuthenticated:', isAuthenticated)
       
+      // 🚩 CRÍTICO: Verificar si estamos en proceso de SignUp
+      const signupInProgress = await AsyncStorage.getItem('signup_in_progress')
+      if (signupInProgress === 'true') {
+        console.log('🚩 SignUp en progreso - Saltando navegación automática')
+        await AsyncStorage.removeItem('signup_in_progress')
+        setLoading(false)
+        return // NO hacer navegación automática
+      }
+      
       // 🔧 Verificar token en AsyncStorage (más confiable que el contexto)
       const authToken = await AsyncStorage.getItem('auth_token')
-      const userId = await AsyncStorage.getItem('userId')
+      let userId = await AsyncStorage.getItem('userId')
+      
+      // CRÍTICO: Si userId es string "null", convertir a null real
+      if (userId === 'null' || userId === 'undefined') {
+        userId = null
+      }
+      
       console.log('🔑 Navigation: Auth token exists:', !!authToken)
-      console.log('👤 Navigation: UserId exists:', !!userId)
+      console.log('👤 Navigation: UserId:', userId)
       
       // Considerar autenticado si hay token O si el contexto dice que sí
       const isActuallyAuthenticated = isAuthenticated || !!authToken
@@ -215,54 +231,106 @@ export function RootStack() {
 
       // Si ya está autenticado, verificar si completó onboarding
       if (isActuallyAuthenticated) {
-        // Verificar onboarding desde la base de datos (más confiable que AsyncStorage)
+        // CRÍTICO: Verificar que tenemos userId válido
+        if (!userId) {
+          console.error('❌ Navigation: No userId disponible, obteniendo de sesión...')
+          // Intentar obtener userId de la sesión de Supabase
+          const { data: { session } } = await supabase.auth.getSession()
+          userId = session?.user?.id || null
+          
+          if (userId) {
+            // Guardar en AsyncStorage para próximas veces
+            await AsyncStorage.setItem('userId', userId)
+            console.log('✅ Navigation: UserId obtenido de sesión:', userId)
+          } else {
+            console.error('❌ Navigation: No se pudo obtener userId')
+            setInitialRoute("Welcome")
+            setLoading(false)
+            return
+          }
+        }
+        
+        // VERIFICAR ONBOARDING DESDE BASE DE DATOS (ÚNICA FUENTE DE VERDAD)
         try {
-          const { data: userData } = await supabase
+          const { data: userData, error: userError } = await supabase
             .from('users')
-            .select('onboarding_step')
+            .select('onboarding_step, avatar_url, photo_url, intereses, nivel_finanzas')
             .eq('id', userId)
             .single()
           
-          console.log('📋 Navigation: Onboarding step from DB:', userData?.onboarding_step)
+          if (userError) {
+            console.error('❌ Navigation: Error obteniendo usuario:', userError)
+            setInitialRoute("UploadAvatar")
+            setLoading(false)
+            return
+          }
           
-          // PRIORIDAD 1: Si la base de datos dice 'completed', ir directo a HomeFeed
+          // VALIDAR DATOS REALES (no confiar solo en onboarding_step)
+          const hasAvatar = !!(userData?.avatar_url || userData?.photo_url)
+          const hasInterests = userData?.intereses && userData.intereses.length > 0
+          const hasKnowledge = userData?.nivel_finanzas && userData.nivel_finanzas !== 'none' && userData.nivel_finanzas !== null
+          
+          console.log('📋 Navigation: Usuario desde DB:', {
+            onboarding_step: userData?.onboarding_step,
+            avatar: hasAvatar,
+            intereses: userData?.intereses?.length || 0,
+            nivel_finanzas: userData?.nivel_finanzas,
+            hasAvatar,
+            hasInterests,
+            hasKnowledge
+          })
+          
+          // CASO 1: onboarding_step === 'completed' → HomeFeed
           if (userData?.onboarding_step === 'completed') {
-            console.log('✅ Navigation: Onboarding completo en DB, yendo a HomeFeed')
-            // Sincronizar AsyncStorage con la base de datos
+            console.log('✅ Navigation: onboarding_step=completed → HomeFeed')
             await AsyncStorage.setItem('onboarding_complete', 'true')
             setInitialRoute("HomeFeed")
+            setLoading(false)
+            return
+          }
+          
+          // CASO 2: Usuario tiene TODOS los datos (avatar, intereses, knowledge) → HomeFeed
+          // Esto cubre usuarios viejos Y usuarios que completaron pero onboarding_step no se actualizó
+          if (hasAvatar && hasInterests && hasKnowledge) {
+            console.log('✅ Navigation: Usuario con datos completos → HomeFeed + marcar completed')
+            // Marcar como completado en BD
+            await supabase
+              .from('users')
+              .update({ onboarding_step: 'completed' })
+              .eq('id', userId)
+            await AsyncStorage.setItem('onboarding_complete', 'true')
+            setInitialRoute("HomeFeed")
+            setLoading(false)
+            return
+          }
+          
+          // CASO 3: Usuario incompleto → Continuar desde donde quedó
+          console.log('⚠️ Navigation: Usuario incompleto, determinando paso...')
+          
+          if (!hasAvatar) {
+            console.log('📸 Navigation: Falta avatar → UploadAvatar')
+            setInitialRoute("UploadAvatar")
+          } else if (!hasInterests) {
+            console.log('❤️ Navigation: Falta interests → PickInterests')
+            setInitialRoute("PickInterests")
+          } else if (!hasKnowledge) {
+            console.log('📚 Navigation: Falta knowledge → PickKnowledge')
+            setInitialRoute("PickKnowledge")
           } else {
-            // Si no completó onboarding, verificar en qué paso quedó
-            const avatarComplete = await AsyncStorage.getItem('avatar_uploaded')
-            const goalsComplete = await AsyncStorage.getItem('goals_selected')
-            const interestsComplete = await AsyncStorage.getItem('interests_selected')
-            const knowledgeComplete = await AsyncStorage.getItem('knowledge_selected')
-            
-            console.log('📋 Navigation: Avatar:', avatarComplete, 'Goals:', goalsComplete, 'Interests:', interestsComplete, 'Knowledge:', knowledgeComplete)
-            
-            // Determinar en qué paso del onboarding quedó
-            if (!avatarComplete) {
-              console.log('📸 Navigation: Falta avatar, yendo a UploadAvatar')
-              setInitialRoute("UploadAvatar")
-            } else if (!goalsComplete) {
-              console.log('🎯 Navigation: Falta goals, yendo a PickGoals')
-              setInitialRoute("PickGoals")
-            } else if (!interestsComplete) {
-              console.log('❤️ Navigation: Falta interests, yendo a PickInterests')
-              setInitialRoute("PickInterests")
-            } else if (!knowledgeComplete) {
-              console.log('📚 Navigation: Falta knowledge, yendo a PickKnowledge')
-              setInitialRoute("PickKnowledge")
-            } else {
-              console.log('👥 Navigation: Falta comunidades, yendo a CommunityRecommendations')
-              setInitialRoute("CommunityRecommendations")
-            }
+            // Tiene todo pero onboarding_step no es 'completed' → Ir a HomeFeed
+            console.log('✅ Navigation: Tiene todo, yendo a HomeFeed')
+            await supabase
+              .from('users')
+              .update({ onboarding_step: 'completed' })
+              .eq('id', userId)
+            setInitialRoute("HomeFeed")
           }
         } catch (dbError) {
-          console.error('❌ Navigation: Error checking onboarding from DB:', dbError)
-          // Si falla la consulta, ir a UploadAvatar por defecto
+          console.error('❌ Navigation: Error checking onboarding:', dbError)
           setInitialRoute("UploadAvatar")
+          setLoading(false)
         }
+        setLoading(false)
       } else {
         // Verificar si ya se seleccionó un idioma
         const languageSelected = await AsyncStorage.getItem('user_language')
@@ -631,6 +699,7 @@ export function RootStack() {
         <Stack.Screen name="CalculadoraInteres" component={CalculadoraInteresScreen} />
         <Stack.Screen name="SimuladorJubilacion" component={SimuladorJubilacionScreen} />
         <Stack.Screen name="ComparadorInversiones" component={ComparadorInversionesScreen} />
+        <Stack.Screen name="InvestmentSimulator" component={InvestmentSimulatorScreen} />
   
         {/* Development Menu */}  
         {isDevelopment && (  

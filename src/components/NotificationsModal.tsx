@@ -35,7 +35,7 @@ export function NotificationsModal({ visible, onClose, userId, navigation }: Not
     setLoading(true)  
     try {  
       const data = await getNotifications(userId)  
-      setNotifications(data.slice(0, 5)) // Máximo 5 notificaciones  
+      setNotifications(data.slice(0, 20)) // Mostrar hasta 20 notificaciones  
     } catch (error) {  
       console.error("Error loading notifications:", error)  
     } finally {  
@@ -52,22 +52,20 @@ export function NotificationsModal({ visible, onClose, userId, navigation }: Not
       onClose()  
         
       // Navegar según el tipo de notificación  
-      switch (notification.type) {  
-        case "post_like":  
-          navigation.navigate("PostDetail", { postId: notification.post_id })  
-          break  
-        case "post_comment":  
-          navigation.navigate("PostDetail", { postId: notification.post_id })  
-          break  
-        case "follow":  
-          navigation.navigate("Profile", { userId: notification.from_user_id })  
-          break  
-        case "community_invite":  
-          navigation.navigate("Communities")  
-          break  
-        default:  
-          navigation.navigate("HomeFeed")  
-      }  
+      if (notification.related_type === 'post' && notification.related_id) {
+        navigation.navigate("PostDetail", { postId: notification.related_id })
+      } else if (notification.type === 'like' && notification.related_id) {
+        navigation.navigate("PostDetail", { postId: notification.related_id })
+      } else if (notification.type === 'comment' && notification.related_id) {
+        navigation.navigate("PostDetail", { postId: notification.related_id })
+      } else if (notification.type === 'follow' && notification.from_user_id) {
+        navigation.navigate("Profile", { userId: notification.from_user_id })
+      } else if (notification.type === 'message' && notification.from_user_id) {
+        navigation.navigate("ChatList")
+      } else {
+        // Fallback
+        navigation.navigate("HomeFeed")
+      }
     } catch (error) {  
       console.error("Error handling notification:", error)  
     }  
@@ -96,9 +94,31 @@ export function NotificationsModal({ visible, onClose, userId, navigation }: Not
                    item.actor?.photo_url || 
                    'https://ui-avatars.com/api/?name=User';
     
-    // Obtener título y cuerpo
+    // Obtener nombre del usuario
+    const userName = item.from_user?.full_name || 
+                     item.from_user?.nombre || 
+                     item.from_user?.username || 
+                     item.actor?.full_name || 
+                     item.actor?.nombre || 
+                     item.actor?.username || 
+                     'Usuario';
+    
+    // Obtener título y cuerpo con nombre
     const title = item.title || 'Notificación';
-    const body = item.body || item.message || item.content || 'Nueva actividad';
+    let body = item.body || item.message || item.content || 'Nueva actividad';
+    
+    // Agregar nombre del usuario al mensaje si no lo tiene
+    if (!body.includes(userName) && userName !== 'Usuario') {
+      if (item.type === 'like') {
+        body = `${userName} recomendó tu publicación`;
+      } else if (item.type === 'comment') {
+        body = `${userName} comentó tu publicación`;
+      } else if (item.type === 'follow') {
+        body = `${userName} comenzó a seguirte`;
+      } else if (item.type === 'message') {
+        body = `Nuevo mensaje de ${userName}`;
+      }
+    }
     
     return (
       <TouchableOpacity  

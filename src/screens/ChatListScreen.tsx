@@ -297,13 +297,12 @@ export function ChatListScreen({ navigation }: any) {
         navigation.navigate('Settings');
         break;
       case 'notifications':
-        navigation.navigate('NotificationSettings');
+        // Navegar al Stack padre
+        navigation.getParent()?.navigate('NotificationSettings');
         break;
       case 'archived':
-        navigation.navigate('ArchivedChats');
-        break;
-      case 'contacts':
-        navigation.navigate('NewMessage');
+        // Navegar al Stack padre
+        navigation.getParent()?.navigate('ArchivedChats');
         break;
     }
   };
@@ -588,11 +587,6 @@ export function ChatListScreen({ navigation }: any) {
             <TouchableOpacity style={styles.menuItem} onPress={() => handleMenuOption('archived')}>
               <Archive size={22} color="#111" />
               <Text style={styles.menuItemText}>Chats archivados</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.menuItem} onPress={() => handleMenuOption('contacts')}>
-              <Users size={22} color="#111" />
-              <Text style={styles.menuItemText}>Contactos</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>

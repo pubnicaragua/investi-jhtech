@@ -79,7 +79,7 @@ export function PickKnowledgeScreen({ navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
           <ArrowLeft size={24} color="#111" />
@@ -222,8 +222,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
   backButton: {
     width: 40,
@@ -234,15 +234,16 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 20,
+    paddingTop: 8,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "700",
     color: "#111",
     textAlign: "center",
-    marginBottom: 60,
-    lineHeight: 36,
+    marginBottom: 32,
+    lineHeight: 34,
+    paddingHorizontal: 8,
   },
   titleHighlight: {
     color: "#2673f3",
@@ -300,8 +301,9 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: 24,
-    paddingBottom: 40,
-    paddingTop: 20,
+    paddingBottom: 24,
+    paddingTop: 16,
+    backgroundColor: '#f7f8fa',
   },
   continueButton: {
     backgroundColor: "#2673f3",
@@ -324,12 +326,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   disclaimer: {
-    fontSize: 13,
+    fontSize: 12,
     color: "#666",
     textAlign: "center",
-    marginTop: 20,
-    paddingHorizontal: 30,
-    lineHeight: 20,
+    marginTop: 16,
+    paddingHorizontal: 20,
+    lineHeight: 18,
   },
   modalOverlay: {
     flex: 1,

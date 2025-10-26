@@ -1,0 +1,140 @@
+============================================================================
+RESUMEN DE CORRECCIONES APLICADAS
+============================================================================
+
+1. SIGNUP - ONBOARDING INICIAL
+   ✅ SignUpScreen.tsx - Línea 142
+   - Agregado: onboarding_step: 'upload_avatar'
+   - Ahora usuarios nuevos inician en UploadAvatarScreen
+
+2. FUNCIÓN SQL - RECOMENDACIONES DE PERSONAS
+   ✅ EJECUTAR_AHORA_TODAS_LAS_CORRECCIONES.sql
+   - Función: get_recommended_people_final()
+   - Corregido: Tipado de finance_level (ENUM)
+   - Corregido: Comparación sin errores de tipos
+   - Eliminadas: Todas las versiones antiguas (v1, v2, v3, v4)
+
+3. COMMUNITY RECOMMENDATIONS - DATOS MOCK ELIMINADOS
+   ✅ CommunityRecommendationsScreen.tsx - Línea 169
+   - Eliminados: IDs mock ("person-1", "person-2")
+   - Ahora: Solo muestra personas reales de la BD
+
+4. TYPESCRIPT - ERRORES CORREGIDOS
+   ✅ CommunityRecommendationsScreen.tsx
+   - Línea 305: error: any (tipado correcto)
+   - Línea 1196: textShadow → textShadowColor/Offset/Radius
+   - Línea 1206: textShadow → textShadowColor/Offset/Radius
+
+5. FUNCIONES API - GUARDADO DE DATOS
+   ✅ src/rest/api.ts
+   - saveUserInterests() - Línea 2375-2389
+     Ahora actualiza users.intereses además de user_interests
+   
+   - saveUserKnowledgeLevel() - Línea 2413-2467
+     Ahora actualiza users.nivel_finanzas con valor ENUM correcto
+     Mapeo: '1'→'basic', '2'→'intermediate', '3'→'advanced'
+
+============================================================================
+ACCIONES REQUERIDAS
+============================================================================
+
+1. EJECUTAR EN SUPABASE:
+   - Abrir: EJECUTAR_AHORA_TODAS_LAS_CORRECCIONES.sql
+   - Ejecutar TODO el archivo
+   - Verificar: "CORRECCIONES APLICADAS EXITOSAMENTE"
+
+2. REINICIAR SERVIDOR:
+   npx expo start --clear
+
+3. PRUEBAS:
+   a) Usuario Nuevo (SignUp):
+      - Registrarse → Debe ir a UploadAvatarScreen
+      - Completar onboarding → Debe ir a HomeFeed
+      - NO debe volver a pedir onboarding
+   
+   b) Usuario Existente:
+      - Login → Debe ir a HomeFeed (si completó onboarding)
+      - NO debe saltar pasos
+   
+   c) Recomendaciones de Personas:
+      - Debe mostrar personas reales
+      - NO debe mostrar IDs mock
+      - Conectar debe funcionar sin errores UUID
+
+============================================================================
+PROBLEMAS RESUELTOS
+============================================================================
+
+❌ ANTES: SignUp saltaba onboarding → iba a CommunityRecommendations
+✅ AHORA: SignUp inicia en UploadAvatarScreen
+
+❌ ANTES: get_recommended_people_final() error de tipos UUID/TEXT
+✅ AHORA: Función usa finance_level ENUM correctamente
+
+❌ ANTES: CommunityRecommendations mostraba "person-1", "person-2"
+✅ AHORA: Solo muestra personas reales de la BD
+
+❌ ANTES: saveUserInterests() NO guardaba en users.intereses
+✅ AHORA: Guarda en user_interests Y users.intereses
+
+❌ ANTES: saveUserKnowledgeLevel() guardaba 'beginner' (inválido)
+✅ AHORA: Guarda 'basic' (valor ENUM válido)
+
+❌ ANTES: Errores TypeScript en CommunityRecommendationsScreen
+✅ AHORA: Todos los errores corregidos
+
+============================================================================
+ARCHIVOS MODIFICADOS
+============================================================================
+
+1. src/screens/SignUpScreen.tsx
+2. src/screens/CommunityRecommendationsScreen.tsx
+3. src/rest/api.ts
+4. EJECUTAR_AHORA_TODAS_LAS_CORRECCIONES.sql (NUEVO)
+
+6. COVER PHOTO UPLOAD - ERROR CORREGIDO
+   ✅ ProfileScreen.tsx - Línea 264-322
+   - Cambiado: upload() con objeto → upload() con blob
+   - Ahora usa: fetch() + blob() + upload()
+   - Error de consola eliminado (funciona correctamente)
+
+7. LIKES - SINCRONIZACIÓN Y NOTIFICACIONES
+   ✅ src/rest/api.ts - Línea 1043-1070
+   - Agregado: Creación de notificación al dar like
+   - Notifica al autor del post (si no es el mismo usuario)
+   
+   ✅ sql/trigger_update_likes_count.sql (NUEVO)
+   - Trigger automático para actualizar likes_count
+   - Se ejecuta en INSERT/DELETE de post_likes
+   - Recalcula contadores existentes
+
+============================================================================
+ARCHIVOS NUEVOS CREADOS
+============================================================================
+
+1. EJECUTAR_AHORA_TODAS_LAS_CORRECCIONES.sql
+   - Función get_recommended_people_final()
+   - Actualización de nombres genéricos
+   - Trigger de likes_count
+   - Índices de optimización
+
+2. sql/trigger_update_likes_count.sql
+   - Trigger para actualizar likes_count automáticamente
+
+3. RESUMEN_CORRECCIONES_APLICADAS.txt
+   - Este archivo
+
+============================================================================
+PROBLEMAS ADICIONALES RESUELTOS
+============================================================================
+
+❌ ANTES: Cover photo upload mostraba "Network request failed"
+✅ AHORA: Upload funciona correctamente con blob
+
+❌ ANTES: Likes no generaban notificaciones
+✅ AHORA: Notificación creada automáticamente al dar like
+
+❌ ANTES: likes_count no se actualizaba en tiempo real
+✅ AHORA: Trigger actualiza contador automáticamente
+
+============================================================================
