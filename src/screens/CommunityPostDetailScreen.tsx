@@ -11,7 +11,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   FlatList,
   Image,
   TextInput,
@@ -24,7 +23,9 @@ import {
   Keyboard,
   ScrollView,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { useNavigation, useRoute, NavigationProp } from '@react-navigation/native'
+import { LinearGradient } from 'expo-linear-gradient'
 import type { RootStackParamList } from '../types/navigation'
 import {
   ArrowLeft,
@@ -167,7 +168,7 @@ export function CommunityPostDetailScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#2673f3" /></View>
       </SafeAreaView>
     )
@@ -175,7 +176,7 @@ export function CommunityPostDetailScreen() {
 
   if (!post) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.emptyState}><Text>No se encontró la publicación</Text></View>
       </SafeAreaView>
     )
@@ -183,14 +184,14 @@ export function CommunityPostDetailScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <LinearGradient colors={['#2673f3', '#1e5fd9']} style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <ArrowLeft size={22} color="#111" />
+            <ArrowLeft size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Publicación</Text>
-        </View>
-
+          <Text style={styles.headerTitle}>Post</Text>
+          <View style={{ width: 24 }} />
+        </LinearGradient>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
           <View style={styles.postCard}>
             <View style={styles.postHeader}>
@@ -241,9 +242,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyState: { flex:1, justifyContent:'center', alignItems:'center' },
-  header: { flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: '#fff', borderBottomWidth:1, borderBottomColor:'#eee' },
-  backButton: { padding: 8 },
-  headerTitle: { flex:1, textAlign:'center', fontSize:16, fontWeight:'600', paddingTop:14},
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 8 },
+  backButton: { padding: 4 },
+  headerTitle: { fontSize:18, fontWeight:'700', color:'#fff', letterSpacing:0.3 },
   contentContainer: { flex: 1 },
   flatList: { flex: 1 },
   scrollView: { flex: 1 },

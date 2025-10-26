@@ -11,7 +11,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Image,
   TextInput,
@@ -21,7 +20,10 @@ import {
   KeyboardAvoidingView,
   Share as RNShare,
   RefreshControl,
+  FlatList,
+  Dimensions,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { useNavigation, useRoute, NavigationProp } from '@react-navigation/native'
 import { InvestiVideoPlayer } from '../components/InvestiVideoPlayer'
 import type { RootStackParamList } from '../types/navigation'
@@ -39,9 +41,11 @@ import {
   Users,
   Eye,
   CornerUpRight,
+  ThumbsUp,
 } from 'lucide-react-native'
 import { request } from '../rest/client'
 import { getCurrentUser } from '../rest/api'
+import { supabase } from '../supabase'
 
 // ============================================================================
 // COMPONENTE PRINCIPAL
@@ -61,9 +65,50 @@ export function PostDetailScreen() {
   const [commentText, setCommentText] = useState('')
   const [replyingTo, setReplyingTo] = useState<any>(null)
   const [sendingComment, setSendingComment] = useState(false)
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
   useEffect(() => {
     loadData()
+    
+    // Suscripción realtime para comentarios
+    const commentsSubscription = supabase
+      .channel(`post-comments-${postId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'post_comments',
+          filter: `post_id=eq.${postId}`,
+        },
+        async (payload: any) => {
+          console.log('💬 Comentario realtime:', payload)
+          
+          if (payload.eventType === 'INSERT') {
+            // Obtener datos completos del comentario con usuario
+            const { data: newComment } = await supabase
+              .from('post_comments')
+              .select('*, user:users(id, full_name, nombre, username, avatar_url, photo_url)')
+              .eq('id', payload.new.id)
+              .single()
+            
+            if (newComment) {
+              setComments(prev => [newComment, ...prev])
+              // Actualizar contador
+              setPost((prevPost: any) => prevPost ? { ...prevPost, comment_count: (prevPost.comment_count || 0) + 1 } : null)
+            }
+          } else if (payload.eventType === 'DELETE') {
+            setComments(prev => prev.filter(c => c.id !== payload.old.id))
+            // Actualizar contador
+            setPost((prevPost: any) => prevPost ? { ...prevPost, comment_count: Math.max(0, (prevPost.comment_count || 0) - 1) } : null)
+          }
+        }
+      )
+      .subscribe()
+    
+    return () => {
+      commentsSubscription.unsubscribe()
+    }
   }, [postId])
 
   const loadData = async () => {
@@ -136,20 +181,34 @@ export function PostDetailScreen() {
 
   const handleLike = async () => {
     if (!post || !currentUser) return
+    
+    // Actualización optimista
+    const wasLiked = post.has_liked
+    const previousCount = post.likes_count || 0
+    
     try {
-      if (post.has_liked) {
+      if (wasLiked) {
+        // Actualizar UI inmediatamente
+        setPost({ ...post, has_liked: false, likes_count: Math.max(0, previousCount - 1) })
+        
+        // Eliminar like
         await request('DELETE', '/post_likes', {
           params: { post_id: `eq.${postId}`, user_id: `eq.${currentUser.id}` },
         })
-        setPost({ ...post, has_liked: false, likes_count: Math.max(0, (post.likes_count || 0) - 1) })
       } else {
+        // Actualizar UI inmediatamente
+        setPost({ ...post, has_liked: true, likes_count: previousCount + 1 })
+        
+        // Agregar like
         await request('POST', '/post_likes', {
           body: { post_id: postId, user_id: currentUser.id, is_like: true },
         })
-        setPost({ ...post, has_liked: true, likes_count: (post.likes_count || 0) + 1 })
       }
     } catch (error) {
       console.error('Error liking post:', error)
+      // Revertir en caso de error
+      setPost({ ...post, has_liked: wasLiked, likes_count: previousCount })
+      Alert.alert('Error', 'No se pudo actualizar la recomendación')
     }
   }
 
@@ -187,39 +246,27 @@ export function PostDetailScreen() {
   const handleShare = async () => {
     if (!post) return
     try {
-      Alert.alert(
-        'Compartir publicación',
-        '¿Cómo deseas compartir?',
-        [
-          {
-            text: 'Enviar mensaje',
-            onPress: () => {
-              navigation.navigate('ChatList', {
-                sharePost: {
-                  id: post.id,
-                  content: post.contenido || post.content || ''
-                }
-              });
-            }
-          },
-          {
-            text: 'Compartir fuera de la app',
-            onPress: async () => {
-              await RNShare.share({ 
-                message: `${post.contenido || post.content}\n\n- Compartido desde Investi` 
-              });
-              setPost({ ...post, shares_count: (post.shares_count || 0) + 1 });
-            }
-          },
-          {
-            text: 'Cancelar',
-            style: 'cancel'
-          }
-        ]
-      );
+      await RNShare.share({ 
+        message: `${post.contenido || post.content}\n\n- Compartido desde Investi` 
+      });
+      // Incrementar contador de shares
+      setPost({ ...post, shares_count: (post.shares_count || 0) + 1 });
     } catch (error) {
       console.error('Error sharing:', error)
     }
+  }
+
+  const handleSendToUser = () => {
+    if (!post) return
+    // Navegar a ChatList con el contexto de compartir post
+    // Usar getParent() para navegar al Stack padre
+    navigation.getParent()?.navigate('ChatList', {
+      sharePost: {
+        id: post.id,
+        content: post.contenido || post.content || '',
+        author: post.user?.full_name || post.user?.nombre || 'Usuario'
+      }
+    });
   }
 
   const handleSendComment = async () => {
@@ -227,46 +274,37 @@ export function PostDetailScreen() {
     try {
       setSendingComment(true)
       
-      // Crear comentario optimista para UI inmediata
-      const optimisticComment = {
-        id: `temp-${Date.now()}`,
-        post_id: postId,
-        user_id: currentUser.id,
-        contenido: commentText.trim(),
-        created_at: new Date().toISOString(),
-        user: {
-          id: currentUser.id,
-          full_name: currentUser.full_name || currentUser.nombre,
-          nombre: currentUser.nombre,
-          avatar_url: currentUser.avatar_url,
-          photo_url: currentUser.photo_url,
-        },
-      }
-      
-      // Actualizar UI inmediatamente
-      setComments(prev => [...prev, optimisticComment])
-      if (post) setPost({ ...post, comment_count: (post.comment_count || 0) + 1 })
-      const savedText = commentText.trim()
-      setCommentText('')
-      setReplyingTo(null)
-      
-      // Enviar a backend
-      await request('POST', '/post_comments', {
+      // Enviar comentario al backend
+      const response = await request('POST', '/post_comments', {
         body: {
           post_id: postId,
           user_id: currentUser.id,
-          contenido: savedText,
-          parent_id: replyingTo?.id || null,
+          contenido: commentText.trim(),
         },
       })
       
-      // Refrescar comentarios para obtener IDs reales
-      await fetchComments()
+      if (response && response.length > 0) {
+        const newComment = {
+          ...response[0],
+          user: {
+            id: currentUser.id,
+            full_name: currentUser.full_name || currentUser.nombre || currentUser.username,
+            nombre: currentUser.nombre || currentUser.full_name || currentUser.username,
+            username: currentUser.username,
+            avatar_url: currentUser.avatar_url || currentUser.photo_url,
+            photo_url: currentUser.photo_url || currentUser.avatar_url
+          },
+        }
+        // CRÍTICO: Forzar actualización de estado
+        setComments(prev => [newComment, ...prev])
+        setPost((prevPost: any) => prevPost ? { ...prevPost, comment_count: (prevPost.comment_count || 0) + 1 } : null)
+        setCommentText('')
+        setReplyingTo(null)
+        console.log('✅ Comentario agregado a la lista:', newComment)
+      }
     } catch (error) {
       console.error('Error sending comment:', error)
       Alert.alert('Error', 'No se pudo enviar el comentario')
-      // Recargar comentarios en caso de error
-      await fetchComments()
     } finally {
       setSendingComment(false)
     }
@@ -405,7 +443,7 @@ export function PostDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <ArrowLeft size={24} color="#111" />
@@ -435,47 +473,96 @@ export function PostDetailScreen() {
             <Text style={styles.postContent}>{post.contenido || post.content}</Text>
 
             {(post.image_url || (post.media_url && post.media_url.length > 0)) && (() => {
-              const mediaUrl = post.media_url && post.media_url.length > 0 ? post.media_url[0] : post.image_url
-              const isVideo = mediaUrl?.toLowerCase().endsWith('.mp4') || mediaUrl?.toLowerCase().endsWith('.mov')
+              // Obtener todas las URLs de medios
+              const mediaUrls = post.media_url && Array.isArray(post.media_url) && post.media_url.length > 0 
+                ? post.media_url 
+                : post.image_url 
+                  ? [post.image_url] 
+                  : []
               
-              return isVideo ? (
-                <InvestiVideoPlayer uri={mediaUrl} style={{ width: '100%', marginBottom: 12 }} />
-              ) : (
-                <Image source={{ uri: mediaUrl }} style={styles.postImage} />
+              if (mediaUrls.length === 0) return null
+              
+              // Si solo hay un medio, mostrar directamente
+              if (mediaUrls.length === 1) {
+                const mediaUrl = mediaUrls[0]
+                const isVideo = mediaUrl?.toLowerCase().endsWith('.mp4') || mediaUrl?.toLowerCase().endsWith('.mov')
+                
+                return isVideo ? (
+                  <InvestiVideoPlayer uri={mediaUrl} style={{ width: '100%', marginBottom: 12 }} />
+                ) : (
+                  <Image source={{ uri: mediaUrl }} style={styles.postImage} />
+                )
+              }
+              
+              // Si hay múltiples medios, mostrar carrusel
+              return (
+                <View style={styles.carouselContainer}>
+                  <FlatList
+                    data={mediaUrls}
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    onMomentumScrollEnd={(event) => {
+                      const index = Math.round(event.nativeEvent.contentOffset.x / event.nativeEvent.layoutMeasurement.width)
+                      setCurrentImageIndex(index)
+                    }}
+                    renderItem={({ item }) => {
+                      const isVideo = item?.toLowerCase().endsWith('.mp4') || item?.toLowerCase().endsWith('.mov')
+                      return isVideo ? (
+                        <InvestiVideoPlayer uri={item} style={styles.carouselImage} />
+                      ) : (
+                        <Image source={{ uri: item }} style={styles.carouselImage} />
+                      )
+                    }}
+                    keyExtractor={(item, index) => `media-${index}`}
+                  />
+                  
+                  {/* Indicadores de página */}
+                  <View style={styles.paginationDots}>
+                    {mediaUrls.map((_: any, index: number) => (
+                      <View
+                        key={`dot-${index}`}
+                        style={[
+                          styles.dot,
+                          index === currentImageIndex && styles.activeDot
+                        ]}
+                      />
+                    ))}
+                  </View>
+                  
+                  {/* Contador de imágenes */}
+                  <View style={styles.imageCounter}>
+                    <Text style={styles.imageCounterText}>
+                      {currentImageIndex + 1}/{mediaUrls.length}
+                    </Text>
+                  </View>
+                </View>
               )
             })()}
 
             <View style={styles.statsContainer}>
               <View style={styles.statItem}>
-                <Heart size={16} color="#ef4444" fill={post.has_liked ? '#ef4444' : 'none'} />
-                <Text style={styles.statText}>{post.likes_count || 0}</Text>
+                <ThumbsUp size={16} color={post.has_liked ? '#2673f3' : '#666'} />
+                <Text style={styles.statText}>{post.likes_count || 0} recomendaciones</Text>
               </View>
               <View style={styles.statItem}>
                 <MessageCircle size={16} color="#666" />
-                <Text style={styles.statText}>{post.comment_count || 0}</Text>
+                <Text style={styles.statText}>{post.comment_count || 0} comentarios</Text>
               </View>
               <View style={styles.statItem}>
                 <Share2 size={16} color="#666" />
-                <Text style={styles.statText}>{post.shares_count || 0}</Text>
+                <Text style={styles.statText}>{post.shares_count || 0} compartidos</Text>
               </View>
             </View>
 
             <View style={styles.actionsContainer}>
-              <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
-                <Heart size={22} color={post.has_liked ? '#ef4444' : '#666'} fill={post.has_liked ? '#ef4444' : 'none'} />
-                <Text style={styles.actionButtonText}>Me gusta</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionButton}>
-                <MessageCircle size={22} color="#666" />
-                <Text style={styles.actionButtonText}>Comentar</Text>
-              </TouchableOpacity>
               <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
-                <Share2 size={22} color="#666" />
+                <Share2 size={20} color="#666" />
                 <Text style={styles.actionButtonText}>Compartir</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionButton} onPress={handleSave}>
-                <Bookmark size={22} color={post.has_saved ? '#2673f3' : '#666'} fill={post.has_saved ? '#2673f3' : 'none'} />
-                <Text style={styles.actionButtonText}>Guardar</Text>
+              <TouchableOpacity style={styles.actionButton} onPress={handleSendToUser}>
+                <Send size={16} color="#666" />
+                <Text style={styles.actionButtonText}>Enviar</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -535,41 +622,49 @@ export function PostDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f7f8fa' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e5e5e5' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#111', flex: 1, textAlign: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12, backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 4 },
+  headerTitle: { fontSize: 20, fontWeight: '800', color: '#111', flex: 1, textAlign: 'center', letterSpacing: -0.3 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
   emptyText: { fontSize: 18, fontWeight: '600', color: '#666' },
   scrollView: { flex: 1 },
-  postCard: { backgroundColor: '#fff', padding: 16, marginBottom: 8 },
-  authorContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  authorAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#e5e5e5', marginRight: 12 },
+  postCard: { backgroundColor: '#fff', padding: 20, marginBottom: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+  authorContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  authorAvatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#e5e5e5', marginRight: 14, borderWidth: 2, borderColor: '#f5f5f5' },
   authorInfo: { flex: 1 },
-  authorName: { fontSize: 16, fontWeight: '700', color: '#111', marginBottom: 4 },
-  postTime: { fontSize: 13, color: '#666' },
-  postContent: { fontSize: 16, lineHeight: 24, color: '#111', marginBottom: 12 },
-  postImage: { width: '100%', height: 300, borderRadius: 12, backgroundColor: '#e5e5e5', marginBottom: 12 },
-  statsContainer: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#f5f5f5', borderBottomWidth: 1, borderBottomColor: '#f5f5f5' },
-  statItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  statText: { fontSize: 14, fontWeight: '600', color: '#666' },
-  actionsContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingTop: 12 },
-  actionButton: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 },
-  actionButtonText: { fontSize: 14, fontWeight: '600', color: '#666' },
-  commentsSection: { backgroundColor: '#fff', padding: 16, marginBottom: 8 },
-  commentsSectionTitle: { fontSize: 18, fontWeight: '700', color: '#111', marginBottom: 16 },
+  authorName: { fontSize: 17, fontWeight: '800', color: '#111', marginBottom: 4, letterSpacing: -0.2 },
+  postTime: { fontSize: 14, color: '#666', fontWeight: '500' },
+  postContent: { fontSize: 17, lineHeight: 26, color: '#111', marginBottom: 16, letterSpacing: -0.1 },
+  postImage: { width: '100%', height: 320, borderRadius: 16, backgroundColor: '#e5e5e5', marginBottom: 16 },
+  statsContainer: { flexDirection: 'row', alignItems: 'center', gap: 20, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#f5f5f5', borderBottomWidth: 1, borderBottomColor: '#f5f5f5' },
+  statItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  statText: { fontSize: 15, fontWeight: '700', color: '#666' },
+  actionsContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 16, paddingHorizontal: 8, borderTopWidth: 1, borderTopColor: '#F3F4F6', gap: 8 },
+  actionButton: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e5e5', minWidth: 70, justifyContent: 'center' },
+  actionButtonText: { fontSize: 14, fontWeight: '700', color: '#666' },
+  actionButtonTextActive: { color: '#2673f3' },
+  commentsSection: { backgroundColor: '#fff', padding: 20, marginBottom: 8 },
+  commentsSectionTitle: { fontSize: 20, fontWeight: '800', color: '#111', marginBottom: 20, letterSpacing: -0.3 },
   noComments: { alignItems: 'center', paddingVertical: 40 },
   noCommentsText: { fontSize: 16, fontWeight: '600', color: '#666', marginTop: 16 },
-  commentContainer: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-  commentAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#e5e5e5' },
+  commentContainer: { flexDirection: 'row', gap: 14, marginBottom: 20, backgroundColor: '#f9fafb', padding: 14, borderRadius: 16 },
+  commentAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#e5e5e5', borderWidth: 2, borderColor: '#fff' },
   commentContent: { flex: 1 },
-  commentHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  commentAuthor: { fontSize: 14, fontWeight: '700', color: '#111' },
-  commentTime: { fontSize: 12, color: '#999' },
-  commentText: { fontSize: 15, lineHeight: 20, color: '#111' },
-  commentInputContainer: { flexDirection: 'row', padding: 12, paddingBottom: Platform.OS === 'ios' ? 0 : 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e5e5', alignItems: 'flex-end', gap: 8 },
-  commentInput: { flex: 1, backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e5e5', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 15, maxHeight: 100, color: '#111' },
-  sendButton: { backgroundColor: '#2673f3', width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-  sendButtonDisabled: { backgroundColor: '#e5e5e5' },
+  commentHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  commentAuthor: { fontSize: 15, fontWeight: '800', color: '#111', letterSpacing: -0.2 },
+  commentTime: { fontSize: 13, color: '#999', fontWeight: '500' },
+  commentText: { fontSize: 15, lineHeight: 22, color: '#111', letterSpacing: -0.1 },
+  commentInputContainer: { flexDirection: 'row', padding: 16, paddingBottom: Platform.OS === 'ios' ? 24 : 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e5e5', alignItems: 'flex-end', gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 4 },
+  commentInput: { flex: 1, backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e5e5', borderRadius: 24, paddingHorizontal: 18, paddingVertical: 12, fontSize: 16, maxHeight: 100, color: '#111' },
+  sendButton: { backgroundColor: '#2673f3', width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', shadowColor: '#2673f3', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  sendButtonDisabled: { backgroundColor: '#e5e5e5', shadowOpacity: 0 },
+  carouselContainer: { marginBottom: 16, position: 'relative' },
+  carouselImage: { width: Dimensions.get('window').width - 40, height: 320, borderRadius: 16, backgroundColor: '#e5e5e5' },
+  paginationDots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, position: 'absolute', bottom: 16, left: 0, right: 0 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255, 255, 255, 0.5)', borderWidth: 1, borderColor: 'rgba(0, 0, 0, 0.1)' },
+  activeDot: { backgroundColor: '#fff', width: 24, borderColor: 'rgba(0, 0, 0, 0.2)' },
+  imageCounter: { position: 'absolute', top: 16, right: 16, backgroundColor: 'rgba(0, 0, 0, 0.6)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
+  imageCounterText: { color: '#fff', fontSize: 13, fontWeight: '700' },
 })
 
 export default PostDetailScreen

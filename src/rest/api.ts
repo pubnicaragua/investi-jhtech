@@ -1036,9 +1036,40 @@ export async function likePost(post_id: string, user_id: string, is_like = true)
     } else {
       // No existe, crear (like)
       console.log('❤️ [likePost] Like post:', post_id);
-      return await request("POST", "/post_likes", {  
+      const result = await request("POST", "/post_likes", {  
         body: { post_id, user_id, is_like },  
       });
+      
+      // Crear notificación para el autor del post
+      try {
+        const post = await request("GET", "/posts", {
+          params: {
+            id: `eq.${post_id}`,
+            select: "user_id"
+          }
+        });
+        
+        if (post && post.length > 0 && post[0].user_id !== user_id) {
+          // Solo notificar si el like NO es del mismo autor
+          await request("POST", "/notifications", {
+            body: {
+              user_id: post[0].user_id, // Autor del post
+              type: 'like',
+              title: 'Nueva recomendación',
+              message: 'Alguien recomendó tu publicación',
+              related_id: post_id,
+              related_type: 'post',
+              from_user_id: user_id
+            }
+          });
+          console.log('✅ [likePost] Notificación creada');
+        }
+      } catch (notifError) {
+        console.error('⚠️ [likePost] Error creando notificación:', notifError);
+        // No fallar el like si falla la notificación
+      }
+      
+      return result;
     }
   } catch (error: any) {  
     console.error('❌ [likePost] Error:', error);
@@ -2370,10 +2401,23 @@ export async function saveUserInterests(userId: string, interests: string[], exp
       throw errors[0].error
     }
     
-    console.log('✅ Intereses guardados exitosamente')
+    console.log('✅ Intereses guardados en user_interests')
     
-    // Actualizar paso de onboarding
-    await updateUser(userId, { onboarding_step: 'pick_knowledge' })
+    // CRÍTICO: También actualizar users.intereses (array de UUIDs)
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ 
+        intereses: interests,
+        onboarding_step: 'pick_knowledge'
+      })
+      .eq('id', userId)
+    
+    if (updateError) {
+      console.error('❌ Error actualizando users.intereses:', updateError)
+      throw updateError
+    }
+    
+    console.log('✅ Intereses guardados en users.intereses también')
     
     return { success: true }
   } catch (error: any) {
@@ -2399,8 +2443,26 @@ export async function getKnowledgeLevels() {
 
 export async function saveUserKnowledgeLevel(userId: string, level: string, specificAreas?: string[], learningGoals?: string[]) {
   try {
+    console.log('💾 Guardando nivel de conocimiento:', { userId, level })
+    
+    // Mapear nivel a valores del ENUM finance_level
+    const nivelMap: Record<string, string> = {
+      '1': 'basic',
+      '2': 'intermediate',
+      '3': 'advanced',
+      'no_knowledge': 'basic',
+      'beginner': 'basic',
+      'basic': 'basic',
+      'intermediate': 'intermediate',
+      'advanced': 'advanced',
+      'expert': 'advanced' // Mapear expert a advanced (el nivel más alto en ENUM)
+    }
+    
+    const nivelFinanzas = nivelMap[level] || 'basic'
+    console.log(`📊 Mapeando nivel "${level}" → "${nivelFinanzas}"`)
+    
     // Guardar nivel de conocimiento usando upsert (actualiza si existe, inserta si no)
-    const { error } = await supabase
+    const { error: knowledgeError } = await supabase
       .from('user_knowledge')
       .upsert({
         user_id: userId,
@@ -2411,13 +2473,26 @@ export async function saveUserKnowledgeLevel(userId: string, level: string, spec
         onConflict: 'user_id'
       })
     
-    if (error) {
-      console.error('Error upserting user knowledge:', error)
-      throw error
+    if (knowledgeError) {
+      console.log('⚠️ Error en user_knowledge (puede no existir la tabla):', knowledgeError)
     }
     
-    // Actualizar paso de onboarding a completado
-    await updateUser(userId, { onboarding_step: 'completed' })
+    // CRÍTICO: Actualizar users.nivel_finanzas con valor ENUM correcto
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ 
+        nivel_finanzas: nivelFinanzas,
+        onboarding_step: 'completed'
+      })
+      .eq('id', userId)
+    
+    if (updateError) {
+      console.error('❌ Error actualizando users.nivel_finanzas:', updateError)
+      throw updateError
+    }
+    
+    console.log('✅ Nivel guardado correctamente:', nivelFinanzas)
+    console.log('✅ Onboarding marcado como completed')
     
     return { success: true }
   } catch (error: any) {
@@ -2520,39 +2595,36 @@ export async function getCommunityDetailsComplete(communityId: string) {
 }
 
 // Get suggested people for user
-export async function getSuggestedPeople(userId: string, limit = 10) {
+export async function getSuggestedPeople(userId: string, limit = 20) {
   try {
     console.log('🔍 [getSuggestedPeople] Buscando personas para userId:', userId, 'limit:', limit)
     
-    // Intentar con v2 primero (filtra mejor)
-    const { data: dataV2, error: errorV2 } = await supabase
-      .rpc('get_suggested_people_v2', {
-        p_user_id: userId,
-        p_limit: limit
-      })
-    
-    if (!errorV2 && dataV2 && dataV2.length > 0) {
-      console.log('✅ [getSuggestedPeople] Personas sugeridas con algoritmo v2:', dataV2.length, 'personas')
-      console.log('📋 [getSuggestedPeople] IDs:', dataV2.map((p: any) => p.id).join(', '))
-      return dataV2
-    }
-    
-    console.log('⚠️ [getSuggestedPeople] v2 falló o vacío, intentando v1. Error:', errorV2?.message)
-    
-    // Fallback a función original
+    // Usar función definitiva con scoring
     const { data, error } = await supabase
-      .rpc('get_suggested_people', {
+      .rpc('get_recommended_people_final', {
         p_user_id: userId,
         p_limit: limit
       })
     
     if (error) {
-      console.error('❌ [getSuggestedPeople] Error con v1:', error)
+      console.error('❌ [getSuggestedPeople] Error:', error)
       return []
     }
     
-    console.log('✅ [getSuggestedPeople] Personas con v1:', data?.length || 0)
-    return data || []
+    if (!data || data.length === 0) {
+      console.log('⚠️ [getSuggestedPeople] No se encontraron personas recomendadas')
+      return []
+    }
+    
+    console.log('✅ [getSuggestedPeople] Personas recomendadas:', data.length)
+    console.log('📊 [getSuggestedPeople] Scores:', data.map((p: any) => ({
+      name: p.full_name || p.nombre,
+      score: p.score_total,
+      intereses: p.intereses_comunes,
+      metas: p.metas_comunes
+    })))
+    
+    return data
   } catch (error: any) {
     console.error('❌ [getSuggestedPeople] Exception:', error)
     return []

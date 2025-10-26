@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import { ArrowLeft, Send, Paperclip, Image as ImageIcon, Video as VideoIcon, FileText } from "lucide-react-native";
 import { Video } from 'expo-av';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -570,7 +571,7 @@ export function ChatScreen({ navigation, route }: any) {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       quality: 0.8,
     });
@@ -592,7 +593,7 @@ export function ChatScreen({ navigation, route }: any) {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      mediaTypes: ['videos'],
       allowsEditing: true,
       quality: 0.8,
     });
@@ -740,9 +741,12 @@ export function ChatScreen({ navigation, route }: any) {
   
   return (  
     <SafeAreaView style={styles.container}>  
-      <View style={styles.header}>
+      <LinearGradient 
+        colors={['#2673f3', '#1e5fd9']} 
+        style={styles.header}
+      >
         <TouchableOpacity onPress={() => navigation.navigate('ChatList')}>
-          <ArrowLeft size={24} color="#111" />
+          <ArrowLeft size={24} color="#fff" />
         </TouchableOpacity>
         <View style={styles.headerInfo}>  
           <Image  
@@ -751,7 +755,7 @@ export function ChatScreen({ navigation, route }: any) {
             }}  
             style={styles.headerAvatar}  
           />  
-          <View>  
+          <View style={styles.headerTextContainer}>  
             <Text style={styles.headerTitle}>  
               {chatInfo?.nombre || name || "Chat"}  
             </Text>  
@@ -768,13 +772,13 @@ export function ChatScreen({ navigation, route }: any) {
             </Text>  
           </View>  
         </View>  
-      </View>  
+      </LinearGradient>  
   
       <FlatList  
         ref={flatListRef}  
         data={messages}  
         renderItem={renderMessage}  
-        keyExtractor={(item) => item.id}  
+        keyExtractor={(item, index) => `${item.id}-${index}`}  
         contentContainerStyle={[styles.messageList, { paddingBottom: 16 + keyboardHeight }]}  
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}  
         keyboardShouldPersistTaps="handled"
@@ -892,15 +896,20 @@ const styles = StyleSheet.create({
   header: {  
     flexDirection: "row",  
     alignItems: "center",  
-    padding: 12,  
-    borderBottomWidth: 1,  
-    borderBottomColor: "#eee",  
-    backgroundColor: "#fff",  
+    padding: 16,  
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
   },  
-  headerInfo: { flexDirection: "row", alignItems: "center", marginLeft: 12 },  
-  headerAvatar: { width: 40, height: 40, borderRadius: 20, marginRight: 8 },  
-  headerTitle: { fontSize: 16, fontWeight: "600", color: "#111" },  
-  headerSubtitle: { fontSize: 12, color: "#666" },  
+  headerInfo: { flexDirection: "row", alignItems: "center", marginLeft: 12, flex: 1 },  
+  headerAvatar: { width: 40, height: 40, borderRadius: 20, marginRight: 12, borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)' },  
+  headerTextContainer: { flex: 1 },
+  headerTitle: { fontSize: 16, fontWeight: "700", color: "#fff" },  
+  headerSubtitle: { fontSize: 12, color: "rgba(255,255,255,0.85)", marginTop: 2 },  
   messageList: { padding: 12 },  
   messageContainer: { flexDirection: "row", marginBottom: 12, maxWidth: "80%" },  
   myMessage: { alignSelf: "flex-end", flexDirection: "row-reverse" },  

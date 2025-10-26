@@ -134,14 +134,6 @@ export function NewsScreen({ navigation }: any) {
             <Clock size={14} color="#666" />
             <Text style={styles.timeText}>{item.date}</Text>
           </View>
-          <View style={styles.actions}>
-            <TouchableOpacity style={styles.actionButton}>
-              <Bookmark size={18} color="#666" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
-              <Share2 size={18} color="#666" />
-            </TouchableOpacity>
-          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -167,6 +159,7 @@ export function NewsScreen({ navigation }: any) {
         showsHorizontalScrollIndicator={false}
         style={styles.categoriesContainer}
         contentContainerStyle={styles.categoriesContent}
+        bounces={false}
       >
         {NEWS_CATEGORIES.map((category) => (
           <TouchableOpacity
@@ -222,7 +215,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e5e5',

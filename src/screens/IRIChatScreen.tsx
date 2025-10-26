@@ -39,10 +39,12 @@ interface Message {
 // TEMPORAL: Hardcodeada para testing (REMOVER EN PRODUCCIÓN)
 
 const GROK_API_KEY = process.env.EXPO_PUBLIC_GROK_API_KEY || '';
+// Usar la API de Groq correctamente
 const GROK_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 // DEBUG: Verificar si la API key se cargó
 console.log('🔑 GROK_API_KEY loaded:', GROK_API_KEY ? `${GROK_API_KEY.substring(0, 10)}...` : 'NOT FOUND');
+console.log('🌐 GROK_API_URL:', GROK_API_URL);
 
 const SYSTEM_CONTEXT = `Eres Irï, el asistente de inteligencia artificial de Investi, una aplicación de educación financiera y comunidad para jóvenes en Nicaragua.
 
@@ -114,6 +116,7 @@ export default function IRIChatScreen({ navigation }: any) {
     setIsLoading(true);
 
     try {
+      console.log('📤 Enviando mensaje a Groq API...');
       const response = await fetch(GROK_API_URL, {
         method: 'POST',
         headers: {
@@ -135,11 +138,25 @@ export default function IRIChatScreen({ navigation }: any) {
         }),
       });
 
+      console.log('📥 Respuesta recibida:', response.status);
+
       if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
+        const errorData = await response.text();
+        console.error('❌ Error response:', errorData);
+        
+        if (response.status === 401) {
+          Alert.alert(
+            'API Key Inválida',
+            'La API key de Groq es inválida o ha expirado.\n\nPor favor:\n1. Verifica que EXPO_PUBLIC_GROK_API_KEY esté correcta en .env\n2. Reinicia el servidor con: npm start --reset-cache\n3. Si el problema persiste, genera una nueva API key en https://console.groq.com'
+          );
+        }
+        
+        throw new Error(`Error ${response.status}: ${response.statusText}. ${errorData}`);
       }
 
       const data = await response.json();
+      console.log('✅ Datos procesados:', data);
+      
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: data.choices[0].message.content,
@@ -149,10 +166,10 @@ export default function IRIChatScreen({ navigation }: any) {
 
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error: any) {
-      console.error('Error al enviar mensaje:', error);
+      console.error('❌ Error al enviar mensaje:', error);
       Alert.alert(
         'Error',
-        'No se pudo enviar el mensaje. Verifica tu conexión a internet y la configuración de la API.'
+        `No se pudo enviar el mensaje: ${error.message}. Verifica que la API key esté configurada correctamente en .env`
       );
     } finally {
       setIsLoading(false);

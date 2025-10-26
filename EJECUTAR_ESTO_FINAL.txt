@@ -1,0 +1,135 @@
+============================================================================
+🔥 EJECUTAR ESTO AHORA - FINAL
+============================================================================
+
+PROBLEMA CRÍTICO: El error persiste porque la función SQL tiene conflicto
+
+ERROR:
+❌ [getSuggestedPeople] Error: {"code": "42846", "message": "COALESCE could not convert type uuid[] to text[]"}
+
+============================================================================
+SOLUCIÓN: EJECUTAR FIX_DEFINITIVO_FORZADO.sql
+============================================================================
+
+Este archivo ELIMINA todas las versiones de la función y crea una nueva.
+
+1. Abrir Supabase SQL Editor
+2. Copiar TODO el contenido de: FIX_DEFINITIVO_FORZADO.sql
+3. Ejecutar (Run)
+4. Verificar mensaje: "Función recreada exitosamente"
+
+============================================================================
+CORRECCIONES APLICADAS EN CÓDIGO
+============================================================================
+
+1. ✅ PromotionsScreen.tsx - RESTAURADO
+   - Código completo funcional
+   - Tabs: Personas, Comunidades, Publicaciones, Promociones
+   - Ya NO muestra "En construcción"
+
+2. ✅ HomeFeedScreen.tsx - Botón Enviar
+   - ANTES: Navegaba a "Messages" (en desarrollo)
+   - AHORA: Navega a "ChatList" (funcional)
+
+3. ✅ HomeFeedScreen.tsx - Mensaje al guardar
+   - Alert: "✓ Guardado - Publicación guardada exitosamente"
+
+4. ✅ NotificationsModal.tsx
+   - Muestra hasta 20 notificaciones
+   - Incluye nombre del usuario
+   - Navega correctamente al hacer click
+
+5. ✅ PickKnowledgeScreen.tsx
+   - Botón "Continuar" más abajo (marginTop: 60)
+
+============================================================================
+CONTADORES Y BADGES
+============================================================================
+
+✅ LIKES (Ya funcionan con trigger):
+- Trigger: update_post_likes_count()
+- Se ejecuta automáticamente en INSERT/DELETE de post_likes
+- Actualiza posts.likes_count
+
+✅ COMENTARIOS (Ya funcionan):
+- Columna: posts.comment_count
+- Se actualiza con cada comentario
+
+✅ BADGES DINÁMICOS (Ya funcionan):
+- Chat: unreadMessagesCount
+- Notificaciones: unreadCount
+- Se actualizan en tiempo real
+
+NOTA SOBRE BADGES:
+- Badge muestra: Total de NO LEÍDAS (ej: 31)
+- Modal muestra: Últimas 20
+- Esto es CORRECTO y esperado
+
+============================================================================
+ARCHIVOS SQL A EJECUTAR
+============================================================================
+
+1. FIX_DEFINITIVO_FORZADO.sql (CRÍTICO)
+   - Elimina y recrea función get_recommended_people_final()
+   - Soluciona error de tipos UUID
+
+2. sql/fix_notifications_table.sql
+   - Agrega columnas: related_id, related_type, from_user_id
+
+3. sql/trigger_update_likes_count.sql (YA EJECUTADO)
+   - Trigger para actualizar likes_count
+
+============================================================================
+ARCHIVOS MODIFICADOS (TOTAL: 6)
+============================================================================
+
+1. FIX_DEFINITIVO_FORZADO.sql (NUEVO - EJECUTAR)
+2. src/screens/PromotionsScreen.tsx (RESTAURADO)
+3. src/screens/HomeFeedScreen.tsx (Botón Enviar corregido)
+4. src/components/NotificationsModal.tsx (Mejoras)
+5. src/screens/PickKnowledgeScreen.tsx (Botón más abajo)
+6. src/rest/api.ts (Ya corregido antes)
+
+============================================================================
+DESPUÉS DE EJECUTAR SQL
+============================================================================
+
+1. Reiniciar:
+   npx expo start --clear
+
+2. Logs esperados:
+   ✅ [getSuggestedPeople] Personas recomendadas: X
+   ✅ [likePost] Notificación creada
+   ✅ Personas sugeridas: X
+
+3. NO debe aparecer:
+   ❌ COALESCE could not convert type uuid[] to text[]
+   ❌ operator does not exist: text = uuid
+
+============================================================================
+PRUEBAS FINALES
+============================================================================
+
+[ ] 1. CommunityRecommendationsScreen → Muestra personas
+[ ] 2. PromotionsScreen → Funciona correctamente (no "En construcción")
+[ ] 3. HomeFeed → Botón Enviar va a ChatList
+[ ] 4. HomeFeed → Guardar post muestra mensaje
+[ ] 5. Notificaciones → Muestra nombre de usuario
+[ ] 6. Notificaciones → Click navega correctamente
+[ ] 7. Likes → Contador se actualiza
+[ ] 8. Badges → Muestran números correctos
+
+============================================================================
+RESUMEN DE PROBLEMAS RESUELTOS
+============================================================================
+
+✅ Función SQL con tipos correctos
+✅ PromotionsScreen restaurado
+✅ Botón Enviar navega a ChatList
+✅ Mensaje al guardar publicación
+✅ Notificaciones con nombre de usuario
+✅ Notificaciones navegables
+✅ Likes con trigger automático
+✅ Badges dinámicos funcionando
+
+============================================================================

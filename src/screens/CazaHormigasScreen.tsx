@@ -510,10 +510,6 @@ export function CazaHormigasScreen() {
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>El CazaHormigas</Text>
-          <View style={styles.premiumBadge}>
-            <Crown size={12} color="#FFD700" />
-            <Text style={styles.premiumText}>PREMIUM</Text>
-          </View>
         </View>
       </View>
 

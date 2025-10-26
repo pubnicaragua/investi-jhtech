@@ -1,0 +1,142 @@
+============================================================================
+🔥 EJECUTAR ESTO AHORA - CRÍTICO
+============================================================================
+
+PROBLEMA: El error persiste porque NO ejecutaste el SQL en Supabase
+
+ERROR:
+❌ [getSuggestedPeople] Error: {"code": "42846", "message": "COALESCE could not convert type uuid[] to text[]"}
+
+SOLUCIÓN: Ejecutar FIX_CRITICO_AHORA.sql EN SUPABASE
+
+============================================================================
+PASO 1: EJECUTAR SQL EN SUPABASE (OBLIGATORIO)
+============================================================================
+
+1. Abrir Supabase SQL Editor
+2. Copiar TODO el contenido de: FIX_CRITICO_AHORA.sql
+3. Ejecutar (Run)
+4. Verificar mensaje: "Función corregida"
+
+2. Ejecutar: sql/fix_notifications_table.sql
+   - Agrega columnas: related_id, related_type, from_user_id
+   - Permite notificaciones de likes
+
+============================================================================
+PASO 2: REINICIAR APP
+============================================================================
+
+npx expo start --clear
+
+============================================================================
+CORRECCIONES APLICADAS EN CÓDIGO
+============================================================================
+
+1. ✅ HomeFeedScreen.tsx
+   - Mensaje al guardar: "✓ Guardado - Publicación guardada exitosamente"
+   - Más sutil que antes
+
+2. ✅ NotificationsModal.tsx
+   - Muestra hasta 20 notificaciones (antes 5)
+   - Incluye nombre del usuario: "Juan recomendó tu publicación"
+   - Navega correctamente al hacer click
+   - Tipos soportados: like, comment, follow, message
+
+3. ✅ PickKnowledgeScreen.tsx
+   - Botón "Continuar" más abajo (marginTop: 60)
+
+4. ✅ Badges dinámicos (YA ESTABAN BIEN)
+   - Chat: muestra unreadMessagesCount
+   - Notificaciones: muestra unreadCount
+   - Se actualizan en tiempo real
+
+============================================================================
+LOGS ESPERADOS DESPUÉS DE EJECUTAR SQL
+============================================================================
+
+✅ CORRECTO:
+```
+🔍 [getSuggestedPeople] Buscando personas para userId: [uuid] limit: 10
+✅ [getSuggestedPeople] Personas recomendadas: X
+📊 [getSuggestedPeople] Scores: [...]
+```
+
+❌ NO DEBE APARECER:
+```
+❌ COALESCE could not convert type uuid[] to text[]
+❌ operator does not exist: text = uuid
+```
+
+============================================================================
+NOTIFICACIONES - MEJORAS APLICADAS
+============================================================================
+
+ANTES:
+- Solo 5 notificaciones
+- "Nuevo mensaje" sin nombre
+- No navegaba al hacer click
+
+AHORA:
+- Hasta 20 notificaciones
+- "Nuevo mensaje de Juan Pérez"
+- Navega a PostDetail, Profile, o ChatList según tipo
+- Tipos de mensaje:
+  * like → "Juan recomendó tu publicación"
+  * comment → "María comentó tu publicación"
+  * follow → "Pedro comenzó a seguirte"
+  * message → "Nuevo mensaje de Ana"
+
+============================================================================
+BADGES DINÁMICOS - CONFIRMACIÓN
+============================================================================
+
+✅ Chat (MessageSquare icon):
+- Línea 916-920 en HomeFeedScreen.tsx
+- Badge muestra: unreadMessagesCount
+- Se actualiza con loadConversations()
+
+✅ Notificaciones (Bell icon):
+- Línea 903-908 en HomeFeedScreen.tsx
+- Badge muestra: unreadCount
+- Se actualiza con loadNotifications()
+- Suscripción en tiempo real activa
+
+PROBLEMA REPORTADO:
+"Me carga como que tuviera 31 notificaciones pero solo me cargan 3"
+
+CAUSA POSIBLE:
+- La función getNotifications() cuenta TODAS las notificaciones
+- Pero el modal solo mostraba 5 (ahora 20)
+- El badge muestra el total de NO LEÍDAS
+- El modal muestra las últimas 20
+
+SOLUCIÓN:
+- Ahora muestra 20 notificaciones en el modal
+- El badge sigue mostrando el total de NO LEÍDAS
+- Esto es correcto: badge = total no leídas, modal = últimas 20
+
+============================================================================
+RESUMEN DE ARCHIVOS MODIFICADOS
+============================================================================
+
+1. FIX_CRITICO_AHORA.sql (EJECUTAR EN SUPABASE)
+2. sql/fix_notifications_table.sql (EJECUTAR EN SUPABASE)
+3. src/screens/HomeFeedScreen.tsx
+4. src/components/NotificationsModal.tsx
+5. src/screens/PickKnowledgeScreen.tsx
+
+============================================================================
+CHECKLIST FINAL
+============================================================================
+
+[ ] 1. Ejecutar FIX_CRITICO_AHORA.sql en Supabase
+[ ] 2. Ejecutar sql/fix_notifications_table.sql en Supabase
+[ ] 3. npx expo start --clear
+[ ] 4. Probar: CommunityRecommendationsScreen → Debe mostrar personas
+[ ] 5. Probar: Guardar post → Debe mostrar "✓ Guardado"
+[ ] 6. Probar: Ver notificaciones → Debe mostrar nombre de usuario
+[ ] 7. Probar: Click en notificación → Debe navegar correctamente
+[ ] 8. Probar: Badge de chat → Debe mostrar número correcto
+[ ] 9. Probar: Badge de notificaciones → Debe mostrar número correcto
+
+============================================================================

@@ -387,8 +387,8 @@ export function HomeFeedScreen({ navigation }: any) {
   }, [userId])
 
   const handleSearch = () => {
-    if (!searchQuery.trim()) return
-    navigation.navigate("Promotions", { query: searchQuery })
+    // Navegar a Promotions sin query para que el usuario busque allí
+    navigation.navigate("Promotions" as never)
   }
 
   const handleLike = async (postId: string) => {
@@ -451,25 +451,22 @@ export function HomeFeedScreen({ navigation }: any) {
           return newSet
         })
         // TODO: Llamar API para eliminar (unsavePost)
+        Alert.alert("", "Publicación eliminada de guardados")
       } else {
-        // Guardar post
-        setSavedPosts(prev => new Set(prev).add(postId))
+        // Intentar guardar post
         const result = await savePost(postId, userId)
         
         if (result === null) {
-          // Ya estaba guardado, solo actualizar UI
+          // Ya estaba guardado en BD
+          Alert.alert("", "Esta publicación ya estaba guardada")
+          // Actualizar UI para reflejar estado real
+          setSavedPosts(prev => new Set(prev).add(postId))
           return
         }
         
-        // Mostrar confirmación
-        Alert.alert(
-          "✓ Post guardado",
-          "El post se guardó correctamente",
-          [
-            { text: "Ver guardados", onPress: () => navigation.navigate('SavedPosts') },
-            { text: "OK", style: "cancel" }
-          ]
-        )
+        // Guardado exitoso
+        setSavedPosts(prev => new Set(prev).add(postId))
+        Alert.alert("✓ Guardado", "Publicación guardada exitosamente")
       }
     } catch (err: any) {
       console.error("Error saving post:", err)
@@ -642,9 +639,15 @@ export function HomeFeedScreen({ navigation }: any) {
     navigation.navigate("PostDetail", { postId })
   }
 
-  const handleSendMessage = (postId: string, targetUserId: string) => {
-    // Navegar a la lista de chats (Messages/ChatList)
-    navigation.navigate("Messages" as never)
+  const handleSendMessage = (postId: string, post: any) => {
+    // Navegar a ChatList con contexto de compartir post
+    navigation.navigate("ChatList", {
+      sharePost: {
+        id: postId,
+        content: post.content || post.contenido || '',
+        author: post.user_name || 'Usuario'
+      }
+    })
   }
 
   const handleNavigation = (routeName: string) => {
@@ -829,7 +832,7 @@ export function HomeFeedScreen({ navigation }: any) {
           
         <TouchableOpacity 
           style={styles.actionBtn} 
-          onPress={() => handleSendMessage(item.id, item.user_id)}
+          onPress={() => handleSendMessage(item.id, item)}
           activeOpacity={0.6}
         >
           <Ionicons name="paper-plane-outline" size={26} color="#4B5563" />

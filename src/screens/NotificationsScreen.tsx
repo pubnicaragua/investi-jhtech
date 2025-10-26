@@ -7,7 +7,8 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ActivityIndicator,
-  RefreshControl
+  RefreshControl,
+  Image
 } from 'react-native'
 import { ArrowLeft, Bell, Heart, MessageCircle, UserPlus, TrendingUp, Users, Star, AlertCircle } from 'lucide-react-native'
 import { getUserNotifications, markNotificationRead, getCurrentUserId } from '../rest/api'
@@ -20,6 +21,8 @@ interface NotificationItem {
   time: string
   read: boolean
   icon: React.ReactNode
+  avatar_url?: string
+  actor_name?: string
 }
 
 export function NotificationsScreen({ navigation }: any) {
@@ -84,7 +87,9 @@ export function NotificationsScreen({ navigation }: any) {
         message: message,
         time: getTimeAgo(notification.created_at),
         read: notification.is_read || false,
-        icon: getNotificationIcon(notification.type)
+        icon: getNotificationIcon(notification.type),
+        avatar_url: notification.actor?.avatar_url || notification.actor?.photo_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(actorName) + '&background=1382EF&color=fff',
+        actor_name: actorName
       }
     })
   }
@@ -242,14 +247,17 @@ export function NotificationsScreen({ navigation }: any) {
       style={[styles.notificationItem, !item.read && styles.unreadNotification]}
       onPress={() => handleNotificationPress(item)}
     >
-      <View style={styles.notificationIcon}>
-        {item.icon}
-      </View>
+      <Image
+        source={{ uri: item.avatar_url || 'https://ui-avatars.com/api/?name=User&background=1382EF&color=fff' }}
+        style={styles.notificationAvatar}
+      />
 
       <View style={styles.notificationContent}>
-        <Text style={styles.notificationTitle}>{item.title}</Text>
+        <View style={styles.notificationHeader}>
+          <Text style={styles.notificationTitle}>{item.actor_name || 'Usuario'}</Text>
+          <Text style={styles.notificationTime}>{item.time}</Text>
+        </View>
         <Text style={styles.notificationMessage}>{item.message}</Text>
-        <Text style={styles.notificationTime}>{item.time}</Text>
       </View>
 
       {!item.read && <View style={styles.unreadDot} />}
@@ -391,23 +399,26 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,  
     borderLeftColor: '#007AFF',  
   },  
-  notificationIcon: {  
-    width: 40,  
-    height: 40,  
-    borderRadius: 20,  
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',  
-    justifyContent: 'center',  
-    alignItems: 'center',  
-    marginRight: 16,  
-  },  
+  notificationAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#E5E7EB',
+    marginRight: 12,
+  },
   notificationContent: {  
     flex: 1,  
-  },  
+  },
+  notificationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   notificationTitle: {  
-    fontSize: 16,  
-    fontWeight: '600',  
-    color: '#111',  
-    marginBottom: 4,  
+    fontSize: 15,  
+    fontWeight: '700',  
+    color: '#111827',  
   },  
   notificationMessage: {  
     fontSize: 14,  

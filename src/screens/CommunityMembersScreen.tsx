@@ -284,7 +284,7 @@ export function CommunityMembersScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <LinearGradient colors={['#2673f3', '#1e5fd9']} style={styles.headerGrad}>
           <View style={styles.headerRow}>
             <TouchableOpacity onPress={() => navigation.goBack()}><ArrowLeft size={24} color="#fff" /></TouchableOpacity>
@@ -301,7 +301,7 @@ export function CommunityMembersScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <LinearGradient colors={['#2673f3', '#1e5fd9']} style={styles.headerGrad}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => navigation.goBack()}><ArrowLeft size={24} color="#fff" /></TouchableOpacity>

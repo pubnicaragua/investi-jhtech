@@ -193,7 +193,7 @@ export function EducacionScreen() {
       <TouchableOpacity key={tool.id} style={styles.toolCard} onPress={() => handleToolPress(tool)} activeOpacity={0.7}>
         <View style={styles.toolIconContainer}><IconComponent size={28} color="#4A90E2" /></View>
         <View style={styles.toolInfo}>
-          <Text style={styles.toolTitle}>{tool.title || tool.name}</Text>
+          <Text style={styles.toolTitle} numberOfLines={2} ellipsizeMode="tail">{tool.title || tool.name}</Text>
           <Text style={styles.toolDescription} numberOfLines={2}>{tool.description}</Text>
         </View>
         <ChevronRight size={20} color="#ccc" />
@@ -237,7 +237,12 @@ export function EducacionScreen() {
         </View>
       </View>
 
-      <ScrollView style={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+      <ScrollView 
+        style={styles.content} 
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        nestedScrollEnabled={true}
+        scrollEnabled={true}
+      >
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#4A90E2" />
@@ -261,7 +266,8 @@ export function EducacionScreen() {
                       renderItem={({ item }) => renderVideoItem(item)}
                       keyExtractor={(item) => item.id}
                       showsHorizontalScrollIndicator={false}
-                      bounces={false}
+                      scrollEnabled={true}
+                      bounces={true}
                       contentContainerStyle={styles.horizontalScrollContent}
                     />
                   </View>
@@ -289,7 +295,8 @@ export function EducacionScreen() {
                         renderItem={({ item }) => renderCourseItem(item)}
                         keyExtractor={(item) => item.id}
                         showsHorizontalScrollIndicator={false}
-                        bounces={false}
+                        scrollEnabled={true}
+                        bounces={true}
                         contentContainerStyle={styles.horizontalScrollContent}
                       />
                     </View>
@@ -303,7 +310,13 @@ export function EducacionScreen() {
                         <Text style={styles.seeAllText}>Ver todas</Text>
                       </TouchableOpacity>
                     </View>
-                    <View style={styles.toolsGrid}>{tools.map(renderToolItem)}</View>
+                    <ScrollView 
+                      horizontal 
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.toolsScrollContent}
+                    >
+                      {tools.map(renderToolItem)}
+                    </ScrollView>
                   </View>
                 )}
               </>
@@ -358,16 +371,22 @@ export function EducacionScreen() {
             {activeTab === 'herramientas' && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Herramientas Financieras</Text>
-                <View style={styles.toolsGrid}>
-                  {tools.length > 0 ? (
-                    tools.map(renderToolGridItem)
-                  ) : (
-                    <View style={styles.emptyState}>
-                      <Wrench size={48} color="#ccc" />
-                      <Text style={styles.emptyStateText}>No hay herramientas disponibles</Text>
-                    </View>
-                  )}
-                </View>
+                {tools.length > 0 ? (
+                  <FlatList
+                    data={tools}
+                    renderItem={({ item }) => renderToolGridItem(item)}
+                    keyExtractor={(item) => item.id}
+                    numColumns={2}
+                    columnWrapperStyle={styles.toolsRow}
+                    contentContainerStyle={styles.toolsListContent}
+                    showsVerticalScrollIndicator={false}
+                  />
+                ) : (
+                  <View style={styles.emptyState}>
+                    <Wrench size={48} color="#ccc" />
+                    <Text style={styles.emptyStateText}>No hay herramientas disponibles</Text>
+                  </View>
+                )}
               </View>
             )}
           </>
@@ -461,7 +480,8 @@ const styles = StyleSheet.create({
   filterChipTextActive: { color: '#fff', fontWeight: '600' },
   videosGrid: { paddingHorizontal: 16, gap: 12 },
   coursesGrid: { paddingHorizontal: 16, gap: 12 },
-  toolsGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, justifyContent: 'space-between' },
+  toolsGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 8, justifyContent: 'space-between', gap: 8 },
+  toolsScrollContent: { paddingHorizontal: 16, gap: 12 },
   videoCard: { width: 280, backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
   videoThumbnail: { width: '100%', height: 160, backgroundColor: '#eee' },
   videoDurationBadge: { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
@@ -490,16 +510,18 @@ const styles = StyleSheet.create({
   coursePrice: { fontSize: 16, fontWeight: '700', color: '#4A90E2' },
   freeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   freeBadgeText: { fontSize: 12, fontWeight: '700', color: '#10b981' },
-  toolCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
+  toolCard: { width: 280, flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 12, marginRight: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 },
   toolIconContainer: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(74, 144, 226, 0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   toolInfo: { flex: 1 },
   toolTitle: { fontSize: 15, fontWeight: '600', color: '#333', marginBottom: 4 },
   toolDescription: { fontSize: 13, color: '#666', lineHeight: 18 },
-  toolGridCard: { width: (SCREEN_WIDTH - 48) / 2, backgroundColor: '#fff', padding: 12, borderRadius: 12, marginBottom: 12, marginHorizontal: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1, alignItems: 'center' },
-  toolGridIconContainer: { width: 50, height: 50, borderRadius: 15, backgroundColor: 'rgba(74, 144, 226, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  toolGridTitle: { fontSize: 12, fontWeight: '600', color: '#333', textAlign: 'center', marginBottom: 2 },
-  toolGridDescription: { fontSize: 10, color: '#666', textAlign: 'center', lineHeight: 14 },
-  toolGridEmoji: { fontSize: 35, textAlign: 'center' },
+  toolsRow: { gap: 12, paddingHorizontal: 16, marginBottom: 12 },
+  toolsListContent: { paddingBottom: 100 },
+  toolGridCard: { flex: 1, backgroundColor: '#fff', padding: 16, borderRadius: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2, alignItems: 'center', justifyContent: 'center', minHeight: 180 },
+  toolGridIconContainer: { width: 56, height: 56, borderRadius: 16, backgroundColor: 'rgba(74, 144, 226, 0.15)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  toolGridTitle: { fontSize: 14, fontWeight: '700', color: '#333', textAlign: 'center', marginBottom: 4 },
+  toolGridDescription: { fontSize: 12, color: '#666', textAlign: 'center', lineHeight: 16 },
+  toolGridEmoji: { fontSize: 40, textAlign: 'center' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 },
   loadingText: { marginTop: 12, fontSize: 16, color: '#666' },
   emptyState: { alignItems: 'center', paddingVertical: 40 },

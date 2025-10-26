@@ -338,10 +338,10 @@ const styles = StyleSheet.create({
   lessonItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 15,
+    padding: 12,
     backgroundColor: '#f8f9fa',
     borderRadius: 8,
-    marginBottom: 8,
+    marginBottom: 6,
     gap: 10,
   },
   lessonNumber: {

@@ -198,10 +198,24 @@ export function NewMessageScreen({ navigation }: any) {
           style={styles.backButton}
           accessibilityLabel="Volver"
         >
-          <ArrowLeft size={24} color="#666" />
+          <ArrowLeft size={24} color="#111827" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Nuevo mensaje</Text>
         <View style={{ width: 40 }} />
+      </View>
+
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchBar}>
+          <Search size={18} color="#9CA3AF" />
+          <TextInput
+            placeholder="Buscar contactos..."
+            placeholderTextColor="#9CA3AF"
+            value={query}
+            onChangeText={setQuery}
+            style={styles.searchInput}
+          />
+        </View>
       </View>
 
       {/* Crear Comunidad Button */}
@@ -217,23 +231,13 @@ export function NewMessageScreen({ navigation }: any) {
       </View>
 
       {/* Personas de interes Section */}
-      <View style={styles.sectionContainer}>
-        <Text style={styles.sectionTitle}>Personas de interes</Text>
-      </View>
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Search size={18} color="#999" />
-          <TextInput
-            placeholder="Buscar contactos..."
-            placeholderTextColor="#999"
-            value={query}
-            onChangeText={setQuery}
-            style={styles.searchInput}
-          />
+      {filteredUsers.length > 0 && (
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>
+            {query ? 'Resultados de búsqueda' : 'Personas de interés'}
+          </Text>
         </View>
-      </View>
+      )}
 
       {/* User List */}
       <FlatList

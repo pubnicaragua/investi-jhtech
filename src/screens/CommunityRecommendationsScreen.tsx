@@ -91,26 +91,37 @@ export function CommunityRecommendationsScreen({ navigation, route }: any) {
 
       console.log('👤 Usuario actual:', user.id)
       
-      // Usar las nuevas funciones SQL mejoradas
-      const { data: recommendedByGoals, error: commError } = await supabase
-        .rpc('get_recommended_communities', { user_id_param: user.id, limit_param: 10 });
+      // Obtener comunidades y personas recomendadas
+      let recommendedByGoals: any[] = []
+      let suggestedPeopleData: any[] = []
       
-      const { data: suggestedPeopleData, error: peopleError } = await supabase
-        .rpc('get_recommended_people', { user_id_param: user.id, limit_param: 10 });
-      
-      if (commError) {
-        console.error('Error getting recommended communities:', commError);
-        // Fallback a método anterior
-        const fallbackComm = await getRecommendedCommunitiesByGoals(user.id, 6);
-        const fallbackPeople = await getSuggestedPeople(user.id, 6);
-        
-        const [recommendedByGoals, suggestedPeopleData] = await Promise.all([
-          Promise.resolve(fallbackComm),
-          Promise.resolve(fallbackPeople)
-        ]);
+      try {
+        // Usar función definitiva de personas
+        suggestedPeopleData = await getSuggestedPeople(user.id, 10)
+        console.log('✅ Personas sugeridas:', suggestedPeopleData?.length || 0)
+      } catch (peopleError) {
+        console.error('❌ Error obteniendo personas:', peopleError)
       }
       
-      console.log('🎯 Comunidades recomendadas por algoritmo:', recommendedByGoals?.length || 0)
+      try {
+        // Obtener comunidades recomendadas
+        const { data: commData, error: commError } = await supabase
+          .rpc('get_recommended_communities', { user_id_param: user.id, limit_param: 10 })
+        
+        if (commError) {
+          console.error('Error getting recommended communities:', commError)
+          // Fallback
+          recommendedByGoals = await getRecommendedCommunitiesByGoals(user.id, 6)
+        } else {
+          recommendedByGoals = commData || []
+        }
+      } catch (commError) {
+        console.error('❌ Error obteniendo comunidades:', commError)
+        recommendedByGoals = await getRecommendedCommunitiesByGoals(user.id, 6)
+      }
+      
+      console.log('🎯 Comunidades recomendadas:', recommendedByGoals?.length || 0)
+      console.log('👥 Personas sugeridas:', suggestedPeopleData?.length || 0)
       
       let finalCommunities: Community[] = []
       
@@ -166,28 +177,9 @@ export function CommunityRecommendationsScreen({ navigation, route }: any) {
           reason: person.reason || 'Intereses similares'
         }))
       } else {
-        finalPeople = [
-          {
-            id: 'person-1',
-            name: 'Jorge Méndez',
-            avatar_url: 'https://i.pravatar.cc/100?img=1',
-            profession: 'Mercadólogo y financista',
-            expertise_areas: ['Inversiones para principiantes'],
-            mutual_connections: 5,
-            compatibility_score: 85,
-            reason: 'Intereses similares'
-          },
-          {
-            id: 'person-2',
-            name: 'Claudio Eslava',
-            avatar_url: 'https://i.pravatar.cc/100?img=2',
-            profession: 'Financiero',
-            expertise_areas: ['Inversiones para principiantes'],
-            mutual_connections: 3,
-            compatibility_score: 78,
-            reason: 'Conexiones mutuas'
-          }
-        ]
+        // NO usar datos mock, dejar vacío si no hay personas reales
+        finalPeople = []
+        console.log('⚠️ No hay personas sugeridas disponibles')
       }
       
       setCommunities(finalCommunities)
@@ -321,7 +313,7 @@ export function CommunityRecommendationsScreen({ navigation, route }: any) {
       } else {
         console.error('❌ [handleJoin] Error: No hay usuario logueado')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ [handleJoin] EXCEPCIÓN capturada:', {
         error: error,
         message: error?.message,
@@ -742,10 +734,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
     backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
   },
   backBtn: { 
     width: 40, 
@@ -755,13 +752,13 @@ const styles = StyleSheet.create({
   },
   headerTitle: { 
     fontSize: 17, 
-    fontWeight: "600", 
+    fontWeight: "700", 
     color: "#111" 
   },
   skipText: { 
     color: "#2673f3", 
     fontSize: 16, 
-    fontWeight: "400" 
+    fontWeight: "600" 
   },
   scrollContent: {
     paddingBottom: 100,
@@ -780,15 +777,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16 
   },
   card: {
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
     backgroundColor: "#fff",
-    marginBottom: 4,
+    marginBottom: 8,
   },
   cardImage: { 
     width: "100%", 
@@ -840,10 +837,11 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   cardName: { 
-    fontSize: 17, 
-    fontWeight: "700", 
+    fontSize: 18, 
+    fontWeight: "800", 
     color: "#111", 
-    marginBottom: 6,
+    marginBottom: 8,
+    letterSpacing: -0.3,
   },
   cardMeta: { 
     flexDirection: 'row', 
@@ -864,14 +862,14 @@ const styles = StyleSheet.create({
   },
   joinBtn: {
     backgroundColor: "#2673f3",
-    borderRadius: 24,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    borderRadius: 28,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
     shadowColor: "#2673f3",
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -882,7 +880,8 @@ const styles = StyleSheet.create({
   joinBtnText: { 
     color: "#fff", 
     fontWeight: "700", 
-    fontSize: 13 
+    fontSize: 14,
+    letterSpacing: 0.3,
   },
   emptyContainer: {
     paddingVertical: 60,
@@ -1058,19 +1057,20 @@ const styles = StyleSheet.create({
   },
   finishBtn: {
     backgroundColor: "#2673f3",
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: 18,
+    borderRadius: 16,
     alignItems: "center",
     shadowColor: "#2673f3",
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
   },
   finishBtnText: { 
     color: "#fff", 
-    fontSize: 16, 
-    fontWeight: "700" 
+    fontSize: 17, 
+    fontWeight: "800",
+    letterSpacing: 0.5,
   },
   loadingContainer: { 
     flex: 1, 
@@ -1212,7 +1212,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
     marginBottom: 8,
-    textShadow: '0px 3px 6px rgba(0, 0, 0, 0.9)',
+    textShadowColor: 'rgba(0, 0, 0, 0.9)',
+    textShadowOffset: { width: 0, height: 3 },
+    textShadowRadius: 6,
   },
   doorWelcomeText: {
     fontSize: 16,
@@ -1220,7 +1222,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     opacity: 0.95,
     fontWeight: '600',
-    textShadow: '0px 2px 4px rgba(0, 0, 0, 0.8)',
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   doorCheckmark: {
     marginTop: 20,

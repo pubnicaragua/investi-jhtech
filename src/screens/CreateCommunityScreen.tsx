@@ -187,7 +187,7 @@ export default function CreateCommunityScreen({ navigation }: any) {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -487,7 +487,16 @@ export default function CreateCommunityScreen({ navigation }: any) {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.scrollView} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        ref={scrollViewRef}
+        style={styles.scrollView} 
+        keyboardShouldPersistTaps="handled" 
+        keyboardDismissMode="on-drag" 
+        showsVerticalScrollIndicator={false}
+        bounces={true}
+        alwaysBounceVertical={true}
+        contentContainerStyle={{ paddingBottom: 120 }}
+      >
         {/* Foto de la comunidad */}
         <View style={styles.stepContainer}>
           <Text style={styles.stepTitle}>Foto de la comunidad</Text>
