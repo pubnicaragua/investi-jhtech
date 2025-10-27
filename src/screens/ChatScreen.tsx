@@ -66,6 +66,7 @@ export function ChatScreen({ navigation, route }: any) {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [pendingMedia, setPendingMedia] = useState<{ type: string; uri: string; file: any } | null>(null);
   const [showAttachModal, setShowAttachModal] = useState(false);
+  const [shareSent, setShareSent] = useState(false);
   
   // Estados de presencia
   const [isOnline, setIsOnline] = useState(false);
@@ -200,6 +201,36 @@ export function ChatScreen({ navigation, route }: any) {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     };
   }, [conversationId, participant]);
+
+  // Enviar post compartido si se recibió sharePost en params
+  useEffect(() => {
+    const routeParams: any = (route as any).params || {}
+    const sharePost = routeParams.sharePost
+    const canSend = conversationId && sharePost && currentUserId && !shareSent
+    if (!canSend) return
+
+    const sendSharedPost = async () => {
+      try {
+        const payload = JSON.stringify({ postId: sharePost.id, content: sharePost.content || sharePost.contenido || '', isCommunity: !!sharePost.isCommunity })
+        await (sendChatMessage as any)({
+          conversation_id: conversationId!,
+          user_id: currentUserId!,
+          other_user_id: (participant?.id || routeParams.participant?.id) as any,
+          content: payload,
+          // El backend acepta solo 'text' | 'image' | 'file' (check constraint).
+          // Guardamos el JSON en content y usamos message_type 'text' para evitar violar la constraint.
+          message_type: 'text'
+        })
+        setShareSent(true)
+      } catch (err) {
+        console.error('Error sending shared post message:', err)
+      }
+    }
+
+    // Defer slightly para asegurar que la conversación exista en servidor
+    const timer = setTimeout(() => { sendSharedPost() }, 250)
+    return () => clearTimeout(timer)
+  }, [conversationId, currentUserId, participant, route, shareSent])
 
   // Cargar estado de presencia inicial
   const loadUserPresence = async () => {
@@ -681,6 +712,40 @@ export function ChatScreen({ navigation, route }: any) {
         <View style={[styles.bubble, isMine ? styles.myBubble : styles.otherBubble]}>
           {!isMine && (
             <Text style={styles.senderName}>{item.user?.nombre}</Text>
+          )}
+          {((item.message_type === 'post') || (item.message_type === 'text' && (() => {
+            try {
+              if (typeof item.content !== 'string') return false
+              const trimmed = item.content.trim()
+              if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return false
+              const parsed = JSON.parse(trimmed)
+              return !!(parsed && (parsed.postId || parsed.id))
+            } catch (err) {
+              return false
+            }
+          })())) && (
+            (() => {
+              try {
+                const parsed = typeof item.content === 'string' ? JSON.parse(item.content) : item.content
+                const postId = parsed?.postId || parsed?.id
+                const postContent = parsed?.content || ''
+                const isCommunity = !!parsed?.isCommunity
+                return (
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (isCommunity) navigation.navigate('CommunityPostDetail', { postId })
+                      else navigation.navigate('PostDetail', { postId })
+                    }}
+                    style={{ padding: 8, backgroundColor: isMine ? 'transparent' : 'transparent' }}
+                  >
+                    <Text style={[styles.messageText, isMine && styles.myMessageText, { fontWeight: '700', marginBottom: 6 }]} numberOfLines={2}>{postContent}</Text>
+                    <Text style={[{ color: isMine ? '#e6f0ff' : '#2673f3', fontSize: 12 }]}>Ver publicación</Text>
+                  </TouchableOpacity>
+                )
+              } catch (err) {
+                return null
+              }
+            })()
           )}
           {item.media_url && item.message_type === 'image' && (
             <Image source={{ uri: item.media_url }} style={styles.messageImage} />

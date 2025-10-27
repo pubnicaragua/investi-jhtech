@@ -668,7 +668,7 @@ export function CommunityDetailScreen() {
               <Text style={styles.postActionText}>Compartir</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.postAction} onPress={() => handleSendMessage(post.user_id)}>
+            <TouchableOpacity style={styles.postAction} onPress={() => navigation.navigate('ChatList', { sharePost: { id: post.id, content: post.contenido, isCommunity: true } })}>
               <Ionicons name="paper-plane-outline" size={18} color="#4B5563" />
               <Text style={styles.postActionText}>Enviar</Text>
             </TouchableOpacity>

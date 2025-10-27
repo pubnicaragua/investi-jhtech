@@ -85,6 +85,8 @@ interface Chat {
   
 export function ChatListScreen({ navigation }: any) {  
   const route = useRoute()
+  const routeParams: any = (route as any).params || {}
+  const incomingSharePost = routeParams.sharePost
   const currentRoute = route.name
   const [users, setUsers] = useState<User[]>([]);  
   const [chats, setChats] = useState<Chat[]>([]);  
@@ -308,7 +310,7 @@ export function ChatListScreen({ navigation }: any) {
   };
   
   const renderUserStory = ({ item }: { item: User }) => (  
-    <TouchableOpacity style={styles.storyContainer} onPress={() => handleStartConversation(item.id)}>  
+    <TouchableOpacity style={styles.storyContainer} onPress={() => handleStartConversation(item.id, incomingSharePost)}>  
       <View style={styles.storyAvatarContainer}>  
         <Image  
           source={{ uri: item.avatar_url || "https://i.pravatar.cc/100" }}  
@@ -348,13 +350,14 @@ export function ChatListScreen({ navigation }: any) {
 
           // Navigate
           if (isCommunity) {
-            navigation.navigate('GroupChatScreen', { groupId: item.id, name: name });
+            navigation.navigate('GroupChatScreen', { groupId: item.id, name: name, sharePost: incomingSharePost });
           } else {
             navigation.navigate('ChatScreen', {
               conversationId: item.id,
               type: item.type,
               name: name,
               participant: item.type === 'direct' ? item.user : null,
+              sharePost: incomingSharePost,
             });
           }
         }}
@@ -383,7 +386,7 @@ export function ChatListScreen({ navigation }: any) {
     );  
   };  
 
-  async function handleStartConversation(userId: string) {
+  async function handleStartConversation(userId: string, sharePost?: any) {
     try {
       const currentUserIdLocal = await getCurrentUserId();
       if (!currentUserIdLocal) return;
@@ -418,7 +421,7 @@ export function ChatListScreen({ navigation }: any) {
           return updated;
         });
 
-        navigation.replace('ChatScreen', { conversationId: convId, type: 'direct', participant: { id: participantInfo.id, nombre: participantInfo.nombre, avatar_url: participantInfo.avatar_url } });
+  navigation.replace('ChatScreen', { conversationId: convId, type: 'direct', participant: { id: participantInfo.id, nombre: participantInfo.nombre, avatar_url: participantInfo.avatar_url }, sharePost: sharePost || incomingSharePost });
         loadData().catch(() => {});
       } else {
         await loadData();

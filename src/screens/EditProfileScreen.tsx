@@ -86,18 +86,19 @@ export default function EditProfileScreen() {
     try {
       setUploading(true);
 
-      // Convertir URI a blob
+      // Fetch the file and upload as a Uint8Array (works on React Native/Expo)
       const response = await fetch(uri);
-      const blob = await response.blob();
-      
-      const fileExt = uri.split('.').pop();
+      const arrayBuffer = await response.arrayBuffer();
+      const uint8 = new Uint8Array(arrayBuffer);
+
+      const fileExt = (uri.split('.').pop() || 'jpg').split('?')[0];
       const fileName = `${userId}-${Date.now()}.${fileExt}`;
       const filePath = `avatars/${fileName}`;
 
       // Subir a Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, blob, {
+        .upload(filePath, uint8, {
           contentType: 'image/jpeg',
           upsert: true,
         });

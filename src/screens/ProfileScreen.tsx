@@ -61,6 +61,8 @@ interface ProfileUser {
   location?: string;
   avatarUrl?: string;
   bannerUrl?: string;
+  cover_photo_url?: string;
+  banner_url?: string;
   isVerified?: boolean;
   stats?: {
     postsCount: number;
@@ -113,8 +115,17 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
   const targetUserId = route?.params?.userId || ''
   
   useEffect(() => {  
-    loadProfile()  
-  }, [targetUserId])  
+    loadProfile()
+
+    // Reload profile when screen is focused (e.g., after editing profile)
+    const focusSub = navigation.addListener('focus', () => {
+      loadProfile()
+    })
+
+    return () => {
+      focusSub && focusSub()
+    }
+  }, [targetUserId, navigation])  
   
   const loadProfile = async () => {  
     try {  
@@ -131,10 +142,16 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
       const userData = await getUserComplete(userId)  
       
       if (userData) {
+        // Prefer the mapped bannerUrl returned by getUserComplete (which now includes cover_photo_url).
+        // Fall back to raw fields if needed. Add logs to help debugging when the cover is missing.
+        const resolvedBanner = (userData as any).bannerUrl || (userData as any).cover_photo_url || (userData as any).banner_url || null
         setProfileUser({
           ...userData,
+          bannerUrl: resolvedBanner,
           intereses: []
         })
+        console.log('[ProfileScreen] getUserComplete raw userData:', JSON.stringify(userData, null, 2))
+        console.log('[ProfileScreen] Resolved bannerUrl:', resolvedBanner)
         setIsOwnProfile(userId === currentUserId)
 
         // CRÍTICO: Asignar los posts al feed
@@ -324,49 +341,56 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
         console.log('📤 Subiendo cover photo...', uri)
         
         const fileName = `${currentUserId}/cover_${Date.now()}.jpg`
-        const { supabase } = require('../supabase')
-        
-        // Método correcto para React Native: usar FormData
-        const formData = new FormData()
-        formData.append('file', {
-          uri,
-          type: 'image/jpeg',
-          name: fileName,
-        } as any)
-        
-        const { data, error } = await supabase.storage
-          .from('avatars')
-          .upload(fileName, formData, {
-            contentType: 'image/jpeg',
-            upsert: true
-          })
-        
-        if (error) {
-          console.error('❌ Error uploading cover photo:', error)
-          Alert.alert('Error al subir', `No se pudo subir la foto: ${error.message}`)
-          return
-        }
-        
-        if (data) {
-          const { data: { publicUrl } } = supabase.storage
+        // Fetch file and upload as Uint8Array (works on RN/Expo)
+        try {
+          const response = await fetch(uri)
+          const arrayBuffer = await response.arrayBuffer()
+          const uint8 = new Uint8Array(arrayBuffer)
+
+          const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(fileName, uint8, {
+              contentType: 'image/jpeg',
+              upsert: true,
+            })
+
+          if (uploadError) {
+            console.error('❌ Error uploading cover photo:', uploadError)
+            Alert.alert('Error al subir', `No se pudo subir la foto: ${uploadError.message || uploadError}`)
+            return
+          }
+
+          const { data: getData } = supabase.storage
             .from('avatars')
             .getPublicUrl(fileName)
-          
+
+          const publicUrl = (getData as any)?.publicUrl
+          if (!publicUrl) {
+            console.error('❌ No publicUrl returned for uploaded cover')
+            Alert.alert('Error', 'No se pudo obtener la URL pública')
+            return
+          }
+
           console.log('✅ Cover photo subida:', publicUrl)
-          
+
           const { error: updateError } = await supabase
             .from('users')
             .update({ cover_photo_url: publicUrl })
             .eq('id', currentUserId)
-          
+
           if (updateError) {
             console.error('❌ Error updating cover_photo_url:', updateError)
             Alert.alert('Error', 'No se pudo actualizar el perfil')
           } else {
             console.log('✅ Cover photo actualizada en BD')
+            // Update local state immediately so banner changes without waiting a full reload
+            setProfileUser(prev => prev ? { ...prev, bannerUrl: publicUrl } : prev)
             Alert.alert('✓ Actualizado', 'Foto de portada actualizada')
-            await loadProfile()
           }
+        } catch (uploadErr) {
+          console.error('❌ Error uploading cover photo (fetch/upload):', uploadErr)
+          Alert.alert('Error al subir', `No se pudo subir la foto: ${(uploadErr as any)?.message || String(uploadErr)}`)
+          return
         }
       }
     } catch (error: any) {
@@ -540,7 +564,16 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
             <Share2 size={20} color="#6B7280" />
             <Text style={styles.postActionText}>Compartir</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.postAction}>
+          <TouchableOpacity
+            style={styles.postAction}
+            onPress={() => navigation.navigate('ChatList', {
+              sharePost: {
+                id: post.id,
+                content: content || '',
+                author: userName,
+              }
+            })}
+          >
             <Send size={20} color="#6B7280" />
             <Text style={styles.postActionText}>Enviar</Text>
           </TouchableOpacity>
@@ -742,15 +775,7 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
             <>
               <TouchableOpacity  
                 style={styles.primaryButton}  
-                onPress={() => {
-                  // Navegar al Stack Navigator padre
-                  const parentNav = navigation.getParent()
-                  if (parentNav) {
-                    parentNav.navigate('EditInterests')
-                  } else {
-                    Alert.alert('Error', 'No se pudo abrir la pantalla')
-                  }
-                }}
+                onPress={() => navigation.navigate('EditInterests')}
               >  
                 <Text style={styles.primaryButtonText}>Cambiar mis intereses</Text>  
               </TouchableOpacity>

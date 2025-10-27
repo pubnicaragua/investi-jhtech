@@ -1984,7 +1984,8 @@ export async function getUserComplete(userId: string) {
       userResponse = await request("GET", "/users", {  
         params: {  
           id: `eq.${userId}` ,  
-          select: "id,nombre,bio,location,avatar_url,banner_url,is_verified,fecha_registro,full_name,username,photo_url,pais,role"  
+          // Incluir cover_photo_url porque la app escribe en esa columna
+          select: "id,nombre,bio,location,avatar_url,banner_url,cover_photo_url,is_verified,fecha_registro,full_name,username,photo_url,pais,role"  
         }  
       })  
       console.log('✅ [getUserComplete] User data fetched:', userResponse?.[0]?.nombre || userResponse?.[0]?.username)  
@@ -2063,7 +2064,8 @@ export async function getUserComplete(userId: string) {
       bio: user.bio,  
       location: user.location,  
       avatarUrl: user.avatar_url || user.photo_url,  
-      bannerUrl: user.banner_url,  
+  // Prefer the explicit cover_photo_url (written by uploads), fall back to banner_url
+  bannerUrl: (user as any).cover_photo_url || user.banner_url,  
       isVerified: user.is_verified,
       country: user.pais,
       role: user.role,
