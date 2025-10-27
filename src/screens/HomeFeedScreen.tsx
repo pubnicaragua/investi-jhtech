@@ -90,10 +90,21 @@ export function HomeFeedScreen({ navigation }: any) {
 
   useEffect(() => {
     initializeScreen()
-    
+
     const subscription = AppState.addEventListener('change', handleAppStateChange)
-    return () => subscription.remove()
-  }, [])
+
+    // Reload feed when returning to this screen (e.g., from PostDetail)
+    const focusSubscription = navigation.addListener('focus', () => {
+      if (userId) {
+        loadFeed(userId)
+      }
+    })
+
+    return () => {
+      subscription.remove()
+      focusSubscription()
+    }
+  }, [userId])
 
   const handleAppStateChange = (nextAppState: string) => {
     if (nextAppState === 'active' && userId) {
@@ -152,20 +163,44 @@ export function HomeFeedScreen({ navigation }: any) {
     setError(null)
     try {
       const currentUid = uid || userId
-      
+
       if (currentUid) {
         const data = await getUserFeed(currentUid)
-        setPosts(data || [])
-        
+
+        // Fetch comments for each post to get accurate count
+        const postsWithComments = await Promise.all(
+          (data || []).map(async (post: any) => {
+            try {
+              const { data: comments } = await supabase
+                .from('post_comments')
+                .select('id')
+                .eq('post_id', post.id)
+
+              return {
+                ...post,
+                comments: comments?.length || 0
+              }
+            } catch (err) {
+              console.error(`Error fetching comments for post ${post.id}:`, err)
+              return {
+                ...post,
+                comments: post.comments || 0
+              }
+            }
+          })
+        )
+
+        setPosts(postsWithComments)
+
         if (resetPage) {
           setPage(0)
           setHasMore(true)
         }
-        
-        const liked = new Set(data?.filter((p: any) => p.is_liked).map((p: any) => p.id) || [])
-        const saved = new Set(data?.filter((p: any) => p.is_saved).map((p: any) => p.id) || [])
-        const followed = new Set(data?.filter((p: any) => p.is_following).map((p: any) => p.user_id) || [])
-        
+
+        const liked = new Set(postsWithComments?.filter((p: any) => p.is_liked).map((p: any) => p.id) || [])
+        const saved = new Set(postsWithComments?.filter((p: any) => p.is_saved).map((p: any) => p.id) || [])
+        const followed = new Set(postsWithComments?.filter((p: any) => p.is_following).map((p: any) => p.user_id) || [])
+
         setLikedPosts(liked)
         setSavedPosts(saved)
         setFollowedUsers(followed)

@@ -22,6 +22,7 @@ import {
   RefreshControl,
   FlatList,
   Dimensions,
+  Keyboard,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useNavigation, useRoute, NavigationProp } from '@react-navigation/native'
@@ -66,10 +67,19 @@ export function PostDetailScreen() {
   const [replyingTo, setReplyingTo] = useState<any>(null)
   const [sendingComment, setSendingComment] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [keyboardOffset, setKeyboardOffset] = useState(0)
 
   useEffect(() => {
     loadData()
-    
+
+    // Keyboard listeners
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardOffset(e.endCoordinates.height)
+    })
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardOffset(0)
+    })
+
     // Suscripción realtime para comentarios
     const commentsSubscription = supabase
       .channel(`post-comments-${postId}`)
@@ -83,7 +93,7 @@ export function PostDetailScreen() {
         },
         async (payload: any) => {
           console.log('💬 Comentario realtime:', payload)
-          
+
           if (payload.eventType === 'INSERT') {
             // Obtener datos completos del comentario con usuario
             const { data: newComment } = await supabase
@@ -91,11 +101,16 @@ export function PostDetailScreen() {
               .select('*, user:users(id, full_name, nombre, username, avatar_url, photo_url)')
               .eq('id', payload.new.id)
               .single()
-            
+
             if (newComment) {
-              setComments(prev => [newComment, ...prev])
-              // Actualizar contador
-              setPost((prevPost: any) => prevPost ? { ...prevPost, comment_count: (prevPost.comment_count || 0) + 1 } : null)
+              setComments(prev => {
+                const exists = prev.some(c => c.id === newComment.id)
+                if (!exists) {
+                  setPost((prevPost: any) => prevPost ? { ...prevPost, comment_count: (prevPost.comment_count || 0) + 1 } : null)
+                  return [newComment, ...prev]
+                }
+                return prev
+              })
             }
           } else if (payload.eventType === 'DELETE') {
             setComments(prev => prev.filter(c => c.id !== payload.old.id))
@@ -105,8 +120,10 @@ export function PostDetailScreen() {
         }
       )
       .subscribe()
-    
+
     return () => {
+      keyboardDidShowListener.remove()
+      keyboardDidHideListener.remove()
       commentsSubscription.unsubscribe()
     }
   }, [postId])
@@ -273,7 +290,7 @@ export function PostDetailScreen() {
     if (!commentText.trim() || !currentUser || sendingComment) return
     try {
       setSendingComment(true)
-      
+
       // Enviar comentario al backend
       const response = await request('POST', '/post_comments', {
         body: {
@@ -282,10 +299,12 @@ export function PostDetailScreen() {
           contenido: commentText.trim(),
         },
       })
-      
-      if (response && response.length > 0) {
+
+      // If API returns the created comment, append; otherwise, reload
+      if (response && response.id) {
+        // Normalize to the shape used in comments list
         const newComment = {
-          ...response[0],
+          ...response,
           user: {
             id: currentUser.id,
             full_name: currentUser.full_name || currentUser.nombre || currentUser.username,
@@ -295,18 +314,21 @@ export function PostDetailScreen() {
             photo_url: currentUser.photo_url || currentUser.avatar_url
           },
         }
-        // CRÍTICO: Forzar actualización de estado
-        setComments(prev => [newComment, ...prev])
+        setComments(prev => [...prev, newComment])
         setPost((prevPost: any) => prevPost ? { ...prevPost, comment_count: (prevPost.comment_count || 0) + 1 } : null)
-        setCommentText('')
-        setReplyingTo(null)
         console.log('✅ Comentario agregado a la lista:', newComment)
+      } else {
+        // If API doesn't return the comment, reload data
+        await loadData()
       }
+      setCommentText('')
+      setReplyingTo(null)
     } catch (error) {
       console.error('Error sending comment:', error)
       Alert.alert('Error', 'No se pudo enviar el comentario')
     } finally {
       setSendingComment(false)
+      Keyboard.dismiss()
     }
   }
 
@@ -455,7 +477,11 @@ export function PostDetailScreen() {
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: keyboardOffset + 120 }}
+        >
           <View style={styles.postCard}>
             <TouchableOpacity style={styles.authorContainer}>
               <Image
@@ -547,7 +573,7 @@ export function PostDetailScreen() {
               </View>
               <View style={styles.statItem}>
                 <MessageCircle size={16} color="#666" />
-                <Text style={styles.statText}>{post.comment_count || 0} comentarios</Text>
+                <Text style={styles.statText}>{comments.length || 0} comentarios</Text>
               </View>
               <View style={styles.statItem}>
                 <Share2 size={16} color="#666" />
@@ -568,7 +594,7 @@ export function PostDetailScreen() {
           </View>
 
           <View style={styles.commentsSection}>
-            <Text style={styles.commentsSectionTitle}>Comentarios ({post.comment_count || 0})</Text>
+            <Text style={styles.commentsSectionTitle}>Comentarios ({comments.length || 0})</Text>
             {comments.length === 0 ? (
               <View style={styles.noComments}>
                 <MessageCircle size={48} color="#ccc" />
@@ -596,7 +622,7 @@ export function PostDetailScreen() {
           </View>
         </ScrollView>
 
-        <View style={styles.commentInputContainer}>
+        <View style={[styles.commentInputContainer, { bottom: keyboardOffset }]}>
           <TextInput
             style={styles.commentInput}
             value={commentText}
@@ -654,7 +680,7 @@ const styles = StyleSheet.create({
   commentAuthor: { fontSize: 15, fontWeight: '800', color: '#111', letterSpacing: -0.2 },
   commentTime: { fontSize: 13, color: '#999', fontWeight: '500' },
   commentText: { fontSize: 15, lineHeight: 22, color: '#111', letterSpacing: -0.1 },
-  commentInputContainer: { flexDirection: 'row', padding: 16, paddingBottom: Platform.OS === 'ios' ? 24 : 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e5e5', alignItems: 'flex-end', gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 4 },
+  commentInputContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', padding: 16, paddingBottom: Platform.OS === 'ios' ? 24 : 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e5e5', alignItems: 'flex-end', gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 4 },
   commentInput: { flex: 1, backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e5e5', borderRadius: 24, paddingHorizontal: 18, paddingVertical: 12, fontSize: 16, maxHeight: 100, color: '#111' },
   sendButton: { backgroundColor: '#2673f3', width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', shadowColor: '#2673f3', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
   sendButtonDisabled: { backgroundColor: '#e5e5e5', shadowOpacity: 0 },

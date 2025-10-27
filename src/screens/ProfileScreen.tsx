@@ -182,17 +182,17 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
           setSuggestedPeople([])
         }
 
-        // Cargar conexiones reales desde tabla followers
+        // Cargar conexiones reales desde tabla user_follows
         try {
           // Contar seguidores (usuarios que siguen a este usuario)
           const { count: followersCount } = await supabase
-            .from('followers')
+            .from('user_follows')
             .select('*', { count: 'exact', head: true })
             .eq('following_id', userId)
-          
+
           // Contar siguiendo (usuarios que este usuario sigue)
           const { count: followingCount } = await supabase
-            .from('followers')
+            .from('user_follows')
             .select('*', { count: 'exact', head: true })
             .eq('follower_id', userId)
           
@@ -244,34 +244,61 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
     loadProfile()
   }  
   
-  const handleFollow = async () => {  
-    if (!profileUser) return  
-      
-    try {  
-      const currentUserId = await getCurrentUserId()  
-      if (!currentUserId) return  
-  
-      if (isFollowing) {  
-        await unfollowUser(currentUserId, profileUser.id)  
-      } else {  
-        await followUser(currentUserId, profileUser.id)  
-      }  
+  const handleFollow = async () => {
+    if (!profileUser) return
+
+    try {
+      const currentUserId = await getCurrentUserId()
+      if (!currentUserId) return
+
+      const wasFollowing = isFollowing
+
+      // Update UI optimistically
       setIsFollowing(!isFollowing)
-      
+      setConnectionsData(prev => ({
+        ...prev,
+        followers: wasFollowing ? prev.followers - 1 : prev.followers + 1
+      }))
+
       if (profileUser.stats) {
         setProfileUser({
           ...profileUser,
           stats: {
             ...profileUser.stats,
-            followersCount: isFollowing 
-              ? profileUser.stats.followersCount - 1 
+            followersCount: wasFollowing
+              ? profileUser.stats.followersCount - 1
               : profileUser.stats.followersCount + 1
           }
         })
       }
-    } catch (error) {  
-      Alert.alert("Error", "No se pudo realizar la acción")  
-    }  
+
+      if (wasFollowing) {
+        await unfollowUser(currentUserId, profileUser.id)
+      } else {
+        await followUser(currentUserId, profileUser.id)
+      }
+    } catch (error) {
+      // Revert optimistic updates on error
+      setIsFollowing(isFollowing)
+      setConnectionsData(prev => ({
+        ...prev,
+        followers: isFollowing ? prev.followers + 1 : prev.followers - 1
+      }))
+
+      if (profileUser.stats) {
+        setProfileUser({
+          ...profileUser,
+          stats: {
+            ...profileUser.stats,
+            followersCount: isFollowing
+              ? profileUser.stats.followersCount + 1
+              : profileUser.stats.followersCount - 1
+          }
+        })
+      }
+
+      Alert.alert("Error", "No se pudo realizar la acción")
+    }
   }
 
   const handleEditProfile = () => {
@@ -407,7 +434,7 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
 
   const handleShare = async () => {
     try {
-      const userName = profileUser?.full_name || profileUser?.nombre || profileUser?.username || 'este usuario'
+      const userName = profileUser?.username || 'este usuario'
       const profileId = targetUserId || profileUser?.id || ''
       await Share.share({
         message: `¡Mira el perfil de ${userName} en Investí! 🚀\n\nÚnete a la comunidad de inversionistas: https://investi.app/profile/${profileId}`,
@@ -698,12 +725,12 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
               </Text>  
             )}
             
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.contactsLink}
               onPress={() => navigation.navigate('Followers', { userId: targetUserId })}
             >
               <Text style={styles.contactsLinkText}>
-                {connectionsData.mutualConnections} contactos
+                {connectionsData.followers} seguidores
               </Text>
             </TouchableOpacity>
           </View>  
