@@ -1,23 +1,26 @@
 /**
  * InvestmentSimulatorScreen.tsx
  * Pantalla para simular inversiones con diferentes escenarios
- * 100% Hardcoded - No requiere backend
+ * Usa datos reales del mercado combinados con escenarios predefinidos
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
-import { ArrowLeft, TrendingUp, DollarSign, Calendar, Percent, PieChart } from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { ArrowLeft, DollarSign, PieChart, TrendingUp } from 'lucide-react-native';
+import { getMarketStocks, MarketStock } from '../services/searchApiService';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { RootStackParamList } from '../types/navigation';
 
 // Escenarios de inversión predefinidos
 const INVESTMENT_SCENARIOS = [
@@ -61,13 +64,76 @@ const INVESTMENT_SCENARIOS = [
 
 export function InvestmentSimulatorScreen() {
   const navigation = useNavigation();
+  const route = useRoute<RouteProp<RootStackParamList, 'InvestmentSimulator'>>();
   const insets = useSafeAreaInsets();
+  const stockFromRoute = route.params?.stock as MarketStock;
 
   const [initialAmount, setInitialAmount] = useState('10000');
   const [monthlyContribution, setMonthlyContribution] = useState('500');
   const [years, setYears] = useState('10');
   const [selectedScenario, setSelectedScenario] = useState(INVESTMENT_SCENARIOS[1]);
   const [showResults, setShowResults] = useState(false);
+  const [stock, setStock] = useState<MarketStock | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Cargar datos del mercado si no vienen en la ruta
+  useEffect(() => {
+    async function loadStockData() {
+      try {
+        if (stockFromRoute) {
+          setStock(stockFromRoute);
+          // Ajustar escenario basado en volatilidad histórica
+          adjustScenarioForStock(stockFromRoute);
+          setLoading(false);
+          return;
+        }
+
+        // Si no hay stock en la ruta, cargar AAPL como default
+        const stocks = await getMarketStocks(['AAPL']);
+        if (stocks && stocks.length > 0) {
+          setStock(stocks[0]);
+          adjustScenarioForStock(stocks[0]);
+        }
+      } catch (error) {
+        console.error('Error loading stock data:', error);
+        // Usar datos dummy si falla la carga
+        setStock({
+          symbol: 'AAPL',
+          name: 'Apple Inc.',
+          price: 150,
+          change: 2.5,
+          changePercent: 1.67,
+          currency: 'USD',
+          exchange: 'NASDAQ'
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadStockData();
+  }, [stockFromRoute]);
+
+  // Ajustar escenario basado en el stock
+  const adjustScenarioForStock = (stock: MarketStock) => {
+    const volatilityAdjustment = Math.abs(stock.changePercent) * 1.5;
+    const scenarios = [...INVESTMENT_SCENARIOS];
+    
+    scenarios.forEach(scenario => {
+      if (scenario.id === 'conservative') {
+        scenario.annualReturn = Math.max(3, stock.changePercent);
+        scenario.volatility = Math.max(2, volatilityAdjustment * 0.5);
+      } else if (scenario.id === 'moderate') {
+        scenario.annualReturn = Math.max(6, stock.changePercent * 1.2);
+        scenario.volatility = Math.max(5, volatilityAdjustment);
+      } else if (scenario.id === 'aggressive') {
+        scenario.annualReturn = Math.max(10, stock.changePercent * 1.5);
+        scenario.volatility = Math.max(10, volatilityAdjustment * 1.5);
+      }
+    });
+
+    setSelectedScenario(scenarios[1]); // Mantener escenario moderado como default
+  };
 
   // Calcular proyección de inversión
   const calculateInvestment = () => {
@@ -106,7 +172,7 @@ export function InvestmentSimulatorScreen() {
   const results = showResults ? calculateInvestment() : null;
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -160,7 +226,7 @@ export function InvestmentSimulatorScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>⏱️ Período (años)</Text>
             <View style={styles.inputContainer}>
-              <Calendar size={20} color="#666" />
+              <DollarSign size={20} color="#666" />
               <TextInput
                 style={styles.input}
                 value={years}
@@ -202,7 +268,7 @@ export function InvestmentSimulatorScreen() {
               </View>
               <View style={styles.scenarioStats}>
                 <View style={styles.stat}>
-                  <Percent size={14} color={scenario.color} />
+                  <DollarSign size={14} color={scenario.color} />
                   <Text style={styles.statLabel}>Retorno Anual</Text>
                   <Text style={[styles.statValue, { color: scenario.color }]}>
                     {scenario.annualReturn}%
@@ -227,7 +293,17 @@ export function InvestmentSimulatorScreen() {
         {/* Resultados */}
         {showResults && results && (
           <View style={styles.resultsSection}>
-            <Text style={styles.resultsTitle}>📈 Proyección de Inversión</Text>
+            <Text style={styles.resultsTitle}>Resultados de la Simulación</Text>
+
+            {stock && (
+              <View style={styles.resultCard}>
+                <Text style={styles.resultLabel}>Stock Simulado</Text>
+                <Text style={styles.resultValue}>{stock.symbol}</Text>
+                <Text style={[styles.resultLabel, { marginTop: 8 }]}>
+                  {stock.name} - ${stock.price} ({stock.changePercent > 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%)
+                </Text>
+              </View>
+            )}
 
             <View style={styles.resultCard}>
               <Text style={styles.resultLabel}>Valor Final</Text>
@@ -479,5 +555,29 @@ const styles = StyleSheet.create({
   },
   disclaimerBold: {
     fontWeight: '700',
+  },
+  stockInfo: {
+    backgroundColor: '#F0F9FF',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#0EA5E9',
+  },
+  stockSymbol: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0C4A6E',
+    marginBottom: 4,
+  },
+  stockPrice: {
+    fontSize: 16,
+    color: '#0369A1',
+    fontWeight: '600',
+  },
+  stockChange: {
+    fontSize: 14,
+    marginTop: 4,
+    color: '#0EA5E9',
   },
 });

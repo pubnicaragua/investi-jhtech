@@ -1,90 +1,16 @@
-/**
+ /**
  * Market Data Service
  * Servicio para obtener datos de mercado en tiempo real
- * Usa SearchAPI (https://www.searchapi.io/)
+ * Usa Financial Modeling Prep API (https://financialmodelingprep.com/)
  */
 
 import { supabase } from '../supabase';
 
-// SearchAPI configuration
-const SEARCHAPI_KEY = 'igaze6ph1NawrHgRDjsWwuFq';
-const SEARCHAPI_BASE_URL = 'https://www.searchapi.io/api/v1/search';
+// Financial Modeling Prep configuration
+const FMP_API_KEY = process.env.EXPO_PUBLIC_FMP_API_KEY || 'demo';
+const FMP_BASE_URL = process.env.EXPO_PUBLIC_FMP_BASE_URL || 'https://financialmodelingprep.com/api/v3';
 
-// Mock data como último fallback
-const MOCK_STOCKS: MarketStock[] = [
-  {
-    symbol: 'AAPL',
-    name: 'Apple Inc.',
-    price: 178.50,
-    change: 2.35,
-    changePercent: 1.33,
-    currency: 'USD',
-    exchange: 'NASDAQ',
-  },
-  {
-    symbol: 'GOOGL',
-    name: 'Alphabet Inc.',
-    price: 142.80,
-    change: -0.95,
-    changePercent: -0.66,
-    currency: 'USD',
-    exchange: 'NASDAQ',
-  },
-  {
-    symbol: 'MSFT',
-    name: 'Microsoft Corporation',
-    price: 378.90,
-    change: 5.20,
-    changePercent: 1.39,
-    currency: 'USD',
-    exchange: 'NASDAQ',
-  },
-  {
-    symbol: 'AMZN',
-    name: 'Amazon.com Inc.',
-    price: 145.30,
-    change: -1.20,
-    changePercent: -0.82,
-    currency: 'USD',
-    exchange: 'NASDAQ',
-  },
-  {
-    symbol: 'TSLA',
-    name: 'Tesla Inc.',
-    price: 242.80,
-    change: 8.50,
-    changePercent: 3.63,
-    currency: 'USD',
-    exchange: 'NASDAQ',
-  },
-  {
-    symbol: 'META',
-    name: 'Meta Platforms Inc.',
-    price: 325.60,
-    change: 4.20,
-    changePercent: 1.31,
-    currency: 'USD',
-    exchange: 'NASDAQ',
-  },
-  {
-    symbol: 'NVDA',
-    name: 'NVIDIA Corporation',
-    price: 495.20,
-    change: 12.80,
-    changePercent: 2.65,
-    currency: 'USD',
-    exchange: 'NASDAQ',
-  },
-  {
-    symbol: 'AMD',
-    name: 'Advanced Micro Devices',
-    price: 118.40,
-    change: -2.10,
-    changePercent: -1.74,
-    currency: 'USD',
-    exchange: 'NASDAQ',
-  },
-];
+
 
 export interface MarketStock {
   symbol: string;
@@ -110,101 +36,68 @@ export interface MarketIndex {
  */
 export async function getMarketStocks(symbols: string[] = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA', 'AMD']): Promise<MarketStock[]> {
   try {
-    console.log('📊 [getMarketStocks] Usando mock data (SearchAPI tiene error)');
-    
-    // TEMPORAL: SearchAPI devuelve error, usar mock data
-    return symbols.map((symbol, index) => {
-      const mockStock = MOCK_STOCKS[index % MOCK_STOCKS.length];
-      const randomVariation = (Math.random() - 0.5) * 10;
-      return {
-        ...mockStock,
-        symbol: symbol,
-        price: mockStock.price + randomVariation,
-        change: mockStock.change + (Math.random() - 0.5) * 2,
-        changePercent: mockStock.changePercent + (Math.random() - 0.5),
-        logo: `https://logo.clearbit.com/${symbol.toLowerCase()}.com`,
-      };
-    });
-    
-    /* CÓDIGO SEARCHAPI COMENTADO HASTA ARREGLAR API
-    // SearchAPI usa Google Finance, hacer query para cada símbolo
-    const results: MarketStock[] = [];
-    
-    for (const symbol of symbols.slice(0, 3)) { // Limitar a 3 para no exceder límite gratuito
-      try {
-        const url = `${SEARCHAPI_BASE_URL}?engine=google_finance&q=${symbol}&api_key=${SEARCHAPI_KEY}`;
-        console.log('📡 [SearchAPI] URL:', url);
-        
-        const response = await fetch(url);
-        const data = await response.json();
-        console.log('📡 [SearchAPI] Full Response:', JSON.stringify(data));
-        
-        // SearchAPI devuelve markets en lugar de summary
-        if (data.markets && data.markets.length > 0) {
-          const market = data.markets[0];
-          results.push({
-            symbol: symbol,
-            name: market.name || symbol,
-            price: parseFloat(market.price?.toString().replace(/[^0-9.]/g, '') || '0'),
-            change: parseFloat(market.price_change?.toString().replace(/[^0-9.-]/g, '') || '0'),
-            changePercent: parseFloat(market.price_change_percentage?.toString().replace(/[^0-9.-]/g, '') || '0'),
-            currency: 'USD',
-            exchange: market.exchange || 'NASDAQ',
-            logo: `https://logo.clearbit.com/${symbol.toLowerCase()}.com`,
-          });
-          console.log('✅ [SearchAPI] Stock agregado:', symbol, market.price);
-        } else if (data.summary) {
-          // Fallback a estructura summary
-          const summary = data.summary;
-          results.push({
-            symbol: symbol,
-            name: summary.title || symbol,
-            price: parseFloat(summary.price?.replace(/[^0-9.]/g, '') || '0'),
-            change: parseFloat(summary.price_movement?.movement || '0'),
-            changePercent: parseFloat(summary.price_movement?.percentage?.replace('%', '') || '0'),
-            currency: 'USD',
-            exchange: summary.stock_exchange || 'NASDAQ',
-            logo: `https://logo.clearbit.com/${symbol.toLowerCase()}.com`,
-          });
-          console.log('✅ [SearchAPI] Stock agregado (summary):', symbol);
-        } else {
-          console.warn('⚠️ [SearchAPI] No data para:', symbol, 'Keys:', Object.keys(data));
+    console.log('📊 [getMarketStocks] Intentando usar Financial Modeling Prep API');
+
+    // Intentar obtener datos reales de FMP API
+    const url = `${FMP_BASE_URL}/quote/${symbols.join(',')}?apikey=${FMP_API_KEY}`;
+    console.log('📡 [FMP] URL:', url);
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (Array.isArray(data) && data.length > 0) {
+      console.log('✅ [FMP] Datos obtenidos:', data.length);
+
+      const results: MarketStock[] = data.map((stock: any) => ({
+        symbol: stock.symbol,
+        name: stock.name,
+        price: stock.price,
+        change: stock.change,
+        changePercent: stock.changesPercentage,
+        currency: 'USD',
+        exchange: stock.exchange,
+        logo: `https://logo.clearbit.com/${stock.symbol.toLowerCase()}.com`,
+      }));
+
+      return results;
+    } else {
+      console.warn('⚠️ [FMP] No se obtuvieron datos, intentando con símbolos individuales');
+      // Intentar obtener datos uno por uno
+      const individualResults = [];
+      for (const symbol of symbols) {
+        try {
+          const singleUrl = `${FMP_BASE_URL}/quote/${symbol}?apikey=${FMP_API_KEY}`;
+          const singleResponse = await fetch(singleUrl);
+          const singleData = await singleResponse.json();
+
+          if (Array.isArray(singleData) && singleData.length > 0) {
+            const stock = singleData[0];
+            individualResults.push({
+              symbol: stock.symbol,
+              name: stock.name,
+              price: stock.price,
+              change: stock.change,
+              changePercent: stock.changesPercentage,
+              currency: 'USD',
+              exchange: stock.exchange,
+              logo: `https://logo.clearbit.com/${stock.symbol.toLowerCase()}.com`,
+            });
+          }
+        } catch (singleError) {
+          console.warn(`⚠️ [FMP] Error obteniendo ${symbol}:`, singleError);
         }
-      } catch (err) {
-        console.error(`❌ [SearchAPI] Error ${symbol}:`, err);
+      }
+
+      if (individualResults.length > 0) {
+        console.log('✅ [FMP] Datos obtenidos individualmente:', individualResults.length);
+        return individualResults;
+      } else {
+        throw new Error('No se pudieron obtener datos de la API');
       }
     }
-    
-    // Si obtuvimos datos, completar con mock para el resto
-    if (results.length > 0) {
-      const remaining = symbols.slice(results.length);
-      remaining.forEach((symbol, index) => {
-        const mockStock = MOCK_STOCKS[index % MOCK_STOCKS.length];
-        results.push({
-          ...mockStock,
-          symbol: symbol,
-          logo: `https://logo.clearbit.com/${symbol.toLowerCase()}.com`,
-        });
-      });
-      
-      console.log('✅ [getMarketStocks] Datos reales:', results.length);
-      return results;
-    }
-    
-    // Fallback a mock data
-    console.warn('⚠️ [getMarketStocks] Usando mock data');
-    return symbols.map((symbol, index) => {
-      const mockStock = MOCK_STOCKS[index % MOCK_STOCKS.length];
-      return {
-        ...mockStock,
-        symbol: symbol,
-        logo: `https://logo.clearbit.com/${symbol.toLowerCase()}.com`,
-      };
-    });
-    */
   } catch (error) {
     console.error('❌ [getMarketStocks] Error:', error);
-    return MOCK_STOCKS.slice(0, symbols.length);
+    throw new Error('Error al obtener datos del mercado. Verifica tu API key.');
   }
 }
 
@@ -213,20 +106,31 @@ export async function getMarketStocks(symbols: string[] = ['AAPL', 'GOOGL', 'MSF
  */
 export async function fetchStockData(symbol: string): Promise<MarketStock> {
   try {
-    // Usar mock data
-    const mockStock = MOCK_STOCKS.find(s => s.symbol === symbol) || MOCK_STOCKS[0];
-    const randomVariation = (Math.random() - 0.5) * 10;
-    
-    return {
-      ...mockStock,
-      symbol: symbol,
-      price: mockStock.price + randomVariation,
-      change: mockStock.change + (Math.random() - 0.5) * 2,
-      changePercent: mockStock.changePercent + (Math.random() - 0.5),
-    };
+    // Usar API real para obtener datos específicos
+    const url = `${FMP_BASE_URL}/quote/${symbol}?apikey=${FMP_API_KEY}`;
+    console.log('📡 [fetchStockData] URL:', url);
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (Array.isArray(data) && data.length > 0) {
+      const stock = data[0];
+      return {
+        symbol: stock.symbol,
+        name: stock.name,
+        price: stock.price,
+        change: stock.change,
+        changePercent: stock.changesPercentage,
+        currency: 'USD',
+        exchange: stock.exchange,
+        logo: `https://logo.clearbit.com/${stock.symbol.toLowerCase()}.com`,
+      };
+    } else {
+      throw new Error('No se encontraron datos para el símbolo');
+    }
   } catch (error) {
     console.error(`Error fetching data for ${symbol}:`, error);
-    // Retornar datos mock en caso de error
+    // Retornar datos básicos en caso de error
     return {
       symbol: symbol,
       name: symbol,
@@ -271,19 +175,42 @@ export async function getMarketIndices(): Promise<MarketIndex[]> {
 }
 
 /**
- * Buscar acciones por query
+ * Buscar acciones por query usando FMP API
  */
 export async function searchStocks(query: string): Promise<MarketStock[]> {
   try {
-    // Filtrar mock data por query
-    const filtered = MOCK_STOCKS.filter(stock => 
-      stock.symbol.toLowerCase().includes(query.toLowerCase()) ||
-      stock.name.toLowerCase().includes(query.toLowerCase())
-    );
-    
-    return filtered.slice(0, 10);
+    if (!query.trim()) return [];
+
+    console.log('🔍 [searchStocks] Buscando:', query);
+
+    // Usar FMP API para búsqueda
+    const url = `${FMP_BASE_URL}/search?query=${encodeURIComponent(query)}&limit=10&exchange=NASDAQ&apikey=${FMP_API_KEY}`;
+    console.log('📡 [FMP Search] URL:', url);
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (Array.isArray(data) && data.length > 0) {
+      console.log('✅ [FMP Search] Resultados encontrados:', data.length);
+
+      const results: MarketStock[] = data.map((stock: any) => ({
+        symbol: stock.symbol,
+        name: stock.name,
+        price: 0, // No viene en la búsqueda, se obtendrá después si es necesario
+        change: 0,
+        changePercent: 0,
+        currency: 'USD',
+        exchange: stock.exchange || 'NASDAQ',
+        logo: `https://logo.clearbit.com/${stock.symbol.toLowerCase()}.com`,
+      }));
+
+      return results;
+    } else {
+      console.warn('⚠️ [FMP Search] No se encontraron resultados');
+      return [];
+    }
   } catch (error) {
-    console.error('Error searching stocks:', error);
+    console.error('❌ [searchStocks] Error:', error);
     return [];
   }
 }
