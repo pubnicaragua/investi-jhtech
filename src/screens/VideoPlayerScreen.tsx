@@ -15,6 +15,7 @@ import {
   TextInput,
   Linking
 } from 'react-native'
+import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av'
 import {
   ArrowLeft,
   Play,
@@ -26,7 +27,6 @@ import {
   ThumbsUp,
   MessageCircle,
   Share2,
-  Download,
   Settings,
   SkipBack,
   SkipForward,
@@ -99,6 +99,7 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
   useAuthGuard()
 
   // Estados del reproductor
+  const videoRef = useRef<Video>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -108,6 +109,7 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0)
   const [isLiked, setIsLiked] = useState(false)
   const [isBookmarked, setIsBookmarked] = useState(false)
+  const [videoLoaded, setVideoLoaded] = useState(false)
 
   // Estados de API
   const [loading, setLoading] = useState(true)
@@ -245,9 +247,41 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const handlePlayPause = () => {
+  const handlePlayPause = async () => {
+    if (!videoRef.current) return
+    
+    if (isPlaying) {
+      await videoRef.current.pauseAsync()
+    } else {
+      await videoRef.current.playAsync()
+    }
     setIsPlaying(!isPlaying)
     setShowControls(true)
+  }
+
+  const onPlaybackStatusUpdate = (status: AVPlaybackStatus) => {
+    if (!status.isLoaded) return
+
+    setIsPlaying(status.isPlaying)
+    setCurrentTime(Math.floor((status.positionMillis || 0) / 1000))
+    
+    if (status.durationMillis) {
+      setDuration(Math.floor(status.durationMillis / 1000))
+    }
+
+    // Auto-play next video when current ends
+    if (status.didJustFinish && !status.isLooping) {
+      setIsPlaying(false)
+      if (userId) {
+        updateVideoProgress(userId, videoId, {
+          progress_seconds: duration,
+          total_seconds: duration,
+          progress_percentage: 100,
+          completed: true,
+          watch_time_seconds: duration
+        })
+      }
+    }
   }
 
   const handleSeek = (direction: 'forward' | 'backward') => {
@@ -302,9 +336,6 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
     Alert.alert('Compartir', 'Función de compartir video')
   }
 
-  const handleDownload = () => {
-    Alert.alert('Descargar', 'El video se está descargando para ver offline')
-  }
 
   const progressPercentage = (currentTime / duration) * 100
 
@@ -350,32 +381,79 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
         </TouchableOpacity>
       </View>
 
-      {/* Video Player - Thumbnail con botón para abrir YouTube */}
+      {/* Video Player */}
       <View style={styles.videoContainer}>
-        <Image
-          source={{ uri: videoData.thumbnail_url }}
-          style={styles.videoThumbnail}
-          resizeMode="cover"
-        />
-        <TouchableOpacity 
-          style={styles.playOverlay}
-          onPress={() => {
-            if (videoData.video_url) {
-              Linking.openURL(videoData.video_url)
-                .catch(err => {
-                  console.error('Error opening video:', err)
-                  Alert.alert('Error', 'No se pudo abrir el video')
-                })
-            } else {
-              Alert.alert('Video no disponible', 'Este video aún no está disponible')
-            }
-          }}
-        >
-          <View style={styles.playButtonLarge}>
-            <Play size={48} color="#fff" fill="#fff" />
+        {videoData.video_url ? (
+          <>
+            <Video
+              ref={videoRef}
+              source={{ uri: videoData.video_url }}
+              style={styles.video}
+              resizeMode={ResizeMode.CONTAIN}
+              shouldPlay={false}
+              isMuted={isMuted}
+              onPlaybackStatusUpdate={onPlaybackStatusUpdate}
+              onLoad={() => setVideoLoaded(true)}
+            />
+            
+            {/* Controles del video */}
+            <TouchableOpacity 
+              style={styles.videoTouchArea}
+              activeOpacity={1}
+              onPress={() => setShowControls(!showControls)}
+            >
+              {showControls && (
+                <View style={styles.controlsOverlay}>
+                  <View style={styles.centerControls}>
+                    <TouchableOpacity onPress={() => handleSeek('backward')} style={styles.controlButton}>
+                      <SkipBack size={32} color="#fff" />
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity onPress={handlePlayPause} style={styles.playButton}>
+                      {isPlaying ? (
+                        <Pause size={40} color="#fff" />
+                      ) : (
+                        <Play size={40} color="#fff" fill="#fff" />
+                      )}
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity onPress={() => handleSeek('forward')} style={styles.controlButton}>
+                      <SkipForward size={32} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Barra de progreso */}
+                  <View style={styles.progressContainer}>
+                    <View style={styles.progressBar}>
+                      <View style={[styles.progressFill, { width: `${progressPercentage}%` }]} />
+                    </View>
+                    <Text style={styles.timeText}>
+                      {formatTime(currentTime)} / {formatTime(duration)}
+                    </Text>
+                  </View>
+
+                  {/* Controles superiores */}
+                  <View style={styles.topControls}>
+                    <TouchableOpacity onPress={() => setIsMuted(!isMuted)} style={styles.volumeButton}>
+                      {isMuted ? <VolumeX size={24} color="#fff" /> : <Volume2 size={24} color="#fff" />}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </TouchableOpacity>
+          </>
+        ) : (
+          <View style={styles.noVideoContainer}>
+            <Image
+              source={{ uri: videoData.thumbnail_url }}
+              style={styles.videoThumbnail}
+              resizeMode="cover"
+            />
+            <View style={styles.noVideoOverlay}>
+              <Text style={styles.noVideoText}>Video no disponible</Text>
+            </View>
           </View>
-          <Text style={styles.playText}>Ver video en YouTube</Text>
-        </TouchableOpacity>
+        )}
       </View>
 
       {/* Video Info */}
@@ -423,11 +501,6 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
               <Text style={[styles.actionText, isBookmarked && styles.actionTextActive]}>
                 Guardar
               </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={handleDownload} style={styles.actionButton}>
-              <Download size={20} color="#666" />
-              <Text style={styles.actionText}>Descargar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -613,6 +686,29 @@ const styles = StyleSheet.create({
   videoThumbnail: {
     width: '100%',
     height: '100%',
+  },
+  video: {
+    width: '100%',
+    height: '100%',
+  },
+  videoTouchArea: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  controlsOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'space-between',
+  },
+  centerControls: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 40,
   },
   videoOverlay: {
     position: 'absolute',

@@ -14,7 +14,7 @@ import {
   Modal,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { ArrowLeft, Camera, Check, Users, ChevronRight, Monitor, DollarSign, Rocket, Trophy, Palette, Music, Microscope, GraduationCap, Heart, Map, Lock, Unlock, School } from 'lucide-react-native'
+import { ArrowLeft, Camera, Check, Users, ChevronRight, TrendingUp, DollarSign, Rocket, BarChart3, Bitcoin, LineChart, Home, GraduationCap, Activity, FileText, Lock, Unlock, School } from 'lucide-react-native'
 import * as ImagePicker from 'expo-image-picker'
 import * as FileSystem from 'expo-file-system'
 import { useAuth } from '../contexts/AuthContext'
@@ -30,43 +30,43 @@ interface User {
 }
 
 const INTERESTS = [
-  'Tecnología',
-  'Finanzas',
+  'Inversiones',
+  'Finanzas Personales',
+  'Trading',
+  'Criptomonedas',
+  'Bolsa de Valores',
+  'Bienes Raíces',
   'Emprendimiento',
-  'Deportes',
-  'Arte',
-  'Música',
-  'Ciencia',
-  'Educación',
-  'Salud',
-  'Viajes',
+  'Educación Financiera',
+  'Análisis Técnico',
+  'Análisis Fundamental',
 ]
 
 // 🎯 ICONOS LUCIDE - Mapeo por interés
 const INTEREST_ICON_COMPONENTS: Record<string, any> = {
-  'Tecnología': Monitor,
-  'Finanzas': DollarSign,
+  'Inversiones': TrendingUp,
+  'Finanzas Personales': DollarSign,
+  'Trading': BarChart3,
+  'Criptomonedas': Bitcoin,
+  'Bolsa de Valores': LineChart,
+  'Bienes Raíces': Home,
   'Emprendimiento': Rocket,
-  'Deportes': Trophy,
-  'Arte': Palette,
-  'Música': Music,
-  'Ciencia': Microscope,
-  'Educación': GraduationCap,
-  'Salud': Heart,
-  'Viajes': Map,
+  'Educación Financiera': GraduationCap,
+  'Análisis Técnico': Activity,
+  'Análisis Fundamental': FileText,
 }
 
 const INTEREST_ICON_COLORS: Record<string, string> = {
-  'Tecnología': '#EF4444',
-  'Finanzas': '#F59E0B',
-  'Emprendimiento': '#3B82F6',
-  'Deportes': '#10B981',
-  'Arte': '#8B5CF6',
-  'Música': '#EC4899',
-  'Ciencia': '#06B6D4',
-  'Educación': '#6366F1',
-  'Salud': '#F97316',
-  'Viajes': '#84CC16',
+  'Inversiones': '#10B981',
+  'Finanzas Personales': '#F59E0B',
+  'Trading': '#3B82F6',
+  'Criptomonedas': '#F97316',
+  'Bolsa de Valores': '#8B5CF6',
+  'Bienes Raíces': '#06B6D4',
+  'Emprendimiento': '#EF4444',
+  'Educación Financiera': '#6366F1',
+  'Análisis Técnico': '#EC4899',
+  'Análisis Fundamental': '#84CC16',
 }
 
 const PRIVACY_OPTIONS = [
