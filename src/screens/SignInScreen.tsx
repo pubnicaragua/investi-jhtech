@@ -51,23 +51,40 @@ export function SignInScreen({ navigation }: any) {
               'Authorization': `Bearer ${supabaseAnonKey}`,
               'Content-Type': 'application/json',
             },
+            // Let fetch follow redirects by default. We'll also check response.url and headers.
           })
 
-          if (!response.ok) {
+          if (!response.ok && response.status !== 0) {
             const errorData = await response.text()
-            console.error('LinkedIn auth error:', errorData)
+            console.error('LinkedIn auth error (non-OK):', response.status, errorData)
             throw new Error(`HTTP ${response.status}: ${errorData}`)
           }
 
-          // The function should redirect to LinkedIn OAuth URL
-          const redirectUrl = response.headers.get('location')
+          // The function may return the redirect URL in several places:
+          // - Location header (if the function did a redirect and we received it)
+          // - response.url (if the fetch followed redirects or the function responded with a redirect)
+          // - a JSON body with a field like { redirectUrl }
+          let redirectUrl = response.headers.get('location') || response.url || null
+
+          if (!redirectUrl) {
+            try {
+              const json = await response.json()
+              redirectUrl = json?.redirectUrl || json?.url || null
+            } catch (e) {
+              // ignore parse errors
+              console.warn('[SignInScreen] Could not parse JSON body from LinkedIn auth function:', e)
+            }
+          }
+
           if (redirectUrl) {
+            console.log('[SignInScreen] Opening LinkedIn redirect URL:', redirectUrl)
             if (Platform.OS === 'web' && typeof window !== 'undefined') {
               window.location.href = redirectUrl
             } else {
               await Linking.openURL(redirectUrl)
             }
           } else {
+            console.error('[SignInScreen] No redirect URL received from LinkedIn auth function (headers, url, or body)')
             throw new Error('No redirect URL received from LinkedIn auth function')
           }
         } catch (error: any) {
@@ -77,9 +94,21 @@ export function SignInScreen({ navigation }: any) {
         return
       }
 
-      const redirectTo = (typeof window !== 'undefined' && window.location && window.location.origin)
-        ? `${window.location.origin}/auth/callback`
-        : Linking.createURL('auth/callback')
+      // Use Expo Linking which will correctly create deep links for native and web-aware URLs.
+      // This is more tolerant than forcing `${window.location.origin}/auth/callback` which can
+      // cause 404s on web if the hosting doesn't handle that path.
+      let redirectTo = ''
+      try {
+        redirectTo = Linking.createURL('auth/callback')
+      } catch (e) {
+        // Fallback: use window origin path if available
+        if (typeof window !== 'undefined' && window.location && window.location.origin) {
+          redirectTo = `${window.location.origin}/auth/callback`
+        } else {
+          redirectTo = 'auth/callback'
+        }
+      }
+      console.log('[SignInScreen] OAuth redirectTo:', redirectTo)
 
       const { data, error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } })
       if (error) throw error
