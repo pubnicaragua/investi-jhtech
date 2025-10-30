@@ -41,62 +41,106 @@ export interface MarketIndex {
  * Obtener datos de mercado de acciones populares
  * Usa Finnhub API (gratuita, más confiable)
  */
-export async function getMarketStocks(symbols: string[] = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA', 'AMD']): Promise<MarketStock[]> {
+export async function getMarketStocks(
+  symbols: string[] = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA', 'AMD'],
+  provider: 'auto' | 'alpha' | 'finnhub' = 'auto'
+): Promise<MarketStock[]> {
   try {
-    console.log('📊 [getMarketStocks] Obteniendo datos con Finnhub API');
+    console.log('📊 [getMarketStocks] provider=', provider)
 
-    const results: MarketStock[] = [];
-    
-    // Finnhub requiere peticiones individuales por símbolo
-    for (const symbol of symbols) {
-      try {
-        // Obtener cotización actual
-        const quoteUrl = `${FINNHUB_BASE_URL}/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`;
-        const quoteResponse = await fetch(quoteUrl);
-        const quoteData = await quoteResponse.json();
-
-        // Obtener información de la compañía
-        const profileUrl = `${FINNHUB_BASE_URL}/stock/profile2?symbol=${symbol}&token=${FINNHUB_API_KEY}`;
-        const profileResponse = await fetch(profileUrl);
-        const profileData = await profileResponse.json();
-
-        if (quoteData && quoteData.c) {
-          const currentPrice = quoteData.c;
-          const previousClose = quoteData.pc || currentPrice;
-          const change = currentPrice - previousClose;
-          const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
-
-          results.push({
-            symbol: symbol,
-            name: profileData.name || symbol,
-            price: currentPrice,
-            change: change,
-            changePercent: changePercent,
-            currency: profileData.currency || 'USD',
-            exchange: profileData.exchange || 'NASDAQ',
-            logo: profileData.logo || `https://logo.clearbit.com/${symbol.toLowerCase()}.com`,
-          });
-
-          console.log(`✅ [Finnhub] ${symbol}: $${currentPrice}`);
-        }
-
-        // Pequeño delay para no exceder rate limits (60 req/min = 1 req/segundo)
-        await new Promise(resolve => setTimeout(resolve, 1100));
-      } catch (singleError) {
-        console.warn(`⚠️ [Finnhub] Error obteniendo ${symbol}:`, singleError);
-      }
+    // If provider is alpha, try Alpha Vantage only
+    if (provider === 'alpha') {
+      return await getMarketStocksFromAlpha(symbols)
     }
 
-    if (results.length > 0) {
-      console.log(`✅ [getMarketStocks] ${results.length} acciones obtenidas`);
-      return results;
-    } else {
-      throw new Error('No se pudieron obtener datos de la API');
+    // If provider is finnhub, try Finnhub only
+    if (provider === 'finnhub') {
+      return await getMarketStocksFromFinnhub(symbols)
     }
+
+    // provider === 'auto' (default): try Alpha Vantage first, then Finnhub
+    try {
+      const alpha = await getMarketStocksFromAlpha(symbols)
+      if (alpha && alpha.length > 0) return alpha
+      // else fallthrough to finnhub
+    } catch (e) {
+      console.warn('[getMarketStocks] Alpha Vantage failed:', e)
+    }
+
+    return await getMarketStocksFromFinnhub(symbols)
   } catch (error) {
     console.error('❌ [getMarketStocks] Error:', error);
     throw new Error('Error al obtener datos del mercado. Verifica tu API key.');
   }
+}
+
+async function getMarketStocksFromAlpha(symbols: string[]): Promise<MarketStock[]> {
+  const maxAlphaSymbols = 5
+  const alphaSymbols = symbols.slice(0, maxAlphaSymbols)
+  const alphaResults: MarketStock[] = []
+
+  if (!ALPHA_VANTAGE_API_KEY || ALPHA_VANTAGE_API_KEY === 'demo') {
+    console.log('⚠️ [AlphaVantage] API key no configurada o usando demo; saltando Alpha Vantage')
+    return []
+  }
+
+  console.log('📡 [AlphaVantage] Usando Alpha Vantage para obtener cotizaciones (limitado a', maxAlphaSymbols, 'símbolos)')
+  for (const symbol of alphaSymbols) {
+    try {
+      const quote = await fetchAlphaQuote(symbol)
+      if (quote) {
+        alphaResults.push(quote)
+        console.log(`✅ [AlphaVantage] ${symbol}: $${quote.price}`)
+      }
+    } catch (e) {
+      console.warn('[AlphaVantage] Error fetching', symbol, e)
+    }
+  }
+
+  return alphaResults
+}
+
+async function getMarketStocksFromFinnhub(symbols: string[]): Promise<MarketStock[]> {
+  console.log('📡 [Finnhub] Intentando usar Finnhub como fallback')
+  const results: MarketStock[] = [];
+  for (const symbol of symbols) {
+    try {
+      const quoteUrl = `${FINNHUB_BASE_URL}/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`;
+      const quoteResponse = await fetch(quoteUrl);
+      const quoteData = await quoteResponse.json();
+
+      const profileUrl = `${FINNHUB_BASE_URL}/stock/profile2?symbol=${symbol}&token=${FINNHUB_API_KEY}`;
+      const profileResponse = await fetch(profileUrl);
+      const profileData = await profileResponse.json();
+
+      if (quoteData && quoteData.c) {
+        const currentPrice = quoteData.c;
+        const previousClose = quoteData.pc || currentPrice;
+        const change = currentPrice - previousClose;
+        const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
+
+        results.push({
+          symbol: symbol,
+          name: profileData.name || symbol,
+          price: currentPrice,
+          change: change,
+          changePercent: changePercent,
+          currency: profileData.currency || 'USD',
+          exchange: profileData.exchange || 'NASDAQ',
+          logo: profileData.logo || `https://logo.clearbit.com/${symbol.toLowerCase()}.com`,
+        });
+
+        console.log(`✅ [Finnhub] ${symbol}: $${currentPrice}`);
+      }
+
+      // delay to respect rate limits
+      await new Promise(resolve => setTimeout(resolve, 1100));
+    } catch (singleError) {
+      console.warn(`⚠️ [Finnhub] Error obteniendo ${symbol}:`, singleError);
+    }
+  }
+
+  return results
 }
 
 /**
@@ -147,6 +191,48 @@ export async function fetchStockData(symbol: string): Promise<MarketStock> {
       currency: 'USD',
       exchange: 'NASDAQ',
     };
+  }
+}
+
+/**
+ * Helper: obtener cotización desde Alpha Vantage (GLOBAL_QUOTE)
+ * Dev note: Alpha Vantage free tier tiene límites; limitamos su uso en `getMarketStocks`.
+ */
+async function fetchAlphaQuote(symbol: string): Promise<MarketStock | null> {
+  if (!ALPHA_VANTAGE_API_KEY || ALPHA_VANTAGE_API_KEY === 'demo') {
+    return null
+  }
+  try {
+    const url = `${ALPHA_VANTAGE_BASE_URL}?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(symbol)}&apikey=${ALPHA_VANTAGE_API_KEY}`
+    console.log('[AlphaVantage] fetch URL:', url)
+    const res = await fetch(url)
+    const json = await res.json()
+    const g = json['Global Quote'] || json['Global Quote'] || null
+    if (!g || Object.keys(g).length === 0) return null
+
+    const price = parseFloat(g['05. price'] || '0') || 0
+    const change = parseFloat(g['09. change'] || '0') || 0
+    let changePercent = 0
+    try {
+      const raw = (g['10. change percent'] || '').replace('%', '')
+      changePercent = parseFloat(raw) || 0
+    } catch (e) {
+      changePercent = 0
+    }
+
+    return {
+      symbol: g['01. symbol'] || symbol,
+      name: g['01. symbol'] || symbol,
+      price,
+      change,
+      changePercent,
+      currency: 'USD',
+      exchange: 'UNKNOWN',
+      logo: `https://logo.clearbit.com/${symbol.toLowerCase()}.com`,
+    }
+  } catch (e) {
+    console.error('[AlphaVantage] fetchAlphaQuote error:', e)
+    return null
   }
 }
 
