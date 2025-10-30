@@ -11,8 +11,9 @@ import {
   Modal,
   Alert
 } from 'react-native'
-import { ArrowLeft, Play, Clock, BookOpen, Star, X } from 'lucide-react-native'
+import { ArrowLeft, Play, Clock, BookOpen, Star, X, Sparkles } from 'lucide-react-native'
 import { getCourseDetails } from '../api'
+import { generateLessonWithAI } from '../rest/api'
 
 export function CourseDetailScreen({ navigation, route }: any) {
   const courseId = route?.params?.courseId
@@ -21,6 +22,8 @@ export function CourseDetailScreen({ navigation, route }: any) {
   const [error, setError] = useState<string | null>(null)
   const [selectedLesson, setSelectedLesson] = useState<any>(null)
   const [showLessonModal, setShowLessonModal] = useState(false)
+  const [generatingLesson, setGeneratingLesson] = useState(false)
+  const [generatedContent, setGeneratedContent] = useState<string | null>(null)
 
   useEffect(() => {
     const loadCourse = async () => {
@@ -52,7 +55,31 @@ export function CourseDetailScreen({ navigation, route }: any) {
 
   const handleLessonPress = (lesson: any) => {
     setSelectedLesson(lesson)
+    setGeneratedContent(null) // Reset contenido generado
     setShowLessonModal(true)
+  }
+
+  const handleStartLesson = async () => {
+    if (!selectedLesson) return
+
+    setGeneratingLesson(true)
+    try {
+      console.log('🚀 Generando lección con Irï...')
+      const content = await generateLessonWithAI(
+        selectedLesson.titulo || 'Lección financiera',
+        selectedLesson.descripcion || 'Aprende conceptos financieros importantes'
+      )
+      setGeneratedContent(content)
+      console.log('✅ Lección generada exitosamente')
+    } catch (error: any) {
+      console.error('❌ Error generando lección:', error)
+      Alert.alert(
+        'Error',
+        'No se pudo generar la lección. Verifica tu conexión e intenta nuevamente.'
+      )
+    } finally {
+      setGeneratingLesson(false)
+    }
   }
 
   const formatDuration = (minutes: number): string => {
@@ -212,47 +239,78 @@ export function CourseDetailScreen({ navigation, route }: any) {
             </View>
             
             <ScrollView style={styles.modalBody}>
-              <Text style={styles.lessonDescription}>
-                {selectedLesson?.descripcion || 'Contenido de la lección'}
-              </Text>
-              
-              <View style={styles.lessonMeta}>
-                <View style={styles.metaItem}>
-                  <Clock size={16} color="#666" />
-                  <Text style={styles.metaText}>
-                    {selectedLesson?.duration ? formatDuration(selectedLesson.duration) : '15 min'}
+              {!generatedContent ? (
+                <>
+                  <Text style={styles.lessonDescription}>
+                    {selectedLesson?.descripcion || 'Contenido de la lección'}
                   </Text>
-                </View>
-                {selectedLesson?.tipo && (
-                  <View style={styles.metaItem}>
-                    <BookOpen size={16} color="#666" />
-                    <Text style={styles.metaText}>{selectedLesson.tipo}</Text>
+                  
+                  <View style={styles.lessonMeta}>
+                    <View style={styles.metaItem}>
+                      <Clock size={16} color="#666" />
+                      <Text style={styles.metaText}>
+                        {selectedLesson?.duration ? formatDuration(selectedLesson.duration) : '30 min'}
+                      </Text>
+                    </View>
+                    {selectedLesson?.tipo && (
+                      <View style={styles.metaItem}>
+                        <BookOpen size={16} color="#666" />
+                        <Text style={styles.metaText}>{selectedLesson.tipo}</Text>
+                      </View>
+                    )}
                   </View>
-                )}
-              </View>
 
-              <Text style={styles.lessonContentText}>
-                Esta lección cubre los conceptos fundamentales que necesitas dominar. 
-                Aprenderás paso a paso con ejemplos prácticos y ejercicios interactivos.
-                {'\n\n'}
-                📚 Contenido incluido:
-                {'\n'}• Explicación teórica
-                {'\n'}• Ejemplos prácticos
-                {'\n'}• Ejercicios
-                {'\n'}• Material descargable
-              </Text>
+                  <Text style={styles.lessonContentText}>
+                    Esta lección cubre los conceptos fundamentales que necesitas dominar. 
+                    Aprenderás paso a paso con ejemplos prácticos y ejercicios interactivos.
+                    {'\n\n'}
+                    📚 Contenido incluido:
+                    {'\n'}• Explicación teórica
+                    {'\n'}• Ejemplos prácticos
+                    {'\n'}• Ejercicios
+                    {'\n'}• Material descargable
+                  </Text>
+                </>
+              ) : (
+                <View style={styles.generatedContent}>
+                  <View style={styles.aiHeader}>
+                    <Sparkles size={20} color="#2673f3" />
+                    <Text style={styles.aiHeaderText}>Lección generada por Irï</Text>
+                  </View>
+                  <Text style={styles.generatedText}>{generatedContent}</Text>
+                </View>
+              )}
             </ScrollView>
 
-            <TouchableOpacity 
-              style={styles.startLessonButton}
-              onPress={() => {
-                setShowLessonModal(false)
-                Alert.alert('Lección', `Iniciando: ${selectedLesson?.titulo}`)
-              }}
-            >
-              <Play size={20} color="#fff" />
-              <Text style={styles.startLessonText}>Iniciar Lección</Text>
-            </TouchableOpacity>
+            {!generatedContent ? (
+              <TouchableOpacity 
+                style={[styles.startLessonButton, generatingLesson && styles.buttonDisabled]}
+                onPress={handleStartLesson}
+                disabled={generatingLesson}
+              >
+                {generatingLesson ? (
+                  <>
+                    <ActivityIndicator color="#fff" size="small" />
+                    <Text style={styles.startLessonText}>Generando con Irï...</Text>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={20} color="#fff" />
+                    <Text style={styles.startLessonText}>Iniciar Lección</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity 
+                style={styles.startLessonButton}
+                onPress={() => {
+                  setShowLessonModal(false)
+                  setGeneratedContent(null)
+                }}
+              >
+                <Text style={styles.startLessonText}>Cerrar</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </Modal>
@@ -497,6 +555,31 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  generatedContent: {
+    marginTop: 10,
+  },
+  aiHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e5e5',
+  },
+  aiHeaderText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2673f3',
+  },
+  generatedText: {
+    fontSize: 15,
+    color: '#333',
+    lineHeight: 24,
   },
 })
 

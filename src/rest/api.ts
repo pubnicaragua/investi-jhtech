@@ -3800,4 +3800,91 @@ export async function clearDraft(): Promise<void> {
   }
 }
 
+// ============================================================================
+// GENERACIÓN DE LECCIONES CON IA (GROK/GROQ)
+// ============================================================================
+
+const GROK_API_KEY = process.env.EXPO_PUBLIC_GROK_API_KEY || '';
+const GROK_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+
+const LESSON_GENERATION_PROMPT = `Eres Irï, un experto en educación financiera para jóvenes nicaragüenses. Genera una lección estructurada y educativa.
+
+La lección debe incluir:
+1. Contenido claro y accesible
+2. Ejemplos prácticos aplicables a Nicaragua (usar córdobas C$)
+3. Estructura pedagógica efectiva
+4. Duración estimada realista
+
+Formato de respuesta en JSON:
+{
+  "content": "Contenido completo de la lección en texto plano, bien estructurado con saltos de línea. Incluye:\\n\\n📚 Introducción\\n[texto]\\n\\n💡 Conceptos Clave\\n[texto]\\n\\n📊 Ejemplos Prácticos\\n[texto]\\n\\n✅ Resumen\\n[texto]",
+  "duration": 30,
+  "keyPoints": ["Punto 1", "Punto 2", "Punto 3"]
+}
+
+IMPORTANTE: 
+- Usa lenguaje claro y motivador
+- Incluye emojis para hacer el contenido más atractivo
+- Menciona instituciones nicaragüenses cuando sea relevante
+- Sé conciso pero completo (máximo 800 palabras)
+- El campo "content" debe ser texto plano con saltos de línea (\\n)`;
+
+export async function generateLessonWithAI(
+  lessonTitle: string,
+  lessonDescription: string
+): Promise<string> {
+  try {
+    if (!GROK_API_KEY) {
+      throw new Error('API key de Grok no configurada');
+    }
+
+    console.log('🤖 Generando lección con IA:', lessonTitle);
+
+    const userPrompt = `Genera una lección sobre: "${lessonTitle}"
+Descripción: ${lessonDescription}
+
+Crea contenido educativo completo y estructurado.`;
+
+    const response = await fetch(GROK_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GROK_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: LESSON_GENERATION_PROMPT },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 2000,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Error de Groq API:', response.status, errorText);
+      throw new Error(`Error de API: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const aiResponse = data.choices[0].message.content;
+
+    console.log('✅ Lección generada por IA');
+
+    // Intentar parsear como JSON
+    try {
+      const parsed = JSON.parse(aiResponse);
+      return parsed.content || aiResponse;
+    } catch {
+      // Si no es JSON válido, retornar el texto directamente
+      return aiResponse;
+    }
+  } catch (error: any) {
+    console.error('❌ Error generando lección con IA:', error);
+    throw error;
+  }
+}
+
 export { request }

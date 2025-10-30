@@ -10,6 +10,9 @@
       "android": {
         "gradleCommand": ":app:assembleDebug",
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_GROK_API_KEY": "@EXPO_PUBLIC_GROK_API_KEY"
       }
     },
     "preview": {
@@ -17,6 +20,9 @@
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease"
+      },
+      "env": {
+        "EXPO_PUBLIC_GROK_API_KEY": "@EXPO_PUBLIC_GROK_API_KEY"
       }
     },
     "production": {
@@ -25,7 +31,8 @@
         "buildType": "apk"
       },
       "env": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "EXPO_PUBLIC_GROK_API_KEY": "@EXPO_PUBLIC_GROK_API_KEY"
       }
     },
     "standalone": {
@@ -36,7 +43,8 @@
         "gradleCommand": ":app:assembleRelease"
       },
       "env": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "EXPO_PUBLIC_GROK_API_KEY": "@EXPO_PUBLIC_GROK_API_KEY"
       }
     }
   },
