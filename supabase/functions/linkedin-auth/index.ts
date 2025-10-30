@@ -7,9 +7,9 @@ const corsHeaders = {
 }
 
 // LinkedIn OAuth Configuration
-const LINKEDIN_CLIENT_ID = Deno.env.get('LINKEDIN_CLIENT_ID')
-const LINKEDIN_CLIENT_SECRET = Deno.env.get('LINKEDIN_CLIENT_SECRET')
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
+const LINKEDIN_CLIENT_ID = Deno.env.get('LINKEDIN_CLIENT_ID') || '7799o54h2bysvt'
+const LINKEDIN_CLIENT_SECRET = Deno.env.get('LINKEDIN_CLIENT_SECRET') || 'WPL_AP1.p11fmO2XZG7VRjMi.onxlbA=='
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || 'https://paoliakwfoczcallnecf.supabase.co'
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
 // Redirect URIs

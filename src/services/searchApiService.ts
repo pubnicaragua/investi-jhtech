@@ -1,14 +1,21 @@
  /**
  * Market Data Service
  * Servicio para obtener datos de mercado en tiempo real
- * Usa Financial Modeling Prep API (https://financialmodelingprep.com/)
+ * Usa Alpha Vantage API (gratuita) como principal
+ * Finnhub API como backup
  */
 
 import { supabase } from '../supabase';
 
-// Financial Modeling Prep configuration
-const FMP_API_KEY = process.env.EXPO_PUBLIC_FMP_API_KEY || 'demo';
-const FMP_BASE_URL = process.env.EXPO_PUBLIC_FMP_BASE_URL || 'https://financialmodelingprep.com/api/v3';
+// Alpha Vantage configuration (API gratuita - 25 requests/día)
+// Obtener API key gratis en: https://www.alphavantage.co/support/#api-key
+const ALPHA_VANTAGE_API_KEY = process.env.EXPO_PUBLIC_ALPHA_VANTAGE_API_KEY || 'demo';
+const ALPHA_VANTAGE_BASE_URL = 'https://www.alphavantage.co/query';
+
+// Finnhub configuration (API gratuita - 60 requests/minuto)
+// Obtener API key gratis en: https://finnhub.io/register
+const FINNHUB_API_KEY = process.env.EXPO_PUBLIC_FINNHUB_API_KEY || 'demo';
+const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
 
 
 
@@ -32,68 +39,59 @@ export interface MarketIndex {
 
 /**
  * Obtener datos de mercado de acciones populares
- * Usa Financial Modeling Prep API directamente
+ * Usa Finnhub API (gratuita, más confiable)
  */
 export async function getMarketStocks(symbols: string[] = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA', 'AMD']): Promise<MarketStock[]> {
   try {
-    console.log('📊 [getMarketStocks] Intentando usar Financial Modeling Prep API');
+    console.log('📊 [getMarketStocks] Obteniendo datos con Finnhub API');
 
-    // Intentar obtener datos reales de FMP API
-    const url = `${FMP_BASE_URL}/quote/${symbols.join(',')}?apikey=${FMP_API_KEY}`;
-    console.log('📡 [FMP] URL:', url);
+    const results: MarketStock[] = [];
+    
+    // Finnhub requiere peticiones individuales por símbolo
+    for (const symbol of symbols) {
+      try {
+        // Obtener cotización actual
+        const quoteUrl = `${FINNHUB_BASE_URL}/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`;
+        const quoteResponse = await fetch(quoteUrl);
+        const quoteData = await quoteResponse.json();
 
-    const response = await fetch(url);
-    const data = await response.json();
+        // Obtener información de la compañía
+        const profileUrl = `${FINNHUB_BASE_URL}/stock/profile2?symbol=${symbol}&token=${FINNHUB_API_KEY}`;
+        const profileResponse = await fetch(profileUrl);
+        const profileData = await profileResponse.json();
 
-    if (Array.isArray(data) && data.length > 0) {
-      console.log('✅ [FMP] Datos obtenidos:', data.length);
+        if (quoteData && quoteData.c) {
+          const currentPrice = quoteData.c;
+          const previousClose = quoteData.pc || currentPrice;
+          const change = currentPrice - previousClose;
+          const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
 
-      const results: MarketStock[] = data.map((stock: any) => ({
-        symbol: stock.symbol,
-        name: stock.name,
-        price: stock.price,
-        change: stock.change,
-        changePercent: stock.changesPercentage,
-        currency: 'USD',
-        exchange: stock.exchange,
-        logo: `https://logo.clearbit.com/${stock.symbol.toLowerCase()}.com`,
-      }));
+          results.push({
+            symbol: symbol,
+            name: profileData.name || symbol,
+            price: currentPrice,
+            change: change,
+            changePercent: changePercent,
+            currency: profileData.currency || 'USD',
+            exchange: profileData.exchange || 'NASDAQ',
+            logo: profileData.logo || `https://logo.clearbit.com/${symbol.toLowerCase()}.com`,
+          });
 
+          console.log(`✅ [Finnhub] ${symbol}: $${currentPrice}`);
+        }
+
+        // Pequeño delay para no exceder rate limits (60 req/min = 1 req/segundo)
+        await new Promise(resolve => setTimeout(resolve, 1100));
+      } catch (singleError) {
+        console.warn(`⚠️ [Finnhub] Error obteniendo ${symbol}:`, singleError);
+      }
+    }
+
+    if (results.length > 0) {
+      console.log(`✅ [getMarketStocks] ${results.length} acciones obtenidas`);
       return results;
     } else {
-      console.warn('⚠️ [FMP] No se obtuvieron datos, intentando con símbolos individuales');
-      // Intentar obtener datos uno por uno
-      const individualResults = [];
-      for (const symbol of symbols) {
-        try {
-          const singleUrl = `${FMP_BASE_URL}/quote/${symbol}?apikey=${FMP_API_KEY}`;
-          const singleResponse = await fetch(singleUrl);
-          const singleData = await singleResponse.json();
-
-          if (Array.isArray(singleData) && singleData.length > 0) {
-            const stock = singleData[0];
-            individualResults.push({
-              symbol: stock.symbol,
-              name: stock.name,
-              price: stock.price,
-              change: stock.change,
-              changePercent: stock.changesPercentage,
-              currency: 'USD',
-              exchange: stock.exchange,
-              logo: `https://logo.clearbit.com/${stock.symbol.toLowerCase()}.com`,
-            });
-          }
-        } catch (singleError) {
-          console.warn(`⚠️ [FMP] Error obteniendo ${symbol}:`, singleError);
-        }
-      }
-
-      if (individualResults.length > 0) {
-        console.log('✅ [FMP] Datos obtenidos individualmente:', individualResults.length);
-        return individualResults;
-      } else {
-        throw new Error('No se pudieron obtener datos de la API');
-      }
+      throw new Error('No se pudieron obtener datos de la API');
     }
   } catch (error) {
     console.error('❌ [getMarketStocks] Error:', error);
@@ -106,30 +104,39 @@ export async function getMarketStocks(symbols: string[] = ['AAPL', 'GOOGL', 'MSF
  */
 export async function fetchStockData(symbol: string): Promise<MarketStock> {
   try {
-    // Usar API real para obtener datos específicos
-    const url = `${FMP_BASE_URL}/quote/${symbol}?apikey=${FMP_API_KEY}`;
-    console.log('📡 [fetchStockData] URL:', url);
+    console.log(`📡 [fetchStockData] Obteniendo ${symbol} con Finnhub`);
 
-    const response = await fetch(url);
-    const data = await response.json();
+    // Obtener cotización actual
+    const quoteUrl = `${FINNHUB_BASE_URL}/quote?symbol=${symbol}&token=${FINNHUB_API_KEY}`;
+    const quoteResponse = await fetch(quoteUrl);
+    const quoteData = await quoteResponse.json();
 
-    if (Array.isArray(data) && data.length > 0) {
-      const stock = data[0];
+    // Obtener información de la compañía
+    const profileUrl = `${FINNHUB_BASE_URL}/stock/profile2?symbol=${symbol}&token=${FINNHUB_API_KEY}`;
+    const profileResponse = await fetch(profileUrl);
+    const profileData = await profileResponse.json();
+
+    if (quoteData && quoteData.c) {
+      const currentPrice = quoteData.c;
+      const previousClose = quoteData.pc || currentPrice;
+      const change = currentPrice - previousClose;
+      const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0;
+
       return {
-        symbol: stock.symbol,
-        name: stock.name,
-        price: stock.price,
-        change: stock.change,
-        changePercent: stock.changesPercentage,
-        currency: 'USD',
-        exchange: stock.exchange,
-        logo: `https://logo.clearbit.com/${stock.symbol.toLowerCase()}.com`,
+        symbol: symbol,
+        name: profileData.name || symbol,
+        price: currentPrice,
+        change: change,
+        changePercent: changePercent,
+        currency: profileData.currency || 'USD',
+        exchange: profileData.exchange || 'NASDAQ',
+        logo: profileData.logo || `https://logo.clearbit.com/${symbol.toLowerCase()}.com`,
       };
     } else {
       throw new Error('No se encontraron datos para el símbolo');
     }
   } catch (error) {
-    console.error(`Error fetching data for ${symbol}:`, error);
+    console.error(`❌ Error fetching data for ${symbol}:`, error);
     // Retornar datos básicos en caso de error
     return {
       symbol: symbol,
@@ -175,7 +182,7 @@ export async function getMarketIndices(): Promise<MarketIndex[]> {
 }
 
 /**
- * Buscar acciones por query usando FMP API
+ * Buscar acciones por query usando Alpha Vantage API
  */
 export async function searchStocks(query: string): Promise<MarketStock[]> {
   try {
@@ -183,30 +190,30 @@ export async function searchStocks(query: string): Promise<MarketStock[]> {
 
     console.log('🔍 [searchStocks] Buscando:', query);
 
-    // Usar FMP API para búsqueda
-    const url = `${FMP_BASE_URL}/search?query=${encodeURIComponent(query)}&limit=10&exchange=NASDAQ&apikey=${FMP_API_KEY}`;
-    console.log('📡 [FMP Search] URL:', url);
+    // Usar Alpha Vantage API para búsqueda
+    const url = `${ALPHA_VANTAGE_BASE_URL}?function=SYMBOL_SEARCH&keywords=${encodeURIComponent(query)}&apikey=${ALPHA_VANTAGE_API_KEY}`;
+    console.log('📡 [Alpha Vantage Search] URL:', url);
 
     const response = await fetch(url);
     const data = await response.json();
 
-    if (Array.isArray(data) && data.length > 0) {
-      console.log('✅ [FMP Search] Resultados encontrados:', data.length);
+    if (data.bestMatches && Array.isArray(data.bestMatches) && data.bestMatches.length > 0) {
+      console.log('✅ [Alpha Vantage Search] Resultados encontrados:', data.bestMatches.length);
 
-      const results: MarketStock[] = data.map((stock: any) => ({
-        symbol: stock.symbol,
-        name: stock.name,
+      const results: MarketStock[] = data.bestMatches.slice(0, 10).map((stock: any) => ({
+        symbol: stock['1. symbol'],
+        name: stock['2. name'],
         price: 0, // No viene en la búsqueda, se obtendrá después si es necesario
         change: 0,
         changePercent: 0,
-        currency: 'USD',
-        exchange: stock.exchange || 'NASDAQ',
-        logo: `https://logo.clearbit.com/${stock.symbol.toLowerCase()}.com`,
+        currency: stock['8. currency'] || 'USD',
+        exchange: stock['4. region'] || 'NASDAQ',
+        logo: `https://logo.clearbit.com/${stock['1. symbol'].toLowerCase()}.com`,
       }));
 
       return results;
     } else {
-      console.warn('⚠️ [FMP Search] No se encontraron resultados');
+      console.warn('⚠️ [Alpha Vantage Search] No se encontraron resultados');
       return [];
     }
   } catch (error) {

@@ -25,6 +25,7 @@
     "clean": "rmdir /s /q .expo .metro node_modules\\.cache",
     "optimize": "optimize-bundle.bat",
     "analyze": "npx depcheck",
+    "test:apis": "node scripts/test-market-apis.js",
     "postinstall": "patch-package"
   },
   "dependencies": {

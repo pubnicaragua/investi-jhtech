@@ -109,7 +109,7 @@ export function MarketInfoScreen({ navigation }: any) {
   const onRefresh = useCallback(() => {  
     setRefreshing(true)  
     loadMarketData()  
-  }, [loadMarketData])  
+  }, [loadMarketData]) 
   
   const filters = ['Todos', 'Chile', 'USA', 'Tecnología', 'Energía', 'Finanzas']
 

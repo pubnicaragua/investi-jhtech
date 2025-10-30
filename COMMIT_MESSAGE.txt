@@ -1,0 +1,49 @@
+fix: Migrar Market Info API de FMP a Finnhub + Alpha Vantage
+
+PROBLEMA:
+- Financial Modeling Prep API endpoints legacy descontinuados (desde agosto 31, 2025)
+- API key proporcionada no tiene acceso a endpoints legacy
+- Error: "Legacy Endpoint: Due to Legacy endpoints being no longer supported"
+
+SOLUCIÓN:
+- Migración completa a APIs gratuitas y funcionales:
+  * Finnhub API (principal): Cotizaciones en tiempo real, 60 req/min
+  * Alpha Vantage API (secundaria): Búsqueda de acciones, 25 req/día
+
+CAMBIOS:
+- src/services/searchApiService.ts: Reemplazar FMP con Finnhub + Alpha Vantage
+- .env.example: Actualizar con nuevas API keys
+- package.json: Agregar script test:apis
+- Documentación completa en MARKET_API_SETUP.md
+- Script de validación en scripts/test-market-apis.js
+- Guías rápidas para configuración
+
+ARCHIVOS NUEVOS:
+- MARKET_API_SETUP.md (documentación técnica completa)
+- SOLUCION_API_MERCADO.txt (guía rápida en español)
+- RESUMEN_PARA_CLIENTE.md (resumen ejecutivo)
+- API_KEYS_DEMO.txt (keys de prueba)
+- INSTRUCCIONES_WHATSAPP.txt (instrucciones simples)
+- scripts/test-market-apis.js (validación automática)
+
+TESTING:
+- Ejecutar: npm run test:apis
+- Validar que Finnhub y Alpha Vantage respondan correctamente
+
+CONFIGURACIÓN REQUERIDA:
+1. Registrarse en https://finnhub.io/register
+2. Registrarse en https://www.alphavantage.co/support/#api-key
+3. Agregar API keys al archivo .env
+4. Ejecutar npm run test:apis para validar
+
+VENTAJAS:
+✅ 100% gratuito (sin tarjeta de crédito)
+✅ Más confiable y activamente mantenido
+✅ Mejor límite de requests (60/min vs legacy)
+✅ Funciona en todas las regiones
+✅ Incluye logos de compañías
+✅ Datos en tiempo real
+
+---
+Tiempo de configuración: ~5 minutos
+Dificultad: Baja

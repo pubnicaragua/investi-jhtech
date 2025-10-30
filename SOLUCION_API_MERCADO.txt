@@ -1,0 +1,140 @@
+═══════════════════════════════════════════════════════════════════════════
+  SOLUCIÓN: API DE MARKET INFO NO FUNCIONA
+═══════════════════════════════════════════════════════════════════════════
+
+PROBLEMA:
+---------
+Financial Modeling Prep API ya no funciona con la API key proporcionada:
+  onAb6gscjWoAKJtBhZom3PcdEyP9kgPu
+
+Error recibido:
+  "Legacy Endpoint: Due to Legacy endpoints being no longer supported - 
+   This endpoint is only available for legacy users who have valid 
+   subscriptions prior August 31, 2025."
+
+SOLUCIÓN IMPLEMENTADA:
+----------------------
+✅ Migración a APIs GRATUITAS y FUNCIONALES:
+
+1. FINNHUB API (Principal - Cotizaciones)
+   - Límite: 60 requests/minuto
+   - Función: Precios en tiempo real
+   - Registro: https://finnhub.io/register
+
+2. ALPHA VANTAGE API (Secundaria - Búsqueda)
+   - Límite: 25 requests/día
+   - Función: Búsqueda de acciones
+   - Registro: https://www.alphavantage.co/support/#api-key
+
+═══════════════════════════════════════════════════════════════════════════
+  PASOS PARA CONFIGURAR (5 MINUTOS)
+═══════════════════════════════════════════════════════════════════════════
+
+PASO 1: Obtener API Key de Finnhub (OBLIGATORIO)
+-------------------------------------------------
+1. Ir a: https://finnhub.io/register
+2. Registrarse con email (NO requiere tarjeta)
+3. Verificar email y hacer login
+4. Copiar tu API Key del dashboard
+5. Guardarla para el siguiente paso
+
+PASO 2: Obtener API Key de Alpha Vantage (OPCIONAL)
+----------------------------------------------------
+1. Ir a: https://www.alphavantage.co/support/#api-key
+2. Llenar formulario (nombre, email)
+3. Copiar la API Key que aparece
+4. Guardarla para el siguiente paso
+
+PASO 3: Configurar archivo .env
+--------------------------------
+1. Abrir el archivo .env en la raíz del proyecto
+2. Agregar estas líneas (reemplazar con tus API keys):
+
+   EXPO_PUBLIC_FINNHUB_API_KEY=tu-api-key-de-finnhub-aqui
+   EXPO_PUBLIC_ALPHA_VANTAGE_API_KEY=tu-api-key-de-alphavantage-aqui
+
+3. Guardar el archivo
+
+PASO 4: Reiniciar la app
+------------------------
+npm start
+
+═══════════════════════════════════════════════════════════════════════════
+  VALIDAR QUE FUNCIONA
+═══════════════════════════════════════════════════════════════════════════
+
+Opción 1: Ejecutar script de prueba
+------------------------------------
+npm run test:apis
+
+Deberías ver:
+  ✅ Finnhub Quote funciona!
+  ✅ Finnhub Profile funciona!
+  ✅ Alpha Vantage Search funciona!
+
+Opción 2: Ver logs en la app
+-----------------------------
+Al abrir Market Info, deberías ver en consola:
+  📊 [getMarketStocks] Obteniendo datos con Finnhub API
+  ✅ [Finnhub] AAPL: $150.25
+  ✅ [getMarketStocks] 8 acciones obtenidas
+
+═══════════════════════════════════════════════════════════════════════════
+  ARCHIVOS MODIFICADOS
+═══════════════════════════════════════════════════════════════════════════
+
+✅ src/services/searchApiService.ts
+   - Migrado de FMP a Finnhub + Alpha Vantage
+   - Implementado rate limiting (1.1s delay)
+   - Manejo de errores mejorado
+
+✅ .env.example
+   - Agregadas instrucciones para nuevas APIs
+   - Removida referencia a FMP
+
+✅ package.json
+   - Agregado script: npm run test:apis
+
+✅ MARKET_API_SETUP.md
+   - Documentación completa
+   - Guía paso a paso
+   - Troubleshooting
+
+✅ scripts/test-market-apis.js
+   - Script de validación automática
+   - Prueba todas las APIs
+
+═══════════════════════════════════════════════════════════════════════════
+  VENTAJAS DE LA NUEVA SOLUCIÓN
+═══════════════════════════════════════════════════════════════════════════
+
+✅ 100% GRATIS (sin tarjeta de crédito)
+✅ Más confiable (APIs activamente mantenidas)
+✅ Mejor límite de requests (60/min vs legacy)
+✅ Fácil de configurar (5 minutos)
+✅ Funciona en todas las regiones
+✅ Incluye logos de compañías
+✅ Datos en tiempo real
+
+═══════════════════════════════════════════════════════════════════════════
+  PRÓXIMOS PASOS PARA EL CLIENTE
+═══════════════════════════════════════════════════════════════════════════
+
+1. ✅ Registrarse en Finnhub (2 min)
+2. ✅ Registrarse en Alpha Vantage (1 min)
+3. ✅ Configurar .env con las API keys (1 min)
+4. ✅ Ejecutar: npm run test:apis (30 seg)
+5. ✅ Reiniciar app: npm start (30 seg)
+6. ✅ Probar Market Info en la app
+
+═══════════════════════════════════════════════════════════════════════════
+  SOPORTE
+═══════════════════════════════════════════════════════════════════════════
+
+Si tienes problemas:
+1. Verifica que las API keys estén correctas en .env
+2. Ejecuta: npm run test:apis
+3. Revisa los logs de consola
+4. Lee MARKET_API_SETUP.md para más detalles
+
+Última actualización: Octubre 29, 2025

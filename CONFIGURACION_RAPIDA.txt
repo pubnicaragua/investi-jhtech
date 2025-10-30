@@ -1,0 +1,123 @@
+═══════════════════════════════════════════════════════════════════════════
+  ⚡ CONFIGURACIÓN RÁPIDA - MARKET INFO API
+═══════════════════════════════════════════════════════════════════════════
+
+✅ ALPHA VANTAGE YA CONFIGURADA!
+   API Key: PBNP643J4TWTBIAB
+
+⏳ SOLO FALTA FINNHUB (2 MINUTOS):
+
+═══════════════════════════════════════════════════════════════════════════
+
+PASO 1: OBTENER FINNHUB API KEY (2 minutos)
+--------------------------------------------
+
+1. Ir a: https://finnhub.io/register
+
+2. Registrarte con email
+
+3. Verificar email
+
+4. Copiar tu API Key del dashboard
+
+═══════════════════════════════════════════════════════════════════════════
+
+PASO 2: CONFIGURAR .ENV (1 minuto)
+-----------------------------------
+
+1. Abrir archivo .env en la raíz del proyecto
+
+2. Agregar/actualizar estas líneas:
+
+   EXPO_PUBLIC_ALPHA_VANTAGE_API_KEY=PBNP643J4TWTBIAB
+   EXPO_PUBLIC_FINNHUB_API_KEY=tu-finnhub-key-aqui
+
+3. Reemplazar "tu-finnhub-key-aqui" con tu API key real
+
+4. Guardar el archivo
+
+═══════════════════════════════════════════════════════════════════════════
+
+PASO 3: PROBAR (1 minuto)
+--------------------------
+
+npm run test:apis
+
+Deberías ver:
+  ✅ Finnhub Quote funciona!
+  ✅ Finnhub Profile funciona!
+  ✅ Alpha Vantage Search funciona!
+
+═══════════════════════════════════════════════════════════════════════════
+
+PASO 4: REINICIAR APP (30 segundos)
+------------------------------------
+
+npm start
+
+═══════════════════════════════════════════════════════════════════════════
+
+PASO 5: VERIFICAR EN LA APP
+----------------------------
+
+1. Abrir Market Info
+2. Verificar que se carguen las acciones
+3. Probar la búsqueda
+
+═══════════════════════════════════════════════════════════════════════════
+
+📊 ESTADO ACTUAL:
+-----------------
+
+✅ Alpha Vantage: CONFIGURADA (PBNP643J4TWTBIAB)
+⏳ Finnhub: PENDIENTE (obtener en finnhub.io/register)
+📝 SerpAPI: OPCIONAL (ver COMPARACION_APIS.md)
+
+═══════════════════════════════════════════════════════════════════════════
+
+💡 ALTERNATIVA: SERPAPI GOOGLE FINANCE (OPCIONAL)
+--------------------------------------------------
+
+Si quieres datos más completos de Google Finance:
+
+1. Registrarte en: https://serpapi.com/users/sign_up
+2. Copiar API Key
+3. Agregar al .env:
+   EXPO_PUBLIC_SERPAPI_KEY=tu-serpapi-key-aqui
+
+Ventajas:
+  ✅ Ganadores/Perdedores del día
+  ✅ Criptomonedas
+  ✅ Noticias de mercado
+  ✅ 100 búsquedas/mes gratis
+
+Desventajas:
+  ⚠️ Límite bajo (100/mes)
+  ⚠️ No es tiempo real
+
+Ver COMPARACION_APIS.md para más detalles.
+
+═══════════════════════════════════════════════════════════════════════════
+
+🎯 RESUMEN:
+-----------
+
+TIEMPO TOTAL: ~4 minutos
+DIFICULTAD: ⭐ Muy fácil
+
+1. ✅ Alpha Vantage ya lista
+2. ⏳ Obtener Finnhub (2 min)
+3. ⏳ Configurar .env (1 min)
+4. ⏳ Probar (1 min)
+
+═══════════════════════════════════════════════════════════════════════════
+
+📞 SOPORTE:
+-----------
+
+Si tienes problemas:
+  • Ejecutar: npm run test:apis
+  • Leer: MARKET_API_SETUP.md
+  • Ver: COMPARACION_APIS.md
+
+═══════════════════════════════════════════════════════════════════════════

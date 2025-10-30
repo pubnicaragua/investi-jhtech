@@ -1,0 +1,57 @@
+═══════════════════════════════════════════════════════════════════════════
+  API KEYS DE PRUEBA (DEMO) - PARA TESTING RÁPIDO
+═══════════════════════════════════════════════════════════════════════════
+
+IMPORTANTE: Estas son API keys de DEMO con límites muy bajos.
+            Para producción, DEBES obtener tus propias API keys.
+
+═══════════════════════════════════════════════════════════════════════════
+
+FINNHUB API (Demo)
+------------------
+API Key: cvcqk79r01qhon9i1u10cvcqk79r01qhon9i1u1g
+Límite: Muy limitado (solo para pruebas)
+Nota: Esta es una key de ejemplo pública de Finnhub
+
+ALPHA VANTAGE API (Demo)
+-------------------------
+API Key: DEMO
+Límite: Solo funciona con símbolo "IBM"
+Nota: Esta es la key demo oficial de Alpha Vantage
+
+═══════════════════════════════════════════════════════════════════════════
+
+PARA USAR EN .env (SOLO PARA PRUEBAS):
+---------------------------------------
+
+EXPO_PUBLIC_FINNHUB_API_KEY=cvcqk79r01qhon9i1u10cvcqk79r01qhon9i1u1g
+EXPO_PUBLIC_ALPHA_VANTAGE_API_KEY=DEMO
+
+═══════════════════════════════════════════════════════════════════════════
+
+⚠️  ADVERTENCIA:
+   Estas keys son SOLO para probar que el código funciona.
+   Para uso real, obtén tus propias API keys:
+   
+   Finnhub: https://finnhub.io/register (GRATIS)
+   Alpha Vantage: https://www.alphavantage.co/support/#api-key (GRATIS)
+
+═══════════════════════════════════════════════════════════════════════════
+
+CÓMO OBTENER TUS PROPIAS API KEYS (5 MINUTOS):
+-----------------------------------------------
+
+1. FINNHUB (OBLIGATORIA):
+   - Ir a: https://finnhub.io/register
+   - Registrarse con email
+   - Verificar email
+   - Copiar API Key del dashboard
+   - Límite: 60 requests/minuto (suficiente)
+
+2. ALPHA VANTAGE (OPCIONAL):
+   - Ir a: https://www.alphavantage.co/support/#api-key
+   - Llenar formulario simple
+   - Copiar API Key que aparece
+   - Límite: 25 requests/día (suficiente para búsqueda)
+
+═══════════════════════════════════════════════════════════════════════════

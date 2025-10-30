@@ -161,7 +161,6 @@ export const PickInterestsScreen = ({ navigation }: any) => {
   
           <View style={styles.interestsContainer}>  
             {interests.map((item) => {
-              const IconComponent = INTEREST_ICON_COMPONENTS[item.category]
               const iconColor = INTEREST_ICON_COLORS[item.category] || '#2673f3'
               const isSelected = selectedInterests.includes(item.id)
               
@@ -175,7 +174,7 @@ export const PickInterestsScreen = ({ navigation }: any) => {
                   onPress={() => toggleInterest(item.id)}  
                 >  
                   <View style={[styles.iconContainer, isSelected && { backgroundColor: iconColor + '20' }]}>  
-                    {IconComponent && <IconComponent size={24} color={isSelected ? iconColor : '#6B7280'} />}  
+                    <Text style={styles.emojiIcon}>{item.icon || '📊'}</Text>
                   </View>  
                   <Text  
                     style={[  
@@ -337,5 +336,9 @@ const styles = StyleSheet.create({
     flex: 1,  
     justifyContent: "center",  
     alignItems: "center",  
-  },  
+  },
+  emojiIcon: {
+    fontSize: 28,
+    lineHeight: 32,
+  },
 })

@@ -191,12 +191,12 @@ export function PickGoalsScreen({ navigation }: any) {
                   onPress={() => toggleGoal(goal.id)}
                   activeOpacity={0.7}
                 >
-                  {/* Icon */}
+                  {/* Emoji Icon */}
                   <View style={[
                     styles.iconContainer,
                     isSelected && { backgroundColor: iconData.color + '15' }
                   ]}>
-                    <IconComponent size={24} color={iconColor} strokeWidth={2.5} />
+                    <Text style={styles.emojiIcon}>{goal.icon}</Text>
                   </View>
                   
                   {/* Goal Name */}
@@ -386,5 +386,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  emojiIcon: {
+    fontSize: 28,
+    lineHeight: 32,
   },
 })

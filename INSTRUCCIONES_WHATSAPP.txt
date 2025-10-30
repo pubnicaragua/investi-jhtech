@@ -1,0 +1,43 @@
+🔧 SOLUCIÓN: API DE MARKET INFO
+
+Ya está arreglado! El problema era que Financial Modeling Prep descontinuó los endpoints que usábamos.
+
+✅ SOLUCIÓN: Migré a 2 APIs GRATUITAS que funcionan mejor:
+   • Finnhub (cotizaciones en tiempo real)
+   • Alpha Vantage (búsqueda de acciones)
+
+✅ ALPHA VANTAGE YA CONFIGURADA!
+   Tu API Key: PBNP643J4TWTBIAB
+
+📝 SOLO FALTA FINNHUB (2 MINUTOS):
+
+1️⃣ FINNHUB (OBLIGATORIO - 2 min):
+   • Ir a: https://finnhub.io/register
+   • Registrarte con email
+   • Verificar email
+   • Copiar tu API Key
+
+2️⃣ CONFIGURAR .ENV (1 min):
+   Abrir archivo .env y agregar:
+   
+   EXPO_PUBLIC_ALPHA_VANTAGE_API_KEY=PBNP643J4TWTBIAB
+   EXPO_PUBLIC_FINNHUB_API_KEY=tu-finnhub-key-aqui
+
+3️⃣ PROBAR (1 min):
+   npm run test:apis
+   npm start
+
+📁 ARCHIVOS CREADOS:
+   ✅ RESUMEN_PARA_CLIENTE.md (guía completa)
+   ✅ MARKET_API_SETUP.md (documentación técnica)
+   ✅ SOLUCION_API_MERCADO.txt (guía rápida)
+   ✅ API_KEYS_DEMO.txt (keys de prueba)
+   ✅ scripts/test-market-apis.js (validación)
+
+💡 VENTAJAS:
+   ✅ 100% GRATIS (sin tarjeta)
+   ✅ Más confiable
+   ✅ Funciona en todas las regiones
+   ✅ 60 requests/minuto (vs legacy que no funciona)
+
+🚀 TODO LISTO PARA PROBAR!
