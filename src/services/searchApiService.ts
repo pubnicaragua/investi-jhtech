@@ -1,4 +1,4 @@
- /**
+/**
  * Market Data Service
  * Servicio para obtener datos de mercado en tiempo real
  * Usa Financial Modeling Prep API (https://financialmodelingprep.com/)
@@ -7,8 +7,10 @@
 import { supabase } from '../supabase';
 
 // Financial Modeling Prep configuration
-const FMP_API_KEY = process.env.EXPO_PUBLIC_FMP_API_KEY || 'demo';
-const FMP_BASE_URL = process.env.EXPO_PUBLIC_FMP_BASE_URL || 'https://financialmodelingprep.com/api/v3';
+// Prefer reading the API key from an environment variable or secure storage.
+// IMPORTANT: rotate the key if it was committed to source control.
+const FMP_API_KEY = (process?.env?.FMP_API_KEY as string) || 'onAb6gscjWoAKJtBhZom3PcdEyP9kgPu'
+const FMP_BASE_URL = (process?.env?.FMP_BASE_URL as string) || 'https://financialmodelingprep.com/api/v4'
 
 
 
@@ -37,13 +39,21 @@ export interface MarketIndex {
 export async function getMarketStocks(symbols: string[] = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA', 'AMD']): Promise<MarketStock[]> {
   try {
     console.log('📊 [getMarketStocks] Intentando usar Financial Modeling Prep API');
-
-    // Intentar obtener datos reales de FMP API
-    const url = `${FMP_BASE_URL}/quote/${symbols.join(',')}?apikey=${FMP_API_KEY}`;
+    const url = `${FMP_BASE_URL}/stock/quote?symbol=${symbols.join(',')}&apikey=${FMP_API_KEY}`;
     console.log('📡 [FMP] URL:', url);
 
     const response = await fetch(url);
     const data = await response.json();
+
+    // Detect common 403 / legacy subscription message and throw clearer error
+    if (response.status === 403 || (data && data['Error Message'])) {
+      const serverMsg = data?.['Error Message'] || data?.message || JSON.stringify(data)
+      console.error('❌ [FMP] API rejected request:', response.status, serverMsg)
+      // Throw a helpful, actionable error for the app / developer
+      throw new Error(
+        `FMP API error ${response.status}: ${serverMsg}. \nPossible causes: legacy endpoint subscription required, API key invalid/expired, or endpoint changed. Consider upgrading your FMP plan, rotating the API key, or switching to another data provider.`
+      )
+    }
 
     if (Array.isArray(data) && data.length > 0) {
       console.log('✅ [FMP] Datos obtenidos:', data.length);
@@ -66,7 +76,7 @@ export async function getMarketStocks(symbols: string[] = ['AAPL', 'GOOGL', 'MSF
       const individualResults = [];
       for (const symbol of symbols) {
         try {
-          const singleUrl = `${FMP_BASE_URL}/quote/${symbol}?apikey=${FMP_API_KEY}`;
+          const singleUrl = `https://financialmodelingprep.com/api/v4/stock/quote?symbol=${symbol}&apikey=${FMP_API_KEY}`;
           const singleResponse = await fetch(singleUrl);
           const singleData = await singleResponse.json();
 
@@ -107,11 +117,17 @@ export async function getMarketStocks(symbols: string[] = ['AAPL', 'GOOGL', 'MSF
 export async function fetchStockData(symbol: string): Promise<MarketStock> {
   try {
     // Usar API real para obtener datos específicos
-    const url = `${FMP_BASE_URL}/quote/${symbol}?apikey=${FMP_API_KEY}`;
+    const url = `${FMP_BASE_URL}/stock/quote?symbol=${encodeURIComponent(symbol)}&apikey=${FMP_API_KEY}`;
     console.log('📡 [fetchStockData] URL:', url);
 
     const response = await fetch(url);
     const data = await response.json();
+
+    if (response.status === 403 || (data && data['Error Message'])) {
+      const serverMsg = data?.['Error Message'] || data?.message || JSON.stringify(data)
+      console.error('❌ [FMP] API rejected request (fetchStockData):', response.status, serverMsg)
+      throw new Error(`FMP API error ${response.status}: ${serverMsg}`)
+    }
 
     if (Array.isArray(data) && data.length > 0) {
       const stock = data[0];
@@ -184,11 +200,17 @@ export async function searchStocks(query: string): Promise<MarketStock[]> {
     console.log('🔍 [searchStocks] Buscando:', query);
 
     // Usar FMP API para búsqueda
-    const url = `${FMP_BASE_URL}/search?query=${encodeURIComponent(query)}&limit=10&exchange=NASDAQ&apikey=${FMP_API_KEY}`;
+    const url = `${FMP_BASE_URL}/stock/search?query=${encodeURIComponent(query)}&limit=10&exchange=NASDAQ&apikey=${FMP_API_KEY}`;
     console.log('📡 [FMP Search] URL:', url);
 
     const response = await fetch(url);
     const data = await response.json();
+
+    if (response.status === 403 || (data && data['Error Message'])) {
+      const serverMsg = data?.['Error Message'] || data?.message || JSON.stringify(data)
+      console.error('❌ [FMP] API rejected request (searchStocks):', response.status, serverMsg)
+      throw new Error(`FMP API error ${response.status}: ${serverMsg}`)
+    }
 
     if (Array.isArray(data) && data.length > 0) {
       console.log('✅ [FMP Search] Resultados encontrados:', data.length);

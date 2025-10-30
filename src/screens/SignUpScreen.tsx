@@ -52,21 +52,32 @@ export function SignUpScreen({ navigation }: any) {
             },
           })
 
-          if (!response.ok) {
+          if (!response.ok && response.status !== 0) {
             const errorData = await response.text()
-            console.error('LinkedIn auth error:', errorData)
+            console.error('LinkedIn auth error (non-OK):', response.status, errorData)
             throw new Error(`HTTP ${response.status}: ${errorData}`)
           }
 
-          // The function should redirect to LinkedIn OAuth URL
-          const redirectUrl = response.headers.get('location')
+          // The function may put the redirect URL in several places. Try headers, response.url, or JSON body.
+          let redirectUrl = response.headers.get('location') || response.url || null
+          if (!redirectUrl) {
+            try {
+              const json = await response.json()
+              redirectUrl = json?.redirectUrl || json?.url || null
+            } catch (e) {
+              console.warn('[SignUpScreen] Could not parse JSON body from LinkedIn auth function:', e)
+            }
+          }
+
           if (redirectUrl) {
+            console.log('[SignUpScreen] Opening LinkedIn redirect URL:', redirectUrl)
             if (Platform.OS === 'web' && typeof window !== 'undefined') {
               window.location.href = redirectUrl
             } else {
               await Linking.openURL(redirectUrl)
             }
           } else {
+            console.error('[SignUpScreen] No redirect URL received from LinkedIn auth function (headers, url, or body)')
             throw new Error('No redirect URL received from LinkedIn auth function')
           }
         } catch (error: any) {
@@ -76,9 +87,19 @@ export function SignUpScreen({ navigation }: any) {
         return
       }
 
-      const redirectTo = (typeof window !== 'undefined' && window.location && window.location.origin)
-        ? `${window.location.origin}/auth/callback`
-        : Linking.createURL('auth/callback')
+      // Use Expo Linking which will correctly create deep links for native and web-aware URLs.
+      // Prefer Linking.createURL to avoid web 404s when hosting doesn't handle absolute paths like /auth/callback
+      let redirectTo = ''
+      try {
+        redirectTo = Linking.createURL('auth/callback')
+      } catch (e) {
+        if (typeof window !== 'undefined' && window.location && window.location.origin) {
+          redirectTo = `${window.location.origin}/auth/callback`
+        } else {
+          redirectTo = 'auth/callback'
+        }
+      }
+      console.log('[SignUpScreen] OAuth redirectTo:', redirectTo)
 
       const { data, error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } })
       if (error) throw error

@@ -1,0 +1,54 @@
+# Financial Modeling Prep API Tests
+# Archivo para probar los endpoints de la API de Financial Modeling Prep
+# Usar con la extensión REST Client de VS Code
+
+@baseUrl = https://financialmodelingprep.com/api/v4/stock
+@apiKey = onAb6gscjWoAKJtBhZom3PcdEyP9kgPu
+
+### Test 1: Obtener cotización de una acción (AAPL)
+GET {{baseUrl}}/quote/ASX?apikey={{apiKey}}
+Content-Type: application/json
+
+###
+
+### Test 2: Obtener múltiples acciones
+GET {{baseUrl}}/quote/AAPL,GOOGL,MSFT,AMZN,TSLA?apikey={{apiKey}}
+Content-Type: application/json
+
+###
+
+### Test 3: Buscar acciones por query (como en searchApiService)
+GET {{baseUrl}}/search?query=apple&limit=10&exchange=NASDAQ&apikey={{apiKey}}
+Content-Type: application/json
+
+###
+
+### Test 4: Obtener acciones latinoamericanas (como en getLatinAmericanStocks)
+GET {{baseUrl}}/quote?symbol=VALE,PBR,GGAL,BBAR,SQM&apikey={{apiKey}}
+Content-Type: application/json
+
+###
+
+### Test 5: Obtener acciones populares (como en getMarketStocks)
+GET {{baseUrl}}/quote?symbol=AAPL,GOOGL,MSFT,AMZN,TSLA,META,NVDA,AMD&apikey={{apiKey}}
+Content-Type: application/json
+
+###
+
+### Test 6: Obtener índices de mercado (como en getMarketIndices)
+GET {{baseUrl}}/quote?symbol=.DJI,.INX,.IXIC&apikey={{apiKey}}
+Content-Type: application/json
+
+###
+
+### Test 7: Buscar con diferentes términos (como en searchStocks)
+GET {{baseUrl}}/search?query=tesla&limit=10&exchange=NASDAQ&apikey={{apiKey}}
+Content-Type: application/json
+
+###
+
+### Test 8: Verificar API key (debería fallar sin key)
+GET {{baseUrl}}/quote?symbol=AAPL
+Content-Type: application/json
+
+###
