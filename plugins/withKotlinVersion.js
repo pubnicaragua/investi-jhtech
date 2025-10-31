@@ -11,7 +11,7 @@ const withKotlinVersion = (config) => {
       /buildscript\s*{/,
       `buildscript {
   ext {
-    kotlinVersion = '1.9.24'
+    kotlinVersion = '2.0.21'
   }`
     );
 
