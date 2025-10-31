@@ -270,10 +270,13 @@ export function CommunityRecommendationsScreen({ navigation, route }: any) {
       })
 
       if (user?.id) {
-        // Mostrar animación de puerta
+        // TODO: Animación de puerta desactivada temporalmente
+        // Descomentar cuando se requiera activar la animación
+        /*
         setJoiningCommunity(community)
         setShowDoorAnimation(true)
         playDoorAnimation()
+        */
 
         console.log('🔵 [handleJoin] Llamando a joinCommunity API...')
         
@@ -293,6 +296,11 @@ export function CommunityRecommendationsScreen({ navigation, route }: any) {
           console.log('✅ [handleJoin] Usuario unido exitosamente a la comunidad:', community.id)
           setJoined((prev) => [...prev, community.id])
 
+          // Navegar directamente sin animación
+          console.log('🔵 [handleJoin] Navegando a CommunityDetail...')
+          navigation.navigate('CommunityDetail', { communityId: community.id })
+          
+          /* TODO: Código de animación comentado
           // Cerrar animación y navegar después de 3.5 segundos
           setTimeout(() => {
             setShowDoorAnimation(false)
@@ -304,6 +312,7 @@ export function CommunityRecommendationsScreen({ navigation, route }: any) {
               navigation.navigate('CommunityDetail', { communityId: community.id })
             }, 300)
           }, 3500)
+          */
         } else {
           // ❌ Error: no se pudo unir
           console.error('❌ [handleJoin] Error: No se pudo unir a la comunidad - resultado es falsy:', result)

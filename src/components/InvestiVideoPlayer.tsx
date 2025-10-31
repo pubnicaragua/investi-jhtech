@@ -17,6 +17,7 @@ export function InvestiVideoPlayer({ uri, style }: InvestiVideoPlayerProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [isMuted, setIsMuted] = useState(false)
   const [showControls, setShowControls] = useState(true)
+  const [hasError, setHasError] = useState(false)
   const hideControlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -65,6 +66,11 @@ export function InvestiVideoPlayer({ uri, style }: InvestiVideoPlayerProps) {
     if (playbackStatus.isLoaded) {
       setStatus(playbackStatus)
       setIsLoading(false)
+      setHasError(false)
+    } else if ('error' in playbackStatus) {
+      console.error('Video playback error:', playbackStatus.error)
+      setIsLoading(false)
+      setHasError(true)
     }
   }
 
@@ -86,13 +92,26 @@ export function InvestiVideoPlayer({ uri, style }: InvestiVideoPlayerProps) {
           ref={videoRef}
           source={{ uri }}
           style={styles.video}
-          resizeMode={ResizeMode.COVER}
+          resizeMode={ResizeMode.CONTAIN}
           isLooping
           shouldPlay={false}
           isMuted={isMuted}
           onPlaybackStatusUpdate={onPlaybackStatusUpdate}
-          onLoadStart={() => setIsLoading(true)}
-          onLoad={() => setIsLoading(false)}
+          onLoadStart={() => {
+            console.log('Video loading started:', uri)
+            setIsLoading(true)
+            setHasError(false)
+          }}
+          onLoad={() => {
+            console.log('Video loaded successfully')
+            setIsLoading(false)
+          }}
+          onError={(error) => {
+            console.error('Video error:', error)
+            setHasError(true)
+            setIsLoading(false)
+          }}
+          useNativeControls={hasError}
         />
 
         {/* Investi Watermark - Siempre visible */}
@@ -110,6 +129,16 @@ export function InvestiVideoPlayer({ uri, style }: InvestiVideoPlayerProps) {
         {isLoading && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#FFFFFF" />
+            <Text style={styles.loadingText}>Cargando video...</Text>
+          </View>
+        )}
+
+        {/* Error Message */}
+        {hasError && !isLoading && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorIcon}>⚠️</Text>
+            <Text style={styles.errorText}>No se pudo cargar el video</Text>
+            <Text style={styles.errorSubtext}>Verifica tu conexión</Text>
           </View>
         )}
 
@@ -253,7 +282,34 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  loadingText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 12,
+  },
+  errorContainer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  },
+  errorIcon: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  errorText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  errorSubtext: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 13,
+    fontWeight: '500',
   },
   centerPlayButton: {
     position: 'absolute',

@@ -3887,4 +3887,91 @@ Crea contenido educativo completo y estructurado.`;
   }
 }
 
+// ============================================================================
+// CHAT DE IRI - GUARDAR Y CARGAR CONVERSACIONES
+// ============================================================================
+
+/**
+ * Guardar un mensaje de chat de IRI
+ * @param userId - ID del usuario
+ * @param role - 'user' o 'assistant'
+ * @param content - Contenido del mensaje
+ * @returns El mensaje guardado o null si hay error
+ */
+export async function saveIRIChatMessage(userId: string, role: 'user' | 'assistant', content: string) {
+  try {
+    const { data, error } = await supabase
+      .from('iri_chat_messages')
+      .insert({
+        user_id: userId,
+        role: role,
+        content: content,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error guardando mensaje de IRI:', error)
+      return null
+    }
+
+    return data
+  } catch (error) {
+    console.error('Error en saveIRIChatMessage:', error)
+    return null
+  }
+}
+
+/**
+ * Cargar el historial de conversaciones de IRI de un usuario
+ * @param userId - ID del usuario
+ * @param limit - Número máximo de mensajes a cargar (default: 50)
+ * @returns Array de mensajes o array vacío si hay error
+ */
+export async function loadIRIChatHistory(userId: string, limit: number = 50) {
+  try {
+    const { data, error } = await supabase
+      .from('iri_chat_messages')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true })
+      .limit(limit)
+
+    if (error) {
+      console.error('Error cargando historial de IRI:', error)
+      return []
+    }
+
+    return data || []
+  } catch (error) {
+    console.error('Error en loadIRIChatHistory:', error)
+    return []
+  }
+}
+
+/**
+ * Limpiar el historial de conversaciones de IRI de un usuario
+ * @param userId - ID del usuario
+ * @returns true si se limpió correctamente, false si hay error
+ */
+export async function clearIRIChatHistory(userId: string) {
+  try {
+    const { error } = await supabase
+      .from('iri_chat_messages')
+      .delete()
+      .eq('user_id', userId)
+
+    if (error) {
+      console.error('Error limpiando historial de IRI:', error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error('Error en clearIRIChatHistory:', error)
+    return false
+  }
+}
+
 export { request }

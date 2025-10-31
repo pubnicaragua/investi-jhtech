@@ -5,8 +5,10 @@
 ### LinkedIn App Credentials
 ```
 Client ID: 7799o54h2bysvt
-Client Secret: WPL_AP1.p11fmO2XZG7VRjMi.onxlbA==
+Client Secret: [CONFIGURAR EN VARIABLES DE ENTORNO]
 ```
+
+**Nota:** El Client Secret debe configurarse como variable de entorno en Supabase, no debe estar en el código.
 
 ### Edge Function URL
 ```
@@ -78,8 +80,10 @@ Asegúrate de configurar estas variables en Supabase Dashboard:
 
 ```
 LINKEDIN_CLIENT_ID=7799o54h2bysvt
-LINKEDIN_CLIENT_SECRET=WPL_AP1.p11fmO2XZG7VRjMi.onxlbA==
+LINKEDIN_CLIENT_SECRET=[TU_CLIENT_SECRET_AQUI]
 ```
+
+**Importante:** Obtén el Client Secret desde tu LinkedIn Developer Portal.
 
 ---
 

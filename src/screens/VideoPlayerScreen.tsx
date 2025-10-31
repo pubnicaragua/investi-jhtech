@@ -16,6 +16,7 @@ import {
   Linking
 } from 'react-native'
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av'
+import { WebView } from 'react-native-webview'
 import {
   ArrowLeft,
   Play,
@@ -53,6 +54,19 @@ import {
 } from '../api'
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window')
+
+// Función para extraer ID de video de YouTube
+const getYouTubeVideoId = (url: string): string | null => {
+  const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/
+  const match = url.match(regExp)
+  return (match && match[7].length === 11) ? match[7] : null
+}
+
+// Función para crear embed URL de YouTube
+const getYouTubeEmbedUrl = (url: string): string | null => {
+  const videoId = getYouTubeVideoId(url)
+  return videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=0&rel=0&modestbranding=1` : null
+}
 
 interface VideoData {
   id: string
@@ -385,16 +399,33 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
       <View style={styles.videoContainer}>
         {videoData.video_url ? (
           <>
-            <Video
-              ref={videoRef}
-              source={{ uri: videoData.video_url }}
-              style={styles.video}
-              resizeMode={ResizeMode.CONTAIN}
-              shouldPlay={false}
-              isMuted={isMuted}
-              onPlaybackStatusUpdate={onPlaybackStatusUpdate}
-              onLoad={() => setVideoLoaded(true)}
-            />
+            {videoData.video_url.includes('youtube.com') || videoData.video_url.includes('youtu.be') ? (
+              <WebView
+                style={styles.video}
+                source={{ uri: getYouTubeEmbedUrl(videoData.video_url) || videoData.video_url }}
+                allowsFullscreenVideo={true}
+                mediaPlaybackRequiresUserAction={false}
+                javaScriptEnabled={true}
+                domStorageEnabled={true}
+                startInLoadingState={true}
+                renderLoading={() => (
+                  <View style={styles.webViewLoading}>
+                    <ActivityIndicator size="large" color="#2673f3" />
+                  </View>
+                )}
+              />
+            ) : (
+              <>
+                <Video
+                  ref={videoRef}
+                  source={{ uri: videoData.video_url }}
+                  style={styles.video}
+                  resizeMode={ResizeMode.CONTAIN}
+                  shouldPlay={false}
+                  isMuted={isMuted}
+                  onPlaybackStatusUpdate={onPlaybackStatusUpdate}
+                  onLoad={() => setVideoLoaded(true)}
+                />
             
             {/* Controles del video */}
             <TouchableOpacity 
@@ -441,6 +472,8 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
                 </View>
               )}
             </TouchableOpacity>
+              </>
+            )}
           </>
         ) : (
           <View style={styles.noVideoContainer}>
@@ -462,7 +495,7 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
           <Text style={styles.videoTitle}>{videoData.title}</Text>
           
           <View style={styles.videoStats}>
-            <Text style={styles.statsText}>{(videoData.like_count || 0).toLocaleString()} likes</Text>
+            <Text style={styles.statsText}>{(videoData.likes || videoData.like_count || 0).toLocaleString()} likes</Text>
             <Text style={styles.statsText}>{comments.length} comentarios</Text>
             <Text style={styles.statsText}>Duración: {Math.floor(duration / 60)}:{(duration % 60).toString().padStart(2, '0')}</Text>
           </View>
@@ -546,7 +579,7 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
                   if (!userId || !newComment.trim()) return
 
                   try {
-                    await addVideoComment(userId, videoId, newComment.trim())
+                    await addVideoComment(videoId, userId, newComment.trim())
                     setNewComment('')
                     // Reload comments
                     const updatedComments = await getVideoComments(videoId)
@@ -683,6 +716,11 @@ const styles = StyleSheet.create({
     position: 'relative',
     backgroundColor: '#000',
   },
+  youtubeContainer: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+  },
   videoThumbnail: {
     width: '100%',
     height: '100%',
@@ -690,6 +728,16 @@ const styles = StyleSheet.create({
   video: {
     width: '100%',
     height: '100%',
+  },
+  webViewLoading: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
   },
   videoTouchArea: {
     position: 'absolute',

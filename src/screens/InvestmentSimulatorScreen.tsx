@@ -116,18 +116,20 @@ export function InvestmentSimulatorScreen() {
 
   // Ajustar escenario basado en el stock
   const adjustScenarioForStock = (stock: MarketStock) => {
-    const volatilityAdjustment = Math.abs(stock.changePercent) * 1.5;
+    // Usar valores por defecto si changePercent es undefined
+    const changePercent = stock.changePercent || 0;
+    const volatilityAdjustment = Math.abs(changePercent) * 1.5;
     const scenarios = [...INVESTMENT_SCENARIOS];
     
     scenarios.forEach(scenario => {
       if (scenario.id === 'conservative') {
-        scenario.annualReturn = Math.max(3, stock.changePercent);
+        scenario.annualReturn = Math.max(3, changePercent);
         scenario.volatility = Math.max(2, volatilityAdjustment * 0.5);
       } else if (scenario.id === 'moderate') {
-        scenario.annualReturn = Math.max(6, stock.changePercent * 1.2);
+        scenario.annualReturn = Math.max(6, changePercent * 1.2);
         scenario.volatility = Math.max(5, volatilityAdjustment);
       } else if (scenario.id === 'aggressive') {
-        scenario.annualReturn = Math.max(10, stock.changePercent * 1.5);
+        scenario.annualReturn = Math.max(10, changePercent * 1.5);
         scenario.volatility = Math.max(10, volatilityAdjustment * 1.5);
       }
     });
@@ -146,22 +148,31 @@ export function InvestmentSimulatorScreen() {
 
     if (initial <= 0 || period <= 0) {
       Alert.alert('Error', 'Por favor ingresa valores válidos');
-      return;
+      return null;
     }
 
-    // Fórmula de valor futuro con contribuciones mensuales
-    const futureValue =
-      initial * Math.pow(1 + monthlyRate, months) +
-      monthly * ((Math.pow(1 + monthlyRate, months) - 1) / monthlyRate);
+    // Calcular valor futuro de la inversión inicial
+    const futureValueInitial = initial * Math.pow(1 + monthlyRate, months);
+    
+    // Calcular valor futuro de las contribuciones mensuales
+    let futureValueContributions = 0;
+    if (monthly > 0 && monthlyRate > 0) {
+      futureValueContributions = monthly * ((Math.pow(1 + monthlyRate, months) - 1) / monthlyRate);
+    } else if (monthly > 0) {
+      // Si monthlyRate es 0, simplemente sumar las contribuciones
+      futureValueContributions = monthly * months;
+    }
 
-    const totalContributed = initial + monthly * months;
+    const futureValue = futureValueInitial + futureValueContributions;
+    const totalContributed = initial + (monthly * months);
     const totalEarnings = futureValue - totalContributed;
+    const roi = totalContributed > 0 ? ((totalEarnings / totalContributed) * 100) : 0;
 
     return {
       futureValue: Math.round(futureValue),
       totalContributed: Math.round(totalContributed),
       totalEarnings: Math.round(totalEarnings),
-      roi: ((totalEarnings / totalContributed) * 100).toFixed(2),
+      roi: roi.toFixed(2),
     };
   };
 
@@ -300,7 +311,7 @@ export function InvestmentSimulatorScreen() {
                 <Text style={styles.resultLabel}>Stock Simulado</Text>
                 <Text style={styles.resultValue}>{stock.symbol}</Text>
                 <Text style={[styles.resultLabel, { marginTop: 8 }]}>
-                  {stock.name} - ${stock.price} ({stock.changePercent > 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%)
+                  {stock.name} - ${stock.price || 0} ({(stock.changePercent || 0) > 0 ? '+' : ''}{(stock.changePercent || 0).toFixed(2)}%)
                 </Text>
               </View>
             )}

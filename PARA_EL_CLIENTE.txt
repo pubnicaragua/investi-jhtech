@@ -31,7 +31,7 @@ Hola! Ya está todo configurado. Aquí está el resumen de lo que se hizo:
 
 ✅ YA CONFIGURADO:
    • Client ID: 7799o54h2bysvt
-   • Client Secret: WPL_AP1.p11fmO2XZG7VRjMi.onxlbA==
+   • Client Secret: [CONFIGURAR EN SUPABASE]
    • Edge Function actualizado
 
 ⏳ SOLO FALTA (5 MINUTOS):

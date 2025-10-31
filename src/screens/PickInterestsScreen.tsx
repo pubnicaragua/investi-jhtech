@@ -8,7 +8,8 @@ import {
   StyleSheet,  
   ScrollView,  
   ActivityIndicator,  
-  Alert,  
+  Alert,
+  Image,  
 } from "react-native"
 import { SafeAreaView } from 'react-native-safe-area-context'  
 import { 
@@ -174,7 +175,19 @@ export const PickInterestsScreen = ({ navigation }: any) => {
                   onPress={() => toggleInterest(item.id)}  
                 >  
                   <View style={[styles.iconContainer, isSelected && { backgroundColor: iconColor + '20' }]}>  
-                    <Text style={styles.emojiIcon}>{item.icon || '📊'}</Text>
+                    {item.name.toLowerCase().includes('cripto') ? (
+                      <Image 
+                        source={require('../../assets/logos_bitcoin.png')}
+                        style={styles.bitcoinIcon}
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <Text style={styles.emojiIcon}>
+                        {item.name.toLowerCase().includes('acciones locales') || item.name.toLowerCase().includes('local') 
+                          ? '🇨🇱' 
+                          : item.icon || '📊'}
+                      </Text>
+                    )}
                   </View>  
                   <Text  
                     style={[  
@@ -338,7 +351,10 @@ const styles = StyleSheet.create({
     alignItems: "center",  
   },
   emojiIcon: {
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: 32,
+  },
+  bitcoinIcon: {
+    width: 32,
+    height: 32,
   },
 })

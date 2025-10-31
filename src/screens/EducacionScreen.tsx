@@ -268,7 +268,9 @@ export function EducacionScreen() {
                       showsHorizontalScrollIndicator={false}
                       scrollEnabled={true}
                       bounces={true}
+                      nestedScrollEnabled={true}
                       contentContainerStyle={styles.horizontalScrollContent}
+                      removeClippedSubviews={false}
                     />
                   </View>
                 )}
@@ -297,7 +299,9 @@ export function EducacionScreen() {
                         showsHorizontalScrollIndicator={false}
                         scrollEnabled={true}
                         bounces={true}
+                        nestedScrollEnabled={true}
                         contentContainerStyle={styles.horizontalScrollContent}
+                        removeClippedSubviews={false}
                       />
                     </View>
                   );
@@ -313,7 +317,10 @@ export function EducacionScreen() {
                     <ScrollView 
                       horizontal 
                       showsHorizontalScrollIndicator={false}
+                      scrollEnabled={true}
+                      nestedScrollEnabled={true}
                       contentContainerStyle={styles.toolsScrollContent}
+                      removeClippedSubviews={false}
                     >
                       {tools.map(renderToolItem)}
                     </ScrollView>
@@ -472,8 +479,8 @@ const styles = StyleSheet.create({
   seeAllText: { fontSize: 14, color: '#4A90E2', fontWeight: '600' },
   topicHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   topicIconContainer: { flexDirection: 'row', alignItems: 'center' },
-  horizontalScrollContent: { paddingHorizontal: 16, gap: 12 },
-  filtersScrollContent: { paddingHorizontal: 16, gap: 8, marginBottom: 16 },
+  horizontalScrollContent: { paddingLeft: 16, paddingRight: 16, gap: 12 },
+  filtersScrollContent: { paddingLeft: 16, paddingRight: 16, gap: 8, marginBottom: 16 },
   filterChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f5f5f5' },
   filterChipActive: { backgroundColor: '#4A90E2' },
   filterChipText: { fontSize: 13, color: '#666', fontWeight: '500' },
@@ -481,7 +488,7 @@ const styles = StyleSheet.create({
   videosGrid: { paddingHorizontal: 16, gap: 12 },
   coursesGrid: { paddingHorizontal: 16, gap: 12 },
   toolsGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 8, justifyContent: 'space-between', gap: 8 },
-  toolsScrollContent: { paddingHorizontal: 16, gap: 12 },
+  toolsScrollContent: { paddingLeft: 16, paddingRight: 16, gap: 12 },
   videoCard: { width: 280, backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
   videoThumbnail: { width: '100%', height: 160, backgroundColor: '#eee' },
   videoDurationBadge: { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },

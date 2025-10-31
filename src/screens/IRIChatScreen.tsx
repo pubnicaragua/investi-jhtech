@@ -13,19 +13,20 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TextInput,
   TouchableOpacity,
   ScrollView,
+  StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
-  Alert,
   Image,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Send } from 'lucide-react-native';
+import { ArrowLeft, Send, Trash2 } from 'lucide-react-native';
 import { useAuthGuard } from '../hooks/useAuthGuard';
+import { getCurrentUserId, saveIRIChatMessage, loadIRIChatHistory, clearIRIChatHistory } from '../rest/api';
 
 interface Message {
   id: string;
@@ -43,8 +44,8 @@ const GROK_API_KEY = process.env.EXPO_PUBLIC_GROK_API_KEY || '';
 const GROK_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 // DEBUG: Verificar si la API key se cargó
-console.log('🔑 GROK_API_KEY loaded:', GROK_API_KEY ? `${GROK_API_KEY.substring(0, 10)}...` : 'NOT FOUND');
-console.log('🌐 GROK_API_URL:', GROK_API_URL);
+console.log(' GROK_API_KEY loaded:', GROK_API_KEY ? `${GROK_API_KEY.substring(0, 10)}...` : 'NOT FOUND');
+console.log(' GROK_API_URL:', GROK_API_URL);
 
 const SYSTEM_CONTEXT = `Eres Irï, el asistente de inteligencia artificial de Investi, una aplicación de educación financiera y comunidad para jóvenes en Nicaragua.
 
@@ -77,17 +78,76 @@ CÓMO RESPONDES:
 export default function IRIChatScreen({ navigation }: any) {
   useAuthGuard();
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      content: '¡Hola! Soy Irï, tu asistente de inteligencia artificial en Investi. 🌟\n\n¿En qué puedo ayudarte hoy? Puedo responder preguntas sobre educación financiera, ahorro, presupuesto, o explicarte cómo usar las herramientas de Investi.\n\n⚠️ Nota: No proporciono consejos específicos de inversión. Para decisiones de inversión, consulta con un asesor financiero profesional.',
-      role: 'assistant',
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // Cargar historial al montar el componente
+  useEffect(() => {
+    loadChatHistory();
+  }, []);
+
+  const loadChatHistory = async () => {
+    try {
+      setLoadingHistory(true);
+      const currentUserId = await getCurrentUserId();
+      
+      if (!currentUserId) {
+        console.log('No hay usuario logueado');
+        // Mostrar mensaje de bienvenida si no hay usuario
+        setMessages([{
+          id: '1',
+          content: '¡Hola! Soy Irï, tu asistente de educación financiera. ¿En qué puedo ayudarte hoy?',
+          role: 'assistant',
+          timestamp: new Date(),
+        }]);
+        setLoadingHistory(false);
+        return;
+      }
+
+      setUserId(currentUserId);
+      
+      // Cargar historial desde Supabase
+      const history = await loadIRIChatHistory(currentUserId);
+      
+      if (history && history.length > 0) {
+        // Convertir historial de Supabase a formato de mensajes
+        const loadedMessages: Message[] = history.map((msg: any) => ({
+          id: msg.id,
+          content: msg.content,
+          role: msg.role,
+          timestamp: new Date(msg.created_at),
+        }));
+        setMessages(loadedMessages);
+        console.log(`✅ Cargados ${loadedMessages.length} mensajes del historial`);
+      } else {
+        // Si no hay historial, mostrar mensaje de bienvenida
+        const welcomeMessage: Message = {
+          id: '1',
+          content: '¡Hola! Soy Irï, tu asistente de educación financiera. ¿En qué puedo ayudarte hoy?',
+          role: 'assistant',
+          timestamp: new Date(),
+        };
+        setMessages([welcomeMessage]);
+        // Guardar mensaje de bienvenida
+        await saveIRIChatMessage(currentUserId, 'assistant', welcomeMessage.content);
+      }
+    } catch (error) {
+      console.error('Error cargando historial:', error);
+      // Mostrar mensaje de bienvenida en caso de error
+      setMessages([{
+        id: '1',
+        content: '¡Hola! Soy Irï, tu asistente de educación financiera. ¿En qué puedo ayudarte hoy?',
+        role: 'assistant',
+        timestamp: new Date(),
+      }]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   useEffect(() => {
     scrollViewRef.current?.scrollToEnd({ animated: true });
@@ -114,6 +174,11 @@ export default function IRIChatScreen({ navigation }: any) {
     setMessages((prev) => [...prev, userMessage]);
     setInputText('');
     setIsLoading(true);
+
+    // Guardar mensaje del usuario en Supabase
+    if (userId) {
+      await saveIRIChatMessage(userId, 'user', userMessage.content);
+    }
 
     try {
       console.log('📤 Enviando mensaje a Groq API...');
@@ -147,7 +212,7 @@ export default function IRIChatScreen({ navigation }: any) {
         if (response.status === 401) {
           Alert.alert(
             'API Key Inválida',
-            'La API key de Groq es inválida o ha expirado.\n\nPor favor:\n1. Verifica que EXPO_PUBLIC_GROK_API_KEY esté correcta en .env\n2. Reinicia el servidor con: npm start --reset-cache\n3. Si el problema persiste, genera una nueva API key en https://console.groq.com'
+            'La API key de Groq es inválida o ha expirado.\n\nPor favor:\n1. Verifica que EXPO_PUBLIC_GROK_API_KEY esté correcta en .env\n2. Reinicia el servidor con: npm start --reset-cache\n3. Si el problema persiste, genera una nueva API key en https://console.groq.com/keys'
           );
         }
         
@@ -165,6 +230,11 @@ export default function IRIChatScreen({ navigation }: any) {
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+      
+      // Guardar respuesta del asistente en Supabase
+      if (userId) {
+        await saveIRIChatMessage(userId, 'assistant', assistantMessage.content);
+      }
     } catch (error: any) {
       console.error('❌ Error al enviar mensaje:', error);
       Alert.alert(
@@ -174,6 +244,32 @@ export default function IRIChatScreen({ navigation }: any) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleClearHistory = async () => {
+    Alert.alert(
+      'Limpiar Historial',
+      '¿Estás seguro de que quieres borrar todo el historial de conversación?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Borrar',
+          style: 'destructive',
+          onPress: async () => {
+            if (userId) {
+              const success = await clearIRIChatHistory(userId);
+              if (success) {
+                // Recargar historial (mostrará solo mensaje de bienvenida)
+                await loadChatHistory();
+                Alert.alert('Éxito', 'Historial borrado correctamente');
+              } else {
+                Alert.alert('Error', 'No se pudo borrar el historial');
+              }
+            }
+          },
+        },
+      ]
+    );
   };
 
   const formatTime = (date: Date) => {
@@ -204,7 +300,9 @@ export default function IRIChatScreen({ navigation }: any) {
             <Text style={styles.headerSubtitle}>Asistente IA</Text>
           </View>
         </View>
-        <View style={styles.headerRight} />
+        <TouchableOpacity onPress={handleClearHistory} style={styles.headerRight}>
+          <Trash2 size={20} color="#666" />
+        </TouchableOpacity>
       </View>
 
       {/* Messages */}
@@ -219,7 +317,13 @@ export default function IRIChatScreen({ navigation }: any) {
           contentContainerStyle={styles.messagesContent}
           showsVerticalScrollIndicator={false}
         >
-          {messages.map((message) => (
+          {loadingHistory ? (
+            <View style={styles.historyLoadingContainer}>
+              <ActivityIndicator size="large" color="#2673f3" />
+              <Text style={styles.historyLoadingText}>Cargando historial...</Text>
+            </View>
+          ) : (
+            messages.map((message) => (
             <View
               key={message.id}
               style={[
@@ -259,7 +363,8 @@ export default function IRIChatScreen({ navigation }: any) {
                 </Text>
               </View>
             </View>
-          ))}
+          ))
+          )}
 
           {isLoading && (
             <View style={[styles.messageBubble, styles.assistantBubble]}>
@@ -364,6 +469,17 @@ const styles = StyleSheet.create({
   messagesContent: {
     padding: 16,
     paddingBottom: 8,
+  },
+  historyLoadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  historyLoadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#666',
   },
   messageBubble: {
     flexDirection: 'row',

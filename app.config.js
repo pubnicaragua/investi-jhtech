@@ -7,10 +7,7 @@ export default {
     jsEngine: 'hermes',
     userInterfaceStyle: 'light',
     updates: {
-      enabled: false,
-      fallbackToCacheTimeout: 0,
-      checkAutomatically: 'never',
-      url: undefined
+      url: 'https://u.expo.dev/82b22488-cbbd-45ea-bd0e-dd6ec1f2b7fb'
     },
     splash: {
       resizeMode: 'contain',
@@ -56,6 +53,9 @@ export default {
       supportsTablet: true,
       bundleIdentifier: 'com.investi.app',
       jsEngine: 'hermes',
+      runtimeVersion: {
+        policy: 'appVersion'
+      },
       // Associated Domains for Universal Links (OAuth callbacks)
       associatedDomains: [
         'applinks:investi.app',
@@ -64,11 +64,9 @@ export default {
     },
     android: {
       package: 'com.investi.app',
-      versionCode: 1,
-      adaptiveIcon: {
-        foregroundImage: './assets/investi-logo.png',
-        backgroundColor: '#FFFFFF'
-      },
+      versionCode: 4,
+      runtimeVersion: '1.0.0',
+      icon: './assets/investi-logo.png',
       jsEngine: 'hermes'
     },
     web: {

@@ -174,8 +174,8 @@ export function MarketInfoScreen({ navigation }: any) {
       stock.company_name.toLowerCase().includes(searchQuery.toLowerCase())
     
     if (selectedFilter === 'Todos') return matchesSearch
-    if (selectedFilter === 'Chile') return matchesSearch && stock.symbol.includes('.SN')
-    if (selectedFilter === 'USA') return matchesSearch && !stock.symbol.includes('.')
+    if (selectedFilter === 'Chile') return matchesSearch && (stock.symbol.includes('.SN') || ['SQM', 'COPEC'].includes(stock.symbol))
+    if (selectedFilter === 'USA') return matchesSearch && !stock.symbol.includes('.') && !['SQM', 'COPEC'].includes(stock.symbol)
     if (selectedFilter === 'Tecnología') return matchesSearch && ['AAPL', 'GOOGL', 'MSFT', 'TSLA', 'META', 'NVDA'].includes(stock.symbol)
     if (selectedFilter === 'Energía') return matchesSearch && ['XOM', 'CVX', 'COP'].includes(stock.symbol)
     if (selectedFilter === 'Finanzas') return matchesSearch && ['JPM', 'BAC', 'WFC', 'GS'].includes(stock.symbol)
@@ -308,7 +308,12 @@ export function MarketInfoScreen({ navigation }: any) {
                 </View>  
   
                 <View style={styles.stockInfo}>  
-                  <Text style={styles.stockSymbol}>{stock.symbol}</Text>  
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.stockSymbol}>{stock.symbol}</Text>
+                    {(stock.symbol.includes('.SN') || ['SQM', 'COPEC'].includes(stock.symbol)) && (
+                      <Text style={{ fontSize: 16 }}>🇨🇱</Text>
+                    )}
+                  </View>
                   <Text style={styles.stockCompany}>{stock.company_name}</Text>  
                 </View>  
   
