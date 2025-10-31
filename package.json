@@ -79,7 +79,8 @@
     "react-native-webview": "13.13.5",
     "tailwind-merge": "^3.3.1",
     "yahoo-finance2": "^3.10.0",
-    "babel-plugin-module-resolver": "^5.0.2"
+    "babel-plugin-module-resolver": "^5.0.2",
+    "babel-plugin-transform-remove-console": "^6.9.4"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
@@ -94,7 +95,6 @@
     "@types/node-fetch": "^2.6.13",
     "@types/react": "~19.0.10",
     "@types/react-test-renderer": "^18.0.0",
-    "babel-plugin-transform-remove-console": "^6.9.4",
     "eas-cli": "^16.20.1",
     "eslint": "^9.0.0",
     "eslint-config-universe": "^12.1.0",
