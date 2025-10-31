@@ -58,15 +58,19 @@ export default {
       },
       // Associated Domains for Universal Links (OAuth callbacks)
       associatedDomains: [
-        'applinks:investi.app',
-        'applinks:*.investi.app'
+        'applinks:investiiapp.com',
+        'applinks:*.investiiapp.com'
       ]
     },
     android: {
       package: 'com.investi.app',
-      versionCode: 4,
+      versionCode: 5,
       runtimeVersion: '1.0.0',
-      icon: './assets/investi-logo.png',
+      adaptiveIcon: {
+        foregroundImage: './assets/investi-logo.png',
+        backgroundColor: '#FFFFFF',
+        monochromeImage: './assets/investi-logo.png'
+      },
       jsEngine: 'hermes'
     },
     web: {
