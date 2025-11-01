@@ -15,16 +15,21 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
   const fadeAnim = useState(new Animated.Value(0))[0]
 
   useEffect(() => {
+    console.log('🎬 [SplashScreen] Iniciando...');
+    
     // Fade in animation
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 500,
       useNativeDriver: true,
-    }).start()
+    }).start(() => {
+      console.log('✅ [SplashScreen] Fade in completado');
+    })
 
     // Auto-finish después de 5 segundos
     const timer = setTimeout(() => {
       if (!hasFinished) {
+        console.log('⏱️ [SplashScreen] Timeout alcanzado, finalizando...');
         setHasFinished(true)
         // Fade out antes de terminar
         Animated.timing(fadeAnim, {
@@ -32,19 +37,25 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
           duration: 300,
           useNativeDriver: true,
         }).start(() => {
+          console.log('✅ [SplashScreen] Fade out completado, llamando onFinish');
           onFinish()
         })
       }
     }, 5000)
 
-    return () => clearTimeout(timer)
+    return () => {
+      console.log('🧹 [SplashScreen] Cleanup');
+      clearTimeout(timer)
+    }
   }, [onFinish, hasFinished, fadeAnim])
 
   const handlePlaybackStatusUpdate = (status: any) => {
     if (status.isLoaded && !videoLoaded) {
+      console.log('🎥 [SplashScreen] Video cargado');
       setVideoLoaded(true)
     }
     if (status.isLoaded && status.didJustFinish && !hasFinished) {
+      console.log('🎬 [SplashScreen] Video terminó, finalizando...');
       setHasFinished(true)
       // Fade out y terminar
       Animated.timing(fadeAnim, {
@@ -52,6 +63,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
         duration: 300,
         useNativeDriver: true,
       }).start(() => {
+        console.log('✅ [SplashScreen] Video terminado, llamando onFinish');
         onFinish()
       })
     }
@@ -68,12 +80,16 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
           shouldPlay
           isLooping={false}
           onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
-          onLoad={() => setVideoLoaded(true)}
+          onLoad={() => {
+            console.log('✅ [SplashScreen] Video onLoad callback');
+            setVideoLoaded(true)
+          }}
           onError={(error) => {
-            console.error('Video error:', error)
+            console.error('❌ [SplashScreen] Video error:', error)
             // Si hay error, terminar después de 2 segundos
             setTimeout(() => {
               if (!hasFinished) {
+                console.log('⚠️ [SplashScreen] Error en video, finalizando...');
                 setHasFinished(true)
                 onFinish()
               }

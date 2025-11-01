@@ -44,6 +44,8 @@ export function MarketInfoScreen({ navigation }: any) {
 
   const loadMarketData = useCallback(async () => {  
     try {  
+      console.log('📊 [MarketInfo] Iniciando carga de datos...');
+      
       // Timeout de 30 segundos para producción (red más lenta)
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Timeout')), 30000)
@@ -52,11 +54,14 @@ export function MarketInfoScreen({ navigation }: any) {
       // Cargar datos del caché primero para mostrar inmediatamente
       const cachedData = await AsyncStorage.getItem('market_stocks_cache');
       if (cachedData) {
+        console.log('✅ [MarketInfo] Datos en caché encontrados');
         const parsed = JSON.parse(cachedData);
         setStocks(parsed.stocks);
         setFeaturedStocks(parsed.featured);
         setLoading(false); // Mostrar datos en caché inmediatamente
+        console.log(`📈 [MarketInfo] Mostrando ${parsed.stocks.length} stocks del caché`);
       } else {
+        console.log('⚠️ [MarketInfo] No hay caché, cargando desde API...');
         setLoading(true);
       }
       
@@ -68,6 +73,8 @@ export function MarketInfoScreen({ navigation }: any) {
         Promise.all([realStocksPromise, latinStocksPromise]),
         timeoutPromise
       ]) as [MarketStock[], MarketStock[]];
+      
+      console.log(`📊 [MarketInfo] API response: ${realStocks.length} US stocks, ${latinStocks.length} Latin stocks`);
       
       if (realStocks.length > 0 || latinStocks.length > 0) {
         // Combinar y eliminar duplicados por símbolo
@@ -356,6 +363,17 @@ export function MarketInfoScreen({ navigation }: any) {
           </View>  
   
           <View style={styles.stocksList}>  
+            {loading ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>Cargando datos del mercado...</Text>
+                <Text style={styles.emptyStateSubtext}>Por favor espera un momento</Text>
+              </View>
+            ) : filteredStocks.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>No hay datos disponibles</Text>
+                <Text style={styles.emptyStateSubtext}>Desliza hacia abajo para recargar</Text>
+              </View>
+            ) : null}
             {filteredStocks.map((stock) => (  
               <View key={stock.id} style={styles.stockItemWrapper}>
               <TouchableOpacity style={styles.stockItem} onPress={() => handleSimulateInvestment(stock)}>  
