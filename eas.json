@@ -27,11 +27,12 @@
     },
     "production": {
       "developmentClient": false,
+      "distribution": "internal",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
       },
       "env": {
-        "NODE_ENV": "production",
         "EXPO_PUBLIC_GROK_API_KEY": "@EXPO_PUBLIC_GROK_API_KEY"
       }
     },

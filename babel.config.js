@@ -35,10 +35,10 @@ module.exports = function (api) {
       'react-native-reanimated/plugin',
     ],
     // Cache agresivo
-    env: {
-      production: {
-        plugins: ['transform-remove-console'],
-      },
-    },
+    // env: {
+    //   production: {
+    //     plugins: ['transform-remove-console'],
+    //   },
+    // },
   };
 };
