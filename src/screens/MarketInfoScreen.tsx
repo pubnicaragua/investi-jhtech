@@ -44,9 +44,9 @@ export function MarketInfoScreen({ navigation }: any) {
 
   const loadMarketData = useCallback(async () => {  
     try {  
-      // Timeout de 10 segundos para asegurar que siempre termine
+      // Timeout de 30 segundos para producción (red más lenta)
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout')), 10000)
+        setTimeout(() => reject(new Error('Timeout')), 30000)
       );
       
       // Cargar datos del caché primero para mostrar inmediatamente
