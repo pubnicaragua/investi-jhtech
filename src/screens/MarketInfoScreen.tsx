@@ -44,9 +44,18 @@ export function MarketInfoScreen({ navigation }: any) {
 
   const loadMarketData = useCallback(async () => {  
     try {  
-      setLoading(true)  
+      // Cargar datos del caché primero para mostrar inmediatamente
+      const cachedData = await AsyncStorage.getItem('market_stocks_cache');
+      if (cachedData) {
+        const parsed = JSON.parse(cachedData);
+        setStocks(parsed.stocks);
+        setFeaturedStocks(parsed.featured);
+        setLoading(false); // Mostrar datos en caché inmediatamente
+      } else {
+        setLoading(true);
+      }
       
-      // Intentar obtener datos de la API real primero
+      // Luego actualizar con datos frescos en segundo plano
       const realStocks = await getMarketStocks();
       const latinStocks = await getLatinAmericanStocks();
       
@@ -74,6 +83,13 @@ export function MarketInfoScreen({ navigation }: any) {
         
         setStocks(allRealStocks);
         setFeaturedStocks(allRealStocks.filter(s => s.is_featured));
+        
+        // Guardar en caché
+        await AsyncStorage.setItem('market_stocks_cache', JSON.stringify({
+          stocks: allRealStocks,
+          featured: allRealStocks.filter(s => s.is_featured),
+          timestamp: Date.now()
+        }));
       } else {
         // Fallback a datos de Supabase si la API falla
         const [allStocks, featured] = await Promise.all([  
@@ -82,6 +98,13 @@ export function MarketInfoScreen({ navigation }: any) {
         ])  
         setStocks(allStocks)  
         setFeaturedStocks(featured)
+        
+        // Guardar en caché
+        await AsyncStorage.setItem('market_stocks_cache', JSON.stringify({
+          stocks: allStocks,
+          featured: featured,
+          timestamp: Date.now()
+        }));
       }
     } catch (error) {  
       console.error('Error loading market data:', error)
