@@ -10,15 +10,29 @@ interface SplashScreenProps {
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
   const [videoRef, setVideoRef] = useState<Video | null>(null)
+  const [hasFinished, setHasFinished] = useState(false)
 
   useEffect(() => {
-    // Auto-finish después de 6 segundos como backup
+    // Auto-finish después de 5 segundos como backup
     const timer = setTimeout(() => {
-      onFinish()
-    }, 6000)
+      if (!hasFinished) {
+        setHasFinished(true)
+        onFinish()
+      }
+    }, 5000)
 
     return () => clearTimeout(timer)
-  }, [onFinish])
+  }, [onFinish, hasFinished])
+
+  const handlePlaybackStatusUpdate = (status: any) => {
+    if (status.isLoaded && status.didJustFinish && !hasFinished) {
+      setHasFinished(true)
+      // Pequeño delay para que se vea completo
+      setTimeout(() => {
+        onFinish()
+      }, 300)
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -29,10 +43,16 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
         resizeMode={ResizeMode.CONTAIN}
         shouldPlay
         isLooping={false}
-        onPlaybackStatusUpdate={(status) => {
-          if (status.isLoaded && status.didJustFinish) {
-            onFinish()
-          }
+        onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
+        onError={(error) => {
+          console.error('Video error:', error)
+          // Si hay error, mostrar por 3 segundos y continuar
+          setTimeout(() => {
+            if (!hasFinished) {
+              setHasFinished(true)
+              onFinish()
+            }
+          }, 3000)
         }}
       />
     </View>

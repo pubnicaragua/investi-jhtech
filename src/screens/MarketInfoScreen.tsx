@@ -44,6 +44,11 @@ export function MarketInfoScreen({ navigation }: any) {
 
   const loadMarketData = useCallback(async () => {  
     try {  
+      // Timeout de 10 segundos para asegurar que siempre termine
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), 10000)
+      );
+      
       // Cargar datos del caché primero para mostrar inmediatamente
       const cachedData = await AsyncStorage.getItem('market_stocks_cache');
       if (cachedData) {
@@ -55,9 +60,14 @@ export function MarketInfoScreen({ navigation }: any) {
         setLoading(true);
       }
       
-      // Luego actualizar con datos frescos en segundo plano
-      const realStocks = await getMarketStocks();
-      const latinStocks = await getLatinAmericanStocks();
+      // Luego actualizar con datos frescos en segundo plano con timeout
+      const realStocksPromise = getMarketStocks();
+      const latinStocksPromise = getLatinAmericanStocks();
+      
+      const [realStocks, latinStocks] = await Promise.race([
+        Promise.all([realStocksPromise, latinStocksPromise]),
+        timeoutPromise
+      ]) as [MarketStock[], MarketStock[]];
       
       if (realStocks.length > 0 || latinStocks.length > 0) {
         // Combinar y eliminar duplicados por símbolo
@@ -118,6 +128,33 @@ export function MarketInfoScreen({ navigation }: any) {
         setFeaturedStocks(featured)
       } catch (fallbackError) {
         console.error('Fallback also failed:', fallbackError);
+        // Si todo falla, mostrar datos de ejemplo para no dejar pantalla en blanco
+        if (stocks.length === 0) {
+          const fallbackStocks: Stock[] = [
+            {
+              id: '1',
+              symbol: 'AAPL',
+              company_name: 'Apple Inc.',
+              current_price: 150.00,
+              price_change: 2.50,
+              price_change_percent: 1.69,
+              color: '#10B981',
+              is_featured: true,
+            },
+            {
+              id: '2',
+              symbol: 'GOOGL',
+              company_name: 'Alphabet Inc.',
+              current_price: 2800.00,
+              price_change: -15.00,
+              price_change_percent: -0.53,
+              color: '#EF4444',
+              is_featured: true,
+            },
+          ];
+          setStocks(fallbackStocks);
+          setFeaturedStocks(fallbackStocks);
+        }
       }
     } finally {  
       setLoading(false)  
