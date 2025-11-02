@@ -16,11 +16,8 @@ export default {
     },
     icon: './assets/investi-logo.png',
     assetBundlePatterns: [
-      'assets/*.png',
-      'assets/*.jpg',
-      'assets/*.jpeg',
-      'assets/*.mp4',
-      'assets/*.gif'
+      'assets/**/*',
+      'assets/gif.mp4'
     ],
     scheme: 'investi-community',
     // Deep linking configuration for OAuth callbacks
@@ -65,7 +62,7 @@ export default {
     },
     android: {
       package: 'com.investi.app',
-      versionCode: 5,
+      versionCode: 6,
       runtimeVersion: '1.0.0',
       adaptiveIcon: {
         foregroundImage: './assets/investi-logo.png',

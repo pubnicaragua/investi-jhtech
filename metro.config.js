@@ -45,7 +45,12 @@ config.transformer = {
 config.resolver = {
   ...config.resolver,
   sourceExts: ['tsx', 'ts', 'jsx', 'js', 'json', 'mjs', 'cjs'],
-  assetExts: [...(config.resolver.assetExts || [])],
+  assetExts: [
+    ...(config.resolver.assetExts || []),
+    'mp4', // Asegurar que MP4 esté incluido
+    'mov',
+    'avi',
+  ],
   // Bloquear archivos que no deben ser procesados por Metro
   blockList: [
     /.*\.sql$/,
