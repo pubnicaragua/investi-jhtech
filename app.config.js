@@ -40,7 +40,8 @@ export default {
       'expo-secure-store',
       'expo-router',
       'expo-dev-client',
-      './plugins/withKotlinVersion'
+      './plugins/withKotlinVersion',
+      './plugins/withNoSplash'
     ],
     ios: {
       supportsTablet: true,
@@ -57,7 +58,7 @@ export default {
     },
     android: {
       package: 'com.investi.app',
-      versionCode: 6,
+      versionCode: 7,
       runtimeVersion: '1.0.0',
       adaptiveIcon: {
         foregroundImage: './assets/investi-logo.png',

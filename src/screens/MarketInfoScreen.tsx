@@ -45,7 +45,6 @@ export function MarketInfoScreen({ navigation }: any) {
   const loadMarketData = useCallback(async () => {  
     try {  
       console.log('📊 [MarketInfo] Iniciando carga de datos...');
-      setLoading(true);
       
       // Cargar datos del caché primero para mostrar inmediatamente
       const cachedData = await AsyncStorage.getItem('market_stocks_cache');
@@ -56,44 +55,17 @@ export function MarketInfoScreen({ navigation }: any) {
         setFeaturedStocks(parsed.featured);
         setLoading(false); // Mostrar datos en caché inmediatamente
         console.log(`📈 [MarketInfo] Mostrando ${parsed.stocks.length} stocks del caché`);
+      } else {
+        setLoading(true);
       }
       
-      // ESTRATEGIA NUEVA: Primero intentar Supabase (más confiable)
-      console.log('📊 [MarketInfo] Intentando cargar desde Supabase...');
-      try {
-        const [allStocks, featured] = await Promise.all([  
-          getMarketData(),  
-          getFeaturedStocks()  
-        ]);
-        
-        console.log(`✅ [MarketInfo] Supabase: ${allStocks.length} stocks cargados`);
-        
-        if (allStocks.length > 0) {
-          setStocks(allStocks);
-          setFeaturedStocks(featured);
-          setLoading(false);
-          
-          // Guardar en caché
-          await AsyncStorage.setItem('market_stocks_cache', JSON.stringify({
-            stocks: allStocks,
-            featured: featured,
-            timestamp: Date.now()
-          }));
-          
-          console.log('💾 [MarketInfo] Datos guardados en caché');
-          return; // Salir si Supabase funcionó
-        }
-      } catch (supabaseError) {
-        console.error('❌ [MarketInfo] Error en Supabase:', supabaseError);
-      }
-      
-      // Si Supabase falla, intentar APIs externas
-      console.log('📊 [MarketInfo] Intentando APIs externas...');
+      // Intentar cargar desde APIs externas (ahora con keys configuradas)
+      console.log('📊 [MarketInfo] Cargando desde APIs externas...');
       const realStocksPromise = getMarketStocks();
       const latinStocksPromise = getLatinAmericanStocks();
       
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout')), 15000)
+        setTimeout(() => reject(new Error('Timeout')), 20000)
       );
       
       const [realStocks, latinStocks] = await Promise.race([
