@@ -9,11 +9,6 @@ export default {
     updates: {
       url: 'https://u.expo.dev/82b22488-cbbd-45ea-bd0e-dd6ec1f2b7fb'
     },
-    splash: {
-      image: './assets/investi-logo.png',
-      resizeMode: 'contain',
-      backgroundColor: '#ffffff'
-    },
     icon: './assets/investi-logo.png',
     assetBundlePatterns: [
       'assets/**/*',

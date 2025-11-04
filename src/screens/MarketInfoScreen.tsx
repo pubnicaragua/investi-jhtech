@@ -45,11 +45,7 @@ export function MarketInfoScreen({ navigation }: any) {
   const loadMarketData = useCallback(async () => {  
     try {  
       console.log('📊 [MarketInfo] Iniciando carga de datos...');
-      
-      // Timeout de 30 segundos para producción (red más lenta)
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout')), 30000)
-      );
+      setLoading(true);
       
       // Cargar datos del caché primero para mostrar inmediatamente
       const cachedData = await AsyncStorage.getItem('market_stocks_cache');
@@ -60,14 +56,45 @@ export function MarketInfoScreen({ navigation }: any) {
         setFeaturedStocks(parsed.featured);
         setLoading(false); // Mostrar datos en caché inmediatamente
         console.log(`📈 [MarketInfo] Mostrando ${parsed.stocks.length} stocks del caché`);
-      } else {
-        console.log('⚠️ [MarketInfo] No hay caché, cargando desde API...');
-        setLoading(true);
       }
       
-      // Luego actualizar con datos frescos en segundo plano con timeout
+      // ESTRATEGIA NUEVA: Primero intentar Supabase (más confiable)
+      console.log('📊 [MarketInfo] Intentando cargar desde Supabase...');
+      try {
+        const [allStocks, featured] = await Promise.all([  
+          getMarketData(),  
+          getFeaturedStocks()  
+        ]);
+        
+        console.log(`✅ [MarketInfo] Supabase: ${allStocks.length} stocks cargados`);
+        
+        if (allStocks.length > 0) {
+          setStocks(allStocks);
+          setFeaturedStocks(featured);
+          setLoading(false);
+          
+          // Guardar en caché
+          await AsyncStorage.setItem('market_stocks_cache', JSON.stringify({
+            stocks: allStocks,
+            featured: featured,
+            timestamp: Date.now()
+          }));
+          
+          console.log('💾 [MarketInfo] Datos guardados en caché');
+          return; // Salir si Supabase funcionó
+        }
+      } catch (supabaseError) {
+        console.error('❌ [MarketInfo] Error en Supabase:', supabaseError);
+      }
+      
+      // Si Supabase falla, intentar APIs externas
+      console.log('📊 [MarketInfo] Intentando APIs externas...');
       const realStocksPromise = getMarketStocks();
       const latinStocksPromise = getLatinAmericanStocks();
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), 15000)
+      );
       
       const [realStocks, latinStocks] = await Promise.race([
         Promise.all([realStocksPromise, latinStocksPromise]),
@@ -107,61 +134,35 @@ export function MarketInfoScreen({ navigation }: any) {
           featured: allRealStocks.filter(s => s.is_featured),
           timestamp: Date.now()
         }));
-      } else {
-        // Fallback a datos de Supabase si la API falla
-        const [allStocks, featured] = await Promise.all([  
-          getMarketData(),  
-          getFeaturedStocks()  
-        ])  
-        setStocks(allStocks)  
-        setFeaturedStocks(featured)
-        
-        // Guardar en caché
-        await AsyncStorage.setItem('market_stocks_cache', JSON.stringify({
-          stocks: allStocks,
-          featured: featured,
-          timestamp: Date.now()
-        }));
       }
     } catch (error) {  
-      console.error('Error loading market data:', error)
-      // Fallback a datos de Supabase en caso de error
-      try {
-        const [allStocks, featured] = await Promise.all([  
-          getMarketData(),  
-          getFeaturedStocks()  
-        ])  
-        setStocks(allStocks)  
-        setFeaturedStocks(featured)
-      } catch (fallbackError) {
-        console.error('Fallback also failed:', fallbackError);
-        // Si todo falla, mostrar datos de ejemplo para no dejar pantalla en blanco
-        if (stocks.length === 0) {
-          const fallbackStocks: Stock[] = [
-            {
-              id: '1',
-              symbol: 'AAPL',
-              company_name: 'Apple Inc.',
-              current_price: 150.00,
-              price_change: 2.50,
-              price_change_percent: 1.69,
-              color: '#10B981',
-              is_featured: true,
-            },
-            {
-              id: '2',
-              symbol: 'GOOGL',
-              company_name: 'Alphabet Inc.',
-              current_price: 2800.00,
-              price_change: -15.00,
-              price_change_percent: -0.53,
-              color: '#EF4444',
-              is_featured: true,
-            },
-          ];
-          setStocks(fallbackStocks);
-          setFeaturedStocks(fallbackStocks);
-        }
+      console.error('❌ [MarketInfo] Error en todas las fuentes:', error);
+      // Si todo falla, mostrar datos de ejemplo para no dejar pantalla en blanco
+      if (stocks.length === 0) {
+        const fallbackStocks: Stock[] = [
+          {
+            id: '1',
+            symbol: 'AAPL',
+            company_name: 'Apple Inc.',
+            current_price: 150.00,
+            price_change: 2.50,
+            price_change_percent: 1.69,
+            color: '#10B981',
+            is_featured: true,
+          },
+          {
+            id: '2',
+            symbol: 'GOOGL',
+            company_name: 'Alphabet Inc.',
+            current_price: 2800.00,
+            price_change: -15.00,
+            price_change_percent: -0.53,
+            color: '#EF4444',
+            is_featured: true,
+          },
+        ];
+        setStocks(fallbackStocks);
+        setFeaturedStocks(fallbackStocks);
       }
     } finally {  
       setLoading(false)  
