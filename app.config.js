@@ -69,7 +69,8 @@ export default {
         'CAMERA',
         'READ_EXTERNAL_STORAGE',
         'WRITE_EXTERNAL_STORAGE',
-        'NOTIFICATIONS'
+        'NOTIFICATIONS',
+        'RECORD_AUDIO'
       ]
     },
     web: {

@@ -1,0 +1,27 @@
+✅ CAMBIOS APLICADOS - IRI CHAT
+
+1. API KEY ARREGLADA
+   - Ahora usa Constants.expoConfig?.extra?.EXPO_PUBLIC_GROK_API_KEY
+   - Se carga desde app.config.js correctamente
+   - Mensaje de error más claro
+
+2. PERMISOS DE MICRÓFONO
+   - Agregado RECORD_AUDIO en app.config.js
+   - Solicita permisos en Android automáticamente
+   - Mensaje claro si se deniega
+
+3. RENDIMIENTO OPTIMIZADO
+   - Quitados useCallback/useMemo innecesarios
+   - Código más simple y directo
+   - Pantalla más rápida
+
+ARCHIVOS MODIFICADOS:
+- app.config.js (permiso RECORD_AUDIO)
+- src/screens/IRIChatScreen.tsx (API key + permisos + rendimiento)
+
+PRÓXIMO PASO:
+1. Hacer nuevo build: eas build --profile production --platform android
+2. O EAS Update si solo quieres actualizar JS: eas update
+
+NOTA: EAS Update NO actualiza permisos nativos (RECORD_AUDIO).
+Necesitas hacer un nuevo BUILD completo para que el permiso funcione.

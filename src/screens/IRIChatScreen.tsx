@@ -9,7 +9,7 @@
  * - Historial de conversación
  */
 
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import {
   Alert,
   ActivityIndicator,
   Animated,
+  PermissionsAndroid,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -35,6 +36,7 @@ import {
   MicOff, 
 } from 'lucide-react-native';
 import Voice from '@react-native-voice/voice';
+import Constants from 'expo-constants';
 import { useAuthGuard } from '../hooks/useAuthGuard';
 import { getCurrentUserId, saveIRIChatMessage, loadIRIChatHistory, clearIRIChatHistory } from '../rest/api';
 import iriVoiceService, { VoiceGender } from '../services/iriVoiceService';
@@ -47,17 +49,13 @@ interface Message {
   timestamp: Date;
 }
 
-// IMPORTANTE: La API key debe estar en el archivo .env
-// Crear archivo .env en la raíz con: EXPO_PUBLIC_GROK_API_KEY=tu_api_key_aqui
-// TEMPORAL: Hardcodeada para testing (REMOVER EN PRODUCCIÓN)
-
-const GROK_API_KEY = process.env.EXPO_PUBLIC_GROK_API_KEY || '';
-// Usar la API de Groq correctamente
+// Obtener API key desde Constants (app.config.js)
+const GROK_API_KEY = Constants.expoConfig?.extra?.EXPO_PUBLIC_GROK_API_KEY || '';
 const GROK_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 // DEBUG: Verificar si la API key se cargó
-console.log(' GROK_API_KEY loaded:', GROK_API_KEY ? `${GROK_API_KEY.substring(0, 10)}...` : 'NOT FOUND');
-console.log(' GROK_API_URL:', GROK_API_URL);
+console.log('🔑 GROK_API_KEY loaded:', GROK_API_KEY ? `${GROK_API_KEY.substring(0, 10)}...` : '❌ NOT FOUND');
+console.log('🌐 GROK_API_URL:', GROK_API_URL);
 
 const SYSTEM_CONTEXT = `Eres Irï, el asistente de inteligencia artificial de Investi, una aplicación de educación financiera y comunidad para jóvenes en Nicaragua.
 
@@ -92,7 +90,7 @@ export default function IRIChatScreen({ navigation }: any) {
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
-  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -159,21 +157,6 @@ export default function IRIChatScreen({ navigation }: any) {
     };
   }, []);
 
-  // Auto-saludo al entrar
-  useEffect(() => {
-    const greetUser = async () => {
-      // Esperar 500ms para que cargue el historial
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Si no hay mensajes, dar bienvenida automática
-      if (messages.length === 0) {
-        handleHolaIri();
-      }
-    };
-    
-    greetUser();
-  }, []);
-
   // Cargar historial al montar el componente
   useEffect(() => {
     loadChatHistory();
@@ -181,28 +164,32 @@ export default function IRIChatScreen({ navigation }: any) {
 
   const loadChatHistory = async () => {
     try {
-      setLoadingHistory(true);
+      // Mostrar mensaje de bienvenida inmediatamente
+      const welcomeMessage: Message = {
+        id: '1',
+        content: '¡Hola! Soy Irï, tu asistente de educación financiera. ¿En qué puedo ayudarte hoy?',
+        role: 'assistant',
+        timestamp: new Date(),
+      };
+      setMessages([welcomeMessage]);
+
+      // Cargar historial en segundo plano
       const currentUserId = await getCurrentUserId();
       
       if (!currentUserId) {
         console.log('No hay usuario logueado');
-        // Mostrar mensaje de bienvenida si no hay usuario
-        setMessages([{
-          id: '1',
-          content: '¡Hola! Soy Irï, tu asistente de educación financiera. ¿En qué puedo ayudarte hoy?',
-          role: 'assistant',
-          timestamp: new Date(),
-        }]);
-        setLoadingHistory(false);
         return;
       }
 
       setUserId(currentUserId);
       
-      // Cargar historial desde Supabase
-      const history = await loadIRIChatHistory(currentUserId);
+      // Cargar historial desde Supabase con timeout
+      const historyPromise = loadIRIChatHistory(currentUserId);
+      const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 2000));
       
-      if (history && history.length > 0) {
+      const history = await Promise.race([historyPromise, timeoutPromise]);
+      
+      if (history && Array.isArray(history) && history.length > 0) {
         // Convertir historial de Supabase a formato de mensajes
         const loadedMessages: Message[] = history.map((msg: any) => ({
           id: msg.id,
@@ -213,28 +200,12 @@ export default function IRIChatScreen({ navigation }: any) {
         setMessages(loadedMessages);
         console.log(`✅ Cargados ${loadedMessages.length} mensajes del historial`);
       } else {
-        // Si no hay historial, mostrar mensaje de bienvenida
-        const welcomeMessage: Message = {
-          id: '1',
-          content: '¡Hola! Soy Irï, tu asistente de educación financiera. ¿En qué puedo ayudarte hoy?',
-          role: 'assistant',
-          timestamp: new Date(),
-        };
-        setMessages([welcomeMessage]);
-        // Guardar mensaje de bienvenida
+        // Guardar mensaje de bienvenida si no hay historial
         await saveIRIChatMessage(currentUserId, 'assistant', welcomeMessage.content);
       }
     } catch (error) {
       console.error('Error cargando historial:', error);
-      // Mostrar mensaje de bienvenida en caso de error
-      setMessages([{
-        id: '1',
-        content: '¡Hola! Soy Irï, tu asistente de educación financiera. ¿En qué puedo ayudarte hoy?',
-        role: 'assistant',
-        timestamp: new Date(),
-      }]);
-    } finally {
-      setLoadingHistory(false);
+      // Ya tenemos el mensaje de bienvenida mostrado
     }
   };
 
@@ -264,7 +235,29 @@ export default function IRIChatScreen({ navigation }: any) {
     waveAnimation.setValue(0);
   };
 
-  const toggleVoiceInput = useCallback(async () => {
+  const requestMicrophonePermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+          {
+            title: 'Permiso de Micrófono',
+            message: 'Investi necesita acceso al micrófono para el reconocimiento de voz',
+            buttonNeutral: 'Preguntar después',
+            buttonNegative: 'Cancelar',
+            buttonPositive: 'OK',
+          },
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.warn('Error requesting microphone permission:', err);
+        return false;
+      }
+    }
+    return true; // iOS maneja permisos automáticamente
+  };
+
+  const toggleVoiceInput = async () => {
     try {
       if (isListening) {
         // Detener escucha
@@ -272,6 +265,17 @@ export default function IRIChatScreen({ navigation }: any) {
         setIsListening(false);
         stopWaveAnimation();
       } else {
+        // Solicitar permisos primero
+        const hasPermission = await requestMicrophonePermission();
+        if (!hasPermission) {
+          Alert.alert(
+            'Permiso Denegado',
+            'Necesitas habilitar el permiso de micrófono en la configuración de la app para usar esta función.',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+
         // Iniciar escucha
         setRecognizedText('');
         await Voice.start('es-ES'); // Español
@@ -279,7 +283,7 @@ export default function IRIChatScreen({ navigation }: any) {
         startWaveAnimation();
       }
     } catch (error) {
-      console.error('Error toggling voice:', error);
+      console.error('❌ Error toggling voice:', error);
       Alert.alert(
         'Error de Micrófono',
         'No se pudo acceder al micrófono. Verifica los permisos de la aplicación.',
@@ -288,7 +292,7 @@ export default function IRIChatScreen({ navigation }: any) {
       setIsListening(false);
       stopWaveAnimation();
     }
-  }, [isListening]);
+  };
 
   const handleHolaIri = async () => {
     // Responder inmediatamente con voz
@@ -322,13 +326,14 @@ export default function IRIChatScreen({ navigation }: any) {
     }
   };
 
-  const sendMessage = useCallback(async () => {
+  const sendMessage = async () => {
     if (!inputText.trim() || isLoading) return;
 
     if (!GROK_API_KEY) {
       Alert.alert(
-        'Configuración requerida',
-        'La API key de Grok no está configurada. Por favor, agrega EXPO_PUBLIC_GROK_API_KEY en el archivo .env y reinicia el servidor'
+        '❌ API Key No Configurada',
+        'La API key de Groq no está configurada.\n\nPasos:\n1. Verifica que el archivo .env tenga: EXPO_PUBLIC_GROK_API_KEY=tu_key\n2. Reinicia el servidor (npm start)\n3. Haz un nuevo build si es necesario',
+        [{ text: 'OK' }]
       );
       return;
     }
@@ -441,9 +446,9 @@ export default function IRIChatScreen({ navigation }: any) {
     } finally {
       setIsLoading(false);
     }
-  }, [inputText, isLoading, messages, userId]);
+  };
 
-  const handleClearHistory = useCallback(async () => {
+  const handleClearHistory = async () => {
     Alert.alert(
       'Limpiar Historial',
       '¿Estás seguro de que quieres borrar todo el historial de conversación?',
@@ -467,17 +472,14 @@ export default function IRIChatScreen({ navigation }: any) {
         },
       ]
     );
-  }, [userId]);
+  };
 
-  const formatTime = useCallback((date: Date) => {
+  const formatTime = (date: Date) => {
     return date.toLocaleTimeString('es-NI', {
       hour: '2-digit',
       minute: '2-digit',
     });
-  }, []);
-
-  // Memoizar mensajes para evitar re-renders innecesarios
-  const memoizedMessages = useMemo(() => messages, [messages]);
+  };
 
   return (
     <View style={styles.container}>
@@ -558,7 +560,7 @@ export default function IRIChatScreen({ navigation }: any) {
               <Text style={styles.historyLoadingText}>Cargando historial...</Text>
             </View>
           ) : (
-            memoizedMessages.map((message) => (
+            messages.map((message) => (
             <TouchableOpacity
               key={message.id}
               style={[
