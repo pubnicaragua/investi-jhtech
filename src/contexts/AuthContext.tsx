@@ -56,7 +56,7 @@ const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true); // Start as true to check for existing session
+  const [isLoading, setIsLoading] = useState(false); // Start as false para mostrar UI más rápido
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
 
@@ -69,15 +69,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         console.log('[AuthProvider] Setting up auth listener');
 
-        // 🔄 MIGRACIÓN: Migrar claves antiguas con '@' a claves válidas
-        await migrateStorageKeys();
-
-        // Configurar canal de notificaciones
-        await setupNotificationChannel();
+        // 🚀 Ejecutar migración y notificaciones en paralelo (no bloquean UI)
+        Promise.all([
+          migrateStorageKeys(),
+          setupNotificationChannel()
+        ]).catch(err => console.warn('[AuthProvider] Background tasks error:', err));
         
-        // 🔧 PRIMERO: Verificar si hay token guardado en AsyncStorage
-        const savedToken = await storage.getItem('auth_token');
-        const savedUserId = await storage.getItem('userId');
+        // 🔧 Cargar tokens en paralelo
+        const [savedToken, savedUserId] = await Promise.all([
+          storage.getItem('auth_token'),
+          storage.getItem('userId')
+        ]);
         console.log('[AuthProvider] Saved token exists:', !!savedToken);
         console.log('[AuthProvider] Saved userId exists:', !!savedUserId);
         
@@ -137,9 +139,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           unsubscribe = () => authData.subscription.unsubscribe();
         }
 
-        // Check for existing session
+        // Check for existing session con timeout de 2 segundos
         console.log('[AuthProvider] Checking existing session from Supabase...');
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((resolve) => 
+          setTimeout(() => resolve({ data: { session: null }, error: null }), 2000)
+        );
+        
+        const { data: sessionData, error: sessionError } = await Promise.race([
+          sessionPromise,
+          timeoutPromise
+        ]) as any;
         
         if (sessionError) {
           console.error('[AuthProvider] ❌ Error getting session:', sessionError);
@@ -148,47 +158,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (mounted && sessionData?.session) {
           console.log('[AuthProvider] ✅ Found existing session');
           setSession(sessionData.session);
-          
-          // Load complete user data from public.users
-          const completeUserData = await loadCompleteUserData(sessionData.session.user.id);
-          if (completeUserData) {
-            setUser(completeUserData);
-          } else {
-            // Fallback to auth user data
-            setUser(sessionData.session.user as unknown as User);
-          }
           setIsAuthenticated(true);
           
-          // Guardar tokens
-          await storage.setItem('auth_token', sessionData.session.access_token);
-          await storage.setItem('userToken', sessionData.session.access_token);
-          await storage.setItem('userId', sessionData.session.user.id);
+          // Cargar datos de usuario en segundo plano (no bloquea)
+          loadCompleteUserData(sessionData.session.user.id).then(completeUserData => {
+            if (mounted && completeUserData) {
+              setUser(completeUserData);
+            } else if (mounted) {
+              setUser(sessionData.session.user as unknown as User);
+            }
+          });
+          
+          // Guardar tokens en paralelo (no bloquea)
+          Promise.all([
+            storage.setItem('auth_token', sessionData.session.access_token),
+            storage.setItem('userToken', sessionData.session.access_token),
+            storage.setItem('userId', sessionData.session.user.id)
+          ]).catch(err => console.warn('[AuthProvider] Error saving tokens:', err));
         } else if (savedToken && savedUserId) {
-          // Si no hay sesión en Supabase pero hay token guardado, intentar restaurar
+          // Si no hay sesión en Supabase pero hay token guardado, intentar restaurar en segundo plano
           console.log('[AuthProvider] 🔄 No Supabase session but found saved token, attempting restore...');
-          try {
-            const { data: userData, error: userError } = await supabase.auth.getUser(savedToken);
+          supabase.auth.getUser(savedToken).then(({ data: userData, error: userError }: any) => {
+            if (!mounted) return;
+            
             if (!userError && userData?.user) {
               console.log('[AuthProvider] ✅ Restored session from saved token');
-              
-              // Load complete user data from public.users
-              const completeUserData = await loadCompleteUserData(userData.user.id);
-              if (completeUserData) {
-                setUser(completeUserData);
-              } else {
-                // Fallback to auth user data
-                setUser(userData.user as unknown as User);
-              }
               setIsAuthenticated(true);
+              
+              // Cargar datos completos en segundo plano
+              loadCompleteUserData(userData.user.id).then(completeUserData => {
+                if (mounted && completeUserData) {
+                  setUser(completeUserData);
+                } else if (mounted) {
+                  setUser(userData.user as unknown as User);
+                }
+              });
             } else {
               console.log('[AuthProvider] ⚠️ Could not restore session, clearing tokens');
-              await storage.removeItem('auth_token');
-              await storage.removeItem('userToken');
-              await storage.removeItem('userId');
+              Promise.all([
+                storage.removeItem('auth_token'),
+                storage.removeItem('userToken'),
+                storage.removeItem('userId')
+              ]).catch(err => console.warn('[AuthProvider] Error clearing tokens:', err));
             }
-          } catch (restoreError) {
+          }).catch((restoreError: any) => {
             console.error('[AuthProvider] ❌ Error restoring session:', restoreError);
-          }
+          });
         } else {
           console.log('[AuthProvider] ❌ No session found anywhere');
         }
