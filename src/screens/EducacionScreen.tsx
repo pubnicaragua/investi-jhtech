@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, ScrollView, FlatList, TouchableOpacity,
-  Image, ActivityIndicator, RefreshControl, TextInput, Platform, Dimensions,
+  Image, ActivityIndicator, RefreshControl, TextInput, Platform, Dimensions, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, CommonActions } from '@react-navigation/native';
 import { 
   BookOpen, Book, Clock, ChevronRight, Home, TrendingUp, PlusCircle,
   Newspaper, Search, Play, GraduationCap, Video as VideoIcon, Wrench,
@@ -16,6 +16,7 @@ import {
 } from '../rest/api';
 import { useAuthGuard } from '../hooks/useAuthGuard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FinancialPlannerDashboard } from './FinancialPlannerDashboard';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -45,9 +46,9 @@ const getIconForTool = (iconName: string) => {
   return icons[iconName] || Wrench;
 };
 
-export function EducacionScreen() {
+export function EducacionScreen({ navigation: drawerNav }: any) {
   const { t } = useTranslation();
-  const navigation = useNavigation();
+  const navigation = drawerNav || useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const currentRoute = route.name;
@@ -75,6 +76,8 @@ export function EducacionScreen() {
       setVideos(videosData || []);
       setCourseTopics(topicsData || []);
       setCourses(coursesData || []);
+      
+      // Solo herramientas del backend (incluye las que ya funcionaban)
       setTools(toolsData || []);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -90,7 +93,16 @@ export function EducacionScreen() {
   const handleTabChange = (tab: string) => { setActiveTab(tab); setSearchQuery(''); };
   const handleVideoPress = (video: Video) => (navigation.navigate as any)('VideoPlayer', { videoId: video.id });
   const handleCoursePress = (course: Course) => (navigation.navigate as any)('CourseDetail', { courseId: course.id });
-  const handleToolPress = (tool: Tool) => navigation.navigate(tool.route as never);
+  const handleToolPress = (tool: Tool) => {
+    console.log('🔧 Navegando a herramienta:', tool.title, 'Ruta:', tool.route);
+    try {
+      // @ts-ignore - Ahora está en el mismo Drawer
+      navigation.navigate(tool.route);
+    } catch (error) {
+      console.error('❌ Error navegando a herramienta:', tool.title, error);
+      Alert.alert('Error', `No se pudo abrir ${tool.title}`);
+    }
+  };
   const handleNavigation = (screen: string) => navigation.navigate(screen as never);
 
   const formatDuration = (seconds: number): string => {
@@ -222,10 +234,6 @@ export function EducacionScreen() {
             <Text style={styles.headerTitle}>Educación</Text>
           </View>
         </View>
-        <View style={styles.searchContainer}>
-          <Search size={18} color="#999" />
-          <TextInput style={styles.searchInput} placeholder="Buscar videos, cursos..." value={searchQuery} onChangeText={setSearchQuery} placeholderTextColor="#999" />
-        </View>
         <View style={styles.tabsContainer}>
           {['inicio', 'videos', 'cursos', 'herramientas'].map(tab => (
             <TouchableOpacity key={tab} style={[styles.tab, activeTab === tab && styles.activeTab]} onPress={() => handleTabChange(tab)}>
@@ -242,6 +250,8 @@ export function EducacionScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         nestedScrollEnabled={true}
         scrollEnabled={true}
+        showsVerticalScrollIndicator={false}
+        bounces={true}
       >
         {loading ? (
           <View style={styles.loadingContainer}>
@@ -251,82 +261,7 @@ export function EducacionScreen() {
         ) : (
           <>
             {activeTab === 'inicio' && (
-              <>
-                {videos.length > 0 && (
-                  <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                      <Text style={styles.sectionTitle}>Videos Destacados</Text>
-                      <TouchableOpacity onPress={() => handleTabChange('videos')}>
-                        <Text style={styles.seeAllText}>Ver todos</Text>
-                      </TouchableOpacity>
-                    </View>
-                    <FlatList
-                      horizontal
-                      data={videos.slice(0, 6)}
-                      renderItem={({ item }) => renderVideoItem(item)}
-                      keyExtractor={(item) => item.id}
-                      showsHorizontalScrollIndicator={false}
-                      scrollEnabled={true}
-                      bounces={true}
-                      nestedScrollEnabled={true}
-                      contentContainerStyle={styles.horizontalScrollContent}
-                      removeClippedSubviews={false}
-                    />
-                  </View>
-                )}
-                {courseTopics.map(topic => {
-                  const topicCourses = courses.filter(c => c.topic === topic.id);
-                  if (topicCourses.length === 0) return null;
-                  const IconComponent = getIconForTopic(topic.icon);
-                  return (
-                    <View key={topic.id} style={styles.section}>
-                      <View style={styles.sectionHeader}>
-                        <View style={styles.topicHeader}>
-                          <View style={[styles.topicIconContainer, { backgroundColor: topic.color + '20' }]}>
-                            <IconComponent size={20} color={topic.color} />
-                          </View>
-                          <View>
-                            <Text style={styles.sectionTitle}>{topic.name}</Text>
-                            <Text style={styles.sectionSubtitle}>{topic.description}</Text>
-                          </View>
-                        </View>
-                      </View>
-                      <FlatList
-                        horizontal
-                        data={topicCourses}
-                        renderItem={({ item }) => renderCourseItem(item)}
-                        keyExtractor={(item) => item.id}
-                        showsHorizontalScrollIndicator={false}
-                        scrollEnabled={true}
-                        bounces={true}
-                        nestedScrollEnabled={true}
-                        contentContainerStyle={styles.horizontalScrollContent}
-                        removeClippedSubviews={false}
-                      />
-                    </View>
-                  );
-                })}
-                {tools.length > 0 && (
-                  <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                      <Text style={styles.sectionTitle}>Herramientas Financieras</Text>
-                      <TouchableOpacity onPress={() => handleTabChange('herramientas')}>
-                        <Text style={styles.seeAllText}>Ver todas</Text>
-                      </TouchableOpacity>
-                    </View>
-                    <ScrollView 
-                      horizontal 
-                      showsHorizontalScrollIndicator={false}
-                      scrollEnabled={true}
-                      nestedScrollEnabled={true}
-                      contentContainerStyle={styles.toolsScrollContent}
-                      removeClippedSubviews={false}
-                    >
-                      {tools.map(renderToolItem)}
-                    </ScrollView>
-                  </View>
-                )}
-              </>
+              <FinancialPlannerDashboard />
             )}
 
             {activeTab === 'videos' && (

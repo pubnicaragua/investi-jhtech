@@ -494,8 +494,11 @@ export default function CreateCommunityScreen({ navigation }: any) {
         keyboardDismissMode="on-drag" 
         showsVerticalScrollIndicator={false}
         bounces={true}
-        alwaysBounceVertical={true}
-        contentContainerStyle={{ paddingBottom: 120 }}
+        alwaysBounceVertical={false}
+        scrollEnabled={true}
+        nestedScrollEnabled={true}
+        directionalLockEnabled={true}
+        contentContainerStyle={{ paddingBottom: 200 }}
       >
         {/* Foto de la comunidad */}
         <View style={styles.stepContainer}>

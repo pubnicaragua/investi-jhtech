@@ -597,6 +597,9 @@ export function GroupChatScreen() {
           style={styles.messagesContainer}
           contentContainerStyle={styles.messagesContent}
           showsVerticalScrollIndicator={false}
+          scrollEnabled={true}
+          nestedScrollEnabled={true}
+          bounces={true}
           onContentSizeChange={() => {
             // Auto-scroll al cargar
             if (messages.length > 0) {

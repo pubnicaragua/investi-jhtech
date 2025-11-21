@@ -1,0 +1,184 @@
+PROMPT PARA NOTION - ESTRUCTURA SCRUM DEL PROYECTO INVESTÍ
+
+Copia este prompt en ChatGPT o Claude y pídele que lo adapte para Notion:
+
+---
+
+Necesito que estructures el siguiente proyecto en Notion usando metodología SCRUM. 
+
+INFORMACIÓN DEL PROYECTO:
+
+Nombre: Investí - Red Social de Inversión
+Versión: 1.0.45.42
+Estado: En Desarrollo
+Plataforma: React Native (Expo)
+Backend: Supabase (PostgreSQL)
+
+ESTRUCTURA REQUERIDA EN NOTION:
+
+1. DASHBOARD PRINCIPAL
+   - Resumen ejecutivo del proyecto
+   - Estado general (% completado)
+   - Sprints activos
+   - Últimos cambios
+
+2. SPRINTS
+   - Sprint 1: Autenticación y Onboarding (COMPLETADO)
+   - Sprint 2: Funcionalidades Principales (COMPLETADO)
+   - Sprint 3: Herramientas Financieras (COMPLETADO)
+   - Sprint 4: Sistema de Soporte (EN PROGRESO)
+   
+   Para cada sprint:
+   - Objetivo
+   - Duración
+   - Tareas (con checkboxes)
+   - Estado de cada tarea
+   - Responsable
+   - Fecha de inicio/fin
+
+3. PANTALLAS DEL PROYECTO (52 total)
+   Organizadas por categoría:
+   - 🔐 Autenticación y Onboarding (6)
+   - 🎯 Configuración Inicial (6)
+   - 🏠 Pantalla Principal (1)
+   - 📰 Sistema de Posts (7)
+   - 👥 Sistema de Comunidades (6)
+   - 👤 Perfiles y Configuración (5)
+   - 💬 Chat y Mensajería (5)
+   - 🔔 Notificaciones (1)
+   - 📚 Contenido y Educación (5)
+   - 💰 Herramientas Financieras (8)
+   - 🔧 Herramientas Especiales (4)
+   
+   Para cada pantalla:
+   - Nombre
+   - Archivo
+   - APIs utilizadas
+   - Estado (✅ Completado / 🔄 En Progreso / ⏳ Pendiente)
+   - Problemas conocidos
+   - Notas
+
+4. ÚLTIMOS 10 ERRORES REPORTADOS
+   Tabla con:
+   - ID del ticket
+   - Título del error
+   - Prioridad (Baja/Media/Alta/Crítica)
+   - Estado (Abierto/En Progreso/Resuelto/Cerrado)
+   - Fecha de reporte
+   - Usuario que reportó
+   - Descripción
+   - Adjuntos
+
+5. BACKLOG DE TAREAS
+   - Tareas pendientes por hacer
+   - Tareas en progreso
+   - Tareas completadas
+   - Filtrar por prioridad y categoría
+
+6. DOCUMENTACIÓN
+   - Guía de instalación
+   - Guía de desarrollo
+   - Referencia de APIs
+   - Troubleshooting
+
+7. EQUIPO
+   - Miembros del equipo
+   - Roles
+   - Responsabilidades
+
+8. CALENDARIO
+   - Hitos del proyecto
+   - Fechas de sprints
+   - Deadlines
+
+9. MÉTRICAS
+   - Total de pantallas: 52
+   - Categorías: 11
+   - Funciones SQL: 3
+   - Tablas de BD: 3
+   - % Completado: 85%
+
+10. FLUJOS DE NAVEGACIÓN
+    - Diagrama de flujos principales
+    - Rutas de usuario
+    - Integraciones
+
+TECNOLOGÍAS:
+- Frontend: React Native, TypeScript, Expo
+- Backend: Supabase, PostgreSQL
+- Autenticación: OAuth, Email
+- Storage: Supabase Storage
+
+Por favor, crea una estructura completa en Notion que sea:
+- Profesional y clara
+- Fácil de navegar
+- Con vistas múltiples (tabla, kanban, calendario)
+- Con filtros y búsqueda
+- Actualizable en tiempo real
+- Con emojis para mejor visualización
+
+---
+
+INSTRUCCIONES PARA USAR:
+
+1. Copia el prompt anterior
+2. Abre Notion y crea una nueva página
+3. Pega el prompt en un bloque de texto
+4. Usa "Ask AI" (si tienes Notion AI) o copia el prompt en ChatGPT/Claude
+5. Pídele que genere la estructura completa
+6. Copia y pega los resultados en Notion
+7. Ajusta los estilos según prefieras
+
+ALTERNATIVA: Importar Markdown
+
+Si Notion permite importar markdown:
+1. Copia el contenido de PROYECTO_INVESTI_SCRUM.md
+2. En Notion: "Import" > "Markdown"
+3. Selecciona el archivo
+4. Notion convertirá automáticamente los encabezados y tablas
+
+---
+
+ARCHIVOS GENERADOS PARA EJECUTAR EN SUPABASE:
+
+1. SUPPORT_BACKEND_CLEAN.sql
+   - Crear tablas de tickets
+   - Crear índices
+   - Crear funciones
+   - Crear triggers
+   - Configurar RLS
+
+2. SETUP_STORAGE_POLICIES.sql
+   - Crear bucket "support_attachments"
+   - Configurar políticas de storage
+
+PASOS:
+
+1. Abre Supabase > SQL Editor
+2. Copia el contenido de SUPPORT_BACKEND_CLEAN.sql
+3. Ejecuta el script
+4. Ve a Storage > Buckets
+5. Crea nuevo bucket: "support_attachments"
+6. Ve a Storage > Policies
+7. Copia las políticas de SETUP_STORAGE_POLICIES.sql
+8. Aplica las políticas
+
+---
+
+PANTALLA CREADA:
+
+✅ SupportTicketScreen.tsx
+- Formulario para reportar bugs
+- Adjuntar imágenes/videos
+- Ver mis tickets
+- Historial de tickets
+- Estados: Abierto, En Progreso, Resuelto, Cerrado
+- Prioridades: Baja, Media, Alta, Crítica
+
+INTEGRACIÓN:
+
+✅ Agregada a navigation/index.tsx
+✅ Agregada a types/navigation.ts
+✅ Accesible desde Settings (icono Headphones)
+
+---

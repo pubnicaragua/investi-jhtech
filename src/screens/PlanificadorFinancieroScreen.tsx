@@ -10,6 +10,8 @@ import {
   Modal,
   Alert,
   Dimensions,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
@@ -25,58 +27,165 @@ import {
   PieChart,
   BarChart3,
   Crown,
-  Zap
+  Zap,
+  Sparkles,
+  X,
+  Info,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FloatingMicrophone } from '../components/FloatingMicrophone';
+import { VoiceInstructionsModal } from '../components/VoiceInstructionsModal';
+import { IriAlert } from '../components/IriAlert';
+import { getCurrentUserId } from '../rest/api';
+import {
+  getBudgets,
+  createBudget,
+  updateBudget,
+  deleteBudget,
+  getBudgetStats,
+  getTransactions,
+  createTransaction,
+  type Budget as BudgetType,
+  type Transaction as TransactionType,
+} from '../rest/toolsApi';
+import {
+  analyzeBudgets,
+  predictFutureExpenses,
+  chatWithTool,
+} from '../services/grokToolsService';
 
 const { width } = Dimensions.get('window');
 
-interface Budget {
-  id: string;
-  name: string;
-  amount: number;
-  spent: number;
-  category: string;
-  color: string;
-}
-
-interface Transaction {
-  id: string;
-  description: string;
-  amount: number;
-  category: string;
-  date: string;
-  type: 'income' | 'expense';
-}
+// Tipos ahora vienen de toolsApi.ts
 
 export function PlanificadorFinancieroScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   
-  const [budgets, setBudgets] = useState<Budget[]>([
-    { id: '1', name: 'Alimentación', amount: 500, spent: 320, category: 'food', color: '#FF6B6B' },
-    { id: '2', name: 'Transporte', amount: 200, spent: 150, category: 'transport', color: '#4ECDC4' },
-    { id: '3', name: 'Entretenimiento', amount: 150, spent: 80, category: 'entertainment', color: '#45B7D1' },
-    { id: '4', name: 'Universidad', amount: 300, spent: 300, category: 'education', color: '#96CEB4' },
-  ]);
+  // Estados principales
+  const [userId, setUserId] = useState<string | null>(null);
+  const [budgets, setBudgets] = useState<BudgetType[]>([]);
+  const [transactions, setTransactions] = useState<TransactionType[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [aiInsights, setAiInsights] = useState<string[]>([]);
+  const [aiWarnings, setAiWarnings] = useState<string[]>([]);
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [analyzingWithAI, setAnalyzingWithAI] = useState(false);
 
-  const [transactions, setTransactions] = useState<Transaction[]>([
-    { id: '1', description: 'Supermercado', amount: -45, category: 'food', date: '2024-01-15', type: 'expense' },
-    { id: '2', description: 'Salario', amount: 2000, category: 'salary', date: '2024-01-01', type: 'income' },
-    { id: '3', description: 'Gasolina', amount: -60, category: 'transport', date: '2024-01-14', type: 'expense' },
-  ]);
-
+  // Estados de UI
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
+  const [editingBudget, setEditingBudget] = useState<BudgetType | null>(null);
   const [newBudgetName, setNewBudgetName] = useState('');
   const [newBudgetAmount, setNewBudgetAmount] = useState('');
+  const [newBudgetCategory, setNewBudgetCategory] = useState('food');
+  const [showMicrophone, setShowMicrophone] = useState(true);
+  const [showVoiceInstructions, setShowVoiceInstructions] = useState(false);
+  const [iriAlertVisible, setIriAlertVisible] = useState(false);
+  const [iriAlertMessage, setIriAlertMessage] = useState('');
+  const [iriAlertType, setIriAlertType] = useState<'success' | 'error' | 'info'>('info');
+
+  // Cargar datos iniciales
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  const loadInitialData = async () => {
+    try {
+      setLoading(true);
+      const uid = await getCurrentUserId();
+      if (!uid) {
+        Alert.alert('Error', 'No se pudo obtener el usuario');
+        return;
+      }
+      
+      setUserId(uid);
+      
+      await Promise.all([
+        loadBudgets(uid),
+        loadTransactions(uid),
+        loadStats(uid),
+      ]);
+    } catch (error) {
+      console.error('Error loading initial data:', error);
+      Alert.alert('Error', 'No se pudieron cargar los datos');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadBudgets = async (uid: string) => {
+    try {
+      const budgetsData = await getBudgets(uid);
+      setBudgets(budgetsData);
+    } catch (error) {
+      console.error('Error loading budgets:', error);
+    }
+  };
+
+  const loadTransactions = async (uid: string) => {
+    try {
+      const transactionsData = await getTransactions(uid, 20);
+      setTransactions(transactionsData);
+    } catch (error) {
+      console.error('Error loading transactions:', error);
+    }
+  };
+
+  const loadStats = async (uid: string) => {
+    try {
+      const statistics = await getBudgetStats(uid);
+      setStats(statistics);
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    if (userId) {
+      await Promise.all([
+        loadBudgets(userId),
+        loadTransactions(userId),
+        loadStats(userId),
+      ]);
+    }
+    setRefreshing(false);
+  };
+
+  // Análisis con IA
+  const analyzeWithAI = async () => {
+    if (!userId || budgets.length === 0) return;
+    
+    setAnalyzingWithAI(true);
+    try {
+      const analysis = await analyzeBudgets(budgets);
+      setAiInsights(analysis.insights);
+      setAiWarnings(analysis.warnings);
+      setAiSuggestions(analysis.suggestions);
+      
+      Alert.alert(
+        '💡 Análisis Completado',
+        `Se generaron ${analysis.insights.length} insights y ${analysis.suggestions.length} sugerencias`,
+        [{ text: 'Ver Resultados', style: 'default' }]
+      );
+    } catch (error) {
+      console.error('Error analyzing with AI:', error);
+      Alert.alert('Error', 'No se pudo completar el análisis con IA');
+    } finally {
+      setAnalyzingWithAI(false);
+    }
+  };
 
   const totalBudget = budgets.reduce((sum, budget) => sum + budget.amount, 0);
   const totalSpent = budgets.reduce((sum, budget) => sum + budget.spent, 0);
   const remainingBudget = totalBudget - totalSpent;
 
-  const addOrUpdateBudget = () => {
+  const addOrUpdateBudget = async () => {
+    if (!userId) return;
+    
     if (!newBudgetName.trim() || !newBudgetAmount.trim()) {
       Alert.alert('Error', 'Por favor completa todos los campos');
       return;
@@ -88,46 +197,77 @@ export function PlanificadorFinancieroScreen() {
       return;
     }
 
-    const remainingBudget = totalBudget - totalSpent;
-
-    if (editingBudget) {
-      setBudgets(budgets.map(budget => 
-        budget.id === editingBudget.id 
-          ? { ...budget, name: newBudgetName, amount }
-          : budget
-      ));
-    } else {
-      const newBudget: Budget = {
-        id: Date.now().toString(),
-        name: newBudgetName,
+    try {
+      const budgetData = {
+        name: newBudgetName.trim(),
         amount,
-        spent: 0,
-        category: 'other',
-        color: '#2673f3',
+        spent: editingBudget?.spent || 0,
+        category: newBudgetCategory,
+        color: getCategoryColor(newBudgetCategory),
+        period: 'monthly' as const,
       };
-      setBudgets([...budgets, newBudget]);
-    }
 
-    setModalVisible(false);
-    setEditingBudget(null);
-    setNewBudgetName('');
-    setNewBudgetAmount('');
+      if (editingBudget) {
+        await updateBudget(editingBudget.id, budgetData);
+        Alert.alert('¡Éxito!', 'Presupuesto actualizado');
+      } else {
+        await createBudget(userId, budgetData);
+        Alert.alert('¡Éxito!', 'Presupuesto creado');
+      }
+
+      await loadBudgets(userId);
+      await loadStats(userId);
+      setModalVisible(false);
+      setEditingBudget(null);
+      setNewBudgetName('');
+      setNewBudgetAmount('');
+    } catch (error) {
+      console.error('Error saving budget:', error);
+      Alert.alert('Error', 'No se pudo guardar el presupuesto');
+    }
   };
 
-  const deleteBudget = (id: string) => {
+  const getCategoryColor = (category: string): string => {
+    const colors: Record<string, string> = {
+      food: '#FF6B6B',
+      transport: '#4ECDC4',
+      entertainment: '#45B7D1',
+      education: '#96CEB4',
+      shopping: '#FF9800',
+      health: '#9C27B0',
+      general: '#2673f3',
+    };
+    return colors[category] || '#2673f3';
+  };
+
+  const deleteBudgetItem = (budget: BudgetType) => {
     Alert.alert(
       'Eliminar Presupuesto',
       '¿Estás seguro de que quieres eliminar este presupuesto?',
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Eliminar', style: 'destructive', onPress: () => {
-          setBudgets(budgets.filter(budget => budget.id !== id));
-        }},
+        { 
+          text: 'Eliminar', 
+          style: 'destructive', 
+          onPress: async () => {
+            try {
+              await deleteBudget(budget.id);
+              if (userId) {
+                await loadBudgets(userId);
+                await loadStats(userId);
+              }
+              Alert.alert('Eliminado', 'Presupuesto eliminado correctamente');
+            } catch (error) {
+              console.error('Error deleting budget:', error);
+              Alert.alert('Error', 'No se pudo eliminar el presupuesto');
+            }
+          }
+        }
       ]
     );
   };
 
-  const renderBudgetCard = (budget: Budget) => {
+  const renderBudgetCard = (budget: BudgetType) => {
     const percentage = (budget.spent / budget.amount) * 100;
     const isOverBudget = percentage > 100;
 
@@ -144,12 +284,13 @@ export function PlanificadorFinancieroScreen() {
                 setEditingBudget(budget);
                 setNewBudgetName(budget.name);
                 setNewBudgetAmount(budget.amount.toString());
+                setNewBudgetCategory(budget.category);
                 setModalVisible(true);
               }}
             >
               <Edit3 size={16} color="#666" />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => deleteBudget(budget.id)}>
+            <TouchableOpacity onPress={() => deleteBudgetItem(budget)}>
               <Trash2 size={16} color="#FF6B6B" />
             </TouchableOpacity>
           </View>
@@ -173,7 +314,7 @@ export function PlanificadorFinancieroScreen() {
             />
           </View>
           <Text style={[styles.percentageText, isOverBudget && styles.overBudgetText]}>
-            {percentage.toFixed(0)}%
+            {isNaN(percentage) ? '0' : percentage.toFixed(0)}%
           </Text>
         </View>
         
@@ -186,6 +327,37 @@ export function PlanificadorFinancieroScreen() {
     );
   };
 
+  // Micrófono flotante
+  const handleMicrophoneTranscript = async (transcript: string) => {
+    if (!userId) return;
+    
+    try {
+      const response = await chatWithTool('planificador', transcript, {
+        budgets,
+        stats,
+      });
+      
+      setIriAlertMessage(response);
+      setIriAlertType('success');
+      setIriAlertVisible(true);
+    } catch (error: any) {
+      console.error('Error processing voice:', error);
+      const errorMessage = error?.message || 'No pude procesar tu solicitud';
+      setIriAlertMessage(errorMessage);
+      setIriAlertType('error');
+      setIriAlertVisible(true);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#2673f3" />
+        <Text style={{ marginTop: 16, color: '#666' }}>Cargando presupuestos...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
@@ -195,17 +367,40 @@ export function PlanificadorFinancieroScreen() {
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Planificador Financiero</Text>
+          <View style={styles.aiPoweredBadge}>
+            <Sparkles size={12} color="#FFD700" />
+            <Text style={styles.aiPoweredText}>IA</Text>
+          </View>
         </View>
+        <TouchableOpacity 
+          onPress={() => setShowVoiceInstructions(true)}
+          style={styles.infoButton}
+        >
+          <Info size={24} color="#2673f3" />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {/* Summary Card */}
         <View style={styles.summaryCard}>
           <View style={styles.summaryHeader}>
             <Text style={styles.summaryTitle}>Resumen del Mes</Text>
-            <View style={styles.aiIcon}>
-              <Zap size={16} color="#FFD700" />
-            </View>
+            <TouchableOpacity 
+              style={styles.aiAnalyzeButton}
+              onPress={analyzeWithAI}
+              disabled={analyzingWithAI}
+            >
+              <Sparkles size={16} color="#FFD700" />
+              <Text style={styles.aiAnalyzeText}>
+                {analyzingWithAI ? 'Analizando...' : 'Analizar con IA'}
+              </Text>
+            </TouchableOpacity>
           </View>
           
           <View style={styles.summaryStats}>
@@ -238,27 +433,47 @@ export function PlanificadorFinancieroScreen() {
               />
             </View>
             <Text style={styles.overallPercentage}>
-              {((totalSpent / totalBudget) * 100).toFixed(0)}% utilizado
+              {totalBudget > 0 ? ((totalSpent / totalBudget) * 100).toFixed(0) : '0'}% utilizado
             </Text>
           </View>
         </View>
 
         {/* AI Insights */}
-        <View style={styles.insightsCard}>
-          <View style={styles.insightsHeader}>
-            <Zap size={20} color="#FFD700" />
-            <Text style={styles.insightsTitle}>Análisis Inteligente</Text>
+        {(aiInsights.length > 0 || aiWarnings.length > 0 || aiSuggestions.length > 0) && (
+          <View style={styles.insightsCard}>
+            <View style={styles.insightsHeader}>
+              <Sparkles size={20} color="#FFD700" />
+              <Text style={styles.insightsTitle}>Análisis de Irï</Text>
+            </View>
+            
+            {aiInsights.length > 0 && (
+              <View style={styles.insightsSection}>
+                <Text style={styles.insightsSectionTitle}>💡 Insights</Text>
+                {aiInsights.map((insight, index) => (
+                  <Text key={index} style={styles.insightText}>{insight}</Text>
+                ))}
+              </View>
+            )}
+            
+            {aiWarnings.length > 0 && (
+              <View style={styles.insightsSection}>
+                <Text style={styles.insightsSectionTitle}>⚠️ Advertencias</Text>
+                {aiWarnings.map((warning, index) => (
+                  <Text key={index} style={styles.warningText}>{warning}</Text>
+                ))}
+              </View>
+            )}
+            
+            {aiSuggestions.length > 0 && (
+              <View style={styles.insightsSection}>
+                <Text style={styles.insightsSectionTitle}>🎯 Sugerencias</Text>
+                {aiSuggestions.map((suggestion, index) => (
+                  <Text key={index} style={styles.suggestionText}>{suggestion}</Text>
+                ))}
+              </View>
+            )}
           </View>
-          <Text style={styles.insightText}>
-            📊 Estás gastando 15% más en alimentación este mes. Considera reducir comidas fuera.
-          </Text>
-          <Text style={styles.insightText}>
-            💡 Podrías ahorrar $80 optimizando tus gastos de entretenimiento.
-          </Text>
-          <Text style={styles.insightText}>
-            🎯 ¡Excelente! Mantienes el transporte dentro del presupuesto.
-          </Text>
-        </View>
+        )}
 
         {/* Budgets Section */}
         <View style={styles.section}>
@@ -272,25 +487,60 @@ export function PlanificadorFinancieroScreen() {
             </TouchableOpacity>
           </View>
           
-          {budgets.map(renderBudgetCard)}
+          {budgets.length > 0 ? (
+            budgets.map(renderBudgetCard)
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>No hay presupuestos aún</Text>
+              <Text style={styles.emptyStateSubtext}>Crea tu primer presupuesto para comenzar</Text>
+            </View>
+          )}
         </View>
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => Alert.alert('Próximamente', 'Esta función estará disponible pronto')}>
             <PieChart size={24} color="#2673f3" />
             <Text style={styles.actionText}>Ver Gráficos</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => (navigation as any).navigate('ReportesAvanzados')}>
             <BarChart3 size={24} color="#2673f3" />
             <Text style={styles.actionText}>Reportes</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} onPress={() => Alert.alert('Próximamente', 'Esta función estará disponible pronto')}>
             <Target size={24} color="#2673f3" />
             <Text style={styles.actionText}>Metas</Text>
           </TouchableOpacity>
         </View>
+
+        <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Micrófono Flotante */}
+      {showMicrophone && (
+        <FloatingMicrophone
+          onTranscript={handleMicrophoneTranscript}
+          onClose={() => setShowMicrophone(false)}
+          toolName="planificador"
+          isVisible={showMicrophone}
+        />
+      )}
+
+      {/* Modal de Instrucciones de Voz */}
+      <VoiceInstructionsModal
+        visible={showVoiceInstructions}
+        onClose={() => setShowVoiceInstructions(false)}
+        toolName="planificador"
+      />
+
+      {/* Alert de Irï */}
+      <IriAlert
+        visible={iriAlertVisible}
+        title="Irï"
+        message={iriAlertMessage}
+        onClose={() => setIriAlertVisible(false)}
+        type={iriAlertType}
+      />
 
       {/* Add/Edit Budget Modal */}
       <Modal
@@ -387,6 +637,38 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFD700',
     marginLeft: 4,
+  },
+  aiPoweredBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8DC',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  aiPoweredText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#FFD700',
+  },
+  infoButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  aiAnalyzeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8DC',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
+  },
+  aiAnalyzeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFD700',
   },
   content: {
     flex: 1,
@@ -493,6 +775,36 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 8,
     lineHeight: 20,
+  },
+  insightsSection: {
+    marginBottom: 12,
+  },
+  insightsSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  suggestionText: {
+    fontSize: 14,
+    color: '#2673f3',
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  emptyState: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: '#999',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#ccc',
+    textAlign: 'center',
   },
   section: {
     marginBottom: 20,

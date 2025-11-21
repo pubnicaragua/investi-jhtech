@@ -14,8 +14,11 @@ import {
   Platform,
   AppState,
   Alert,
+  Animated,
+  PanResponder,
 } from "react-native"
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useTranslation } from "react-i18next"
 import { supabase } from "../supabase"
 import {
@@ -28,6 +31,7 @@ import {
   Edit3,
   Home,
   TrendingUp,
+  Mic,
   PlusCircle,
   Newspaper,
   BookOpen,
@@ -84,6 +88,20 @@ export function HomeFeedScreen({ navigation }: any) {
   const [unreadCount, setUnreadCount] = useState(0)
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0)
   const [quickActions] = useState<any[]>(DEFAULT_QUICK_ACTIONS)
+  
+  // Botón flotante arrastrable
+  const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], {
+        useNativeDriver: false,
+      }),
+      onPanResponderRelease: () => {
+        // Opcional: hacer que vuelva a su posición o se pegue a un borde
+      },
+    })
+  ).current
 
   useAuthGuard()
   const { loading: onboardingLoading } = useOnboardingGuard()
@@ -123,6 +141,7 @@ export function HomeFeedScreen({ navigation }: any) {
         loadFeed(uid),
         loadNotifications(uid),
         loadConversations(uid),
+        loadFollowedUsers(uid),
       ])
     }
   }
@@ -225,7 +244,7 @@ export function HomeFeedScreen({ navigation }: any) {
       // Obtener posts con offset correcto usando range
       const { data: newPosts, error } = await supabase
         .from('posts')
-        .select('id,contenido,created_at,likes_count,comment_count,user_id,media_url,shares_count')
+        .select('id,contenido,created_at,likes_count,comment_count,user_id,media_url,shares_count,poll_options,poll_duration')
         .order('created_at', { ascending: false })
         .range(nextPage * 20, (nextPage + 1) * 20 - 1)
       
@@ -360,8 +379,11 @@ export function HomeFeedScreen({ navigation }: any) {
   useEffect(() => {
     if (!userId) return
     
+    // Cargar notificaciones iniciales
+    loadNotifications(userId)
+    
     const channel = supabase
-      .channel('notifications_realtime')
+      .channel(`notifications_realtime_${userId}`)
       .on(
         'postgres_changes',
         {
@@ -370,8 +392,8 @@ export function HomeFeedScreen({ navigation }: any) {
           table: 'notifications',
           filter: `user_id=eq.${userId}`
         },
-        () => {
-          console.log('🔔 [HomeFeed] Nueva notificación, recargando...')
+        (payload) => {
+          console.log('🔔 [HomeFeed] Nueva notificación:', payload)
           loadNotifications(userId)
         }
       )
@@ -397,8 +419,11 @@ export function HomeFeedScreen({ navigation }: any) {
   useEffect(() => {
     if (!userId) return
     
+    // Cargar conversaciones iniciales
+    loadConversations(userId)
+    
     const channel = supabase
-      .channel('messages_realtime')
+      .channel(`messages_realtime_${userId}`)
       .on(
         'postgres_changes',
         {
@@ -546,9 +571,11 @@ export function HomeFeedScreen({ navigation }: any) {
                 url: `https://investi.app/posts/${postId}`,
               });
               
-              await sharePost(postId, userId);
-              const newCount = posts.find(p => p.id === postId)?.shares_count || 0;
-              setPosts(prev => prev.map(p => p.id === postId ? { ...p, shares_count: newCount + 1 } : p));
+              await sharePost(postId, userId, 'external');
+              // Incrementar contador de compartidos
+              setPosts(prev => prev.map(p => 
+                p.id === postId ? { ...p, shares: (p.shares || 0) + 1 } : p
+              ));
             }
           },
           {
@@ -611,9 +638,14 @@ export function HomeFeedScreen({ navigation }: any) {
           style: 'destructive',
           onPress: async () => {
             try {
-              await request('DELETE', '/posts', {
-                params: { id: `eq.${postId}` },
-              })
+              const { error } = await supabase
+                .from('posts')
+                .delete()
+                .eq('id', postId)
+                .eq('user_id', userId)
+              
+              if (error) throw error
+              
               setPosts(prev => prev.filter(p => p.id !== postId))
               Alert.alert('✅ Eliminado', 'La publicación ha sido eliminada')
             } catch (err) {
@@ -624,6 +656,22 @@ export function HomeFeedScreen({ navigation }: any) {
         },
       ]
     )
+  }
+
+  const loadFollowedUsers = async (uid: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_follows')
+        .select('following_id')
+        .eq('follower_id', uid)
+      
+      if (error) throw error
+      
+      const followedIds = new Set<string>(data?.map((f: any) => f.following_id as string) || [])
+      setFollowedUsers(followedIds)
+    } catch (err) {
+      console.error('Error loading followed users:', err)
+    }
   }
 
   const handleFollow = async (targetUserId: string) => {
@@ -671,7 +719,12 @@ export function HomeFeedScreen({ navigation }: any) {
   }
 
   const handleComment = (postId: string) => {
-    navigation.navigate("PostDetail", { postId })
+    navigation.navigate("PostDetail", { postId, focusComments: true })
+  }
+
+  const handleVotePoll = async (postId: string, optionIndex: number) => {
+    // TODO: Implementar voto en encuesta
+    Alert.alert('Voto registrado', `Has votado por la opción ${optionIndex + 1}`)
   }
 
   const handleSendMessage = (postId: string, post: any) => {
@@ -753,7 +806,16 @@ export function HomeFeedScreen({ navigation }: any) {
           </View>
           
           <View style={styles.postMeta}>
-            <Text style={styles.postRole}>{item.user_role || 'Usuario'}</Text>
+            {item.community_name ? (
+              <TouchableOpacity 
+                onPress={() => navigation.navigate("CommunityDetail", { communityId: item.community_id })}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.communityName}>📍 {item.community_name}</Text>
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.postRole}>{item.user_role}</Text>
+            )}
             <Text style={styles.postMetaSeparator}> · </Text>
             <Text style={styles.postTime}>{item.time_ago || 'Hace un momento'}</Text>
             {!item.shared_by && (
@@ -789,17 +851,51 @@ export function HomeFeedScreen({ navigation }: any) {
         </View>
       </View>
 
-      <TouchableOpacity 
-        onPress={() => navigation.navigate("PostDetail", { postId: item.id })}
-        activeOpacity={0.9}
-      >
-        <Text style={styles.postContent}>
-          {item.content || ''}
-          {item.content?.length > 150 && (
-            <Text style={styles.seeMore}>  ...Ver más</Text>
-          )}
-        </Text>
-      </TouchableOpacity>
+      {/* Content - Solo mostrar si hay contenido */}
+      {item.content && item.content.trim() !== '' && (
+        <TouchableOpacity 
+          onPress={() => navigation.navigate("PostDetail", { postId: item.id })}
+          activeOpacity={0.9}
+        >
+          <Text style={styles.postContent}>
+            {item.content}
+            {item.content?.length > 150 && (
+              <Text style={styles.seeMore}>  ...Ver más</Text>
+            )}
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Poll */}
+      {item.poll_options && item.poll_options.length > 0 && (() => {
+        console.log('📊 Mostrando encuesta:', item.id, 'Opciones:', item.poll_options);
+        return (
+        <View style={styles.pollContainer}>
+          <View style={styles.pollHeader}>
+            <BarChart2 size={18} color="#3B82F6" />
+            <Text style={styles.pollTitle}>Encuesta</Text>
+          </View>
+          {item.poll_options.map((option: string, index: number) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.pollOption}
+              onPress={() => handleVotePoll(item.id, index)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.pollOptionContent}>
+                <Text style={styles.pollOptionText}>{option}</Text>
+                {item.user_vote === index && (
+                  <View style={styles.votedBadge}>
+                    <Text style={styles.votedText}>✓</Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+          ))}
+          <Text style={styles.pollDuration}>Expira en {item.poll_duration || 7} días</Text>
+        </View>
+        );
+      })()}
 
       {(item.image || (item.media_url && item.media_url.length > 0)) && (() => {
         const mediaUrl = item.media_url && item.media_url.length > 0 ? item.media_url[0] : item.image
@@ -1325,6 +1421,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#6B7280",
   },
+  communityName: {
+    fontSize: 12,
+    color: "#3B82F6",
+    fontWeight: "600",
+  },
   postMetaSeparator: {
     fontSize: 12,
     color: "#6B7280",
@@ -1476,8 +1577,92 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   loadingMoreText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginLeft: 8,
+  },
+  followText: {
+    fontSize: 13,
+    color: '#3B82F6',
+    fontWeight: '600',
+  },
+  pollContainer: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  pollHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  pollTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
+    marginLeft: 8,
+  },
+  pollOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1.5,
+    borderColor: '#D1D5DB',
+  },
+  pollOptionContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  pollOptionText: {
     fontSize: 14,
-    color: "#666",
-    marginTop: 8,
+    color: '#111827',
+    fontWeight: '500',
+    flex: 1,
+  },
+  votedBadge: {
+    backgroundColor: '#3B82F6',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  votedText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  pollDuration: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  holaIriButton: {
+    position: 'absolute',
+    bottom: 100,
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 1000,
+  },
+  holaIriGradient: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 })

@@ -13,6 +13,8 @@ import {
   Linking,
 } from "react-native";
 import { useTranslation } from "react-i18next";
+import { useNavigation, CommonActions } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
   ArrowLeft,
   Shield,
@@ -32,8 +34,9 @@ import { LanguageToggle } from "../components/LanguageToggle";
 import { authSignOut } from "../rest/api";
 import { useAuthGuard } from "../hooks/useAuthGuard";
 
-export function SettingsScreen({ navigation }: any) {
+export function SettingsScreen({ navigation: drawerNav }: any) {
   const { t } = useTranslation();
+  const navigation = useNavigation<any>();
   useAuthGuard();
 
   const handleSignOut = () => {
@@ -91,7 +94,6 @@ export function SettingsScreen({ navigation }: any) {
       "Opciones de seguridad",
       [
         { text: "Cambiar contraseña", onPress: () => navigation.navigate("ChangePassword") },
-        { text: "Autenticación 2FA", onPress: () => Alert.alert("2FA", "Activar autenticación de dos factores") },
         { text: "Cancelar", style: "cancel" }
       ]
     );
@@ -110,20 +112,13 @@ export function SettingsScreen({ navigation }: any) {
   };
 
   const handleSupport = () => {
-    Alert.alert(
-      "Soporte",
-      "¿Necesitas ayuda? Contáctanos en:\n\ncontacto@investiiapp.com",
-      [
-        { text: "Cerrar", style: "cancel" },
-        { 
-          text: "Copiar email", 
-          onPress: () => {
-            // Copy to clipboard functionality would go here
-            Alert.alert("✓", "Email copiado al portapapeles")
-          }
-        }
-      ]
-    );
+    console.log('🎫 Navegando a SupportTicket...');
+    try {
+      drawerNav.navigate('SupportTicket');
+    } catch (error) {
+      console.error('❌ Error navegando a SupportTicket:', error);
+      Alert.alert('Error', 'No se pudo abrir Soporte');
+    }
   };
 
   const handleOpenURL = async (url: string, label: string) => {
@@ -153,6 +148,7 @@ export function SettingsScreen({ navigation }: any) {
   ];
 
   const supportItems = [
+    { icon: Headphones, label: "Soporte y Reportes", onPress: handleSupport, isAction: true },
     { icon: HelpCircle, label: t("settings.helpCenter"), url: "https://www.investiiapp.com/ayuda" },
     { icon: FileText, label: t("settings.privacyPolicy"), url: "https://www.investiiapp.com/privacidad" },
     { icon: Eye, label: t("settings.accessibility"), url: "https://www.investiiapp.com/ayuda" },
@@ -253,7 +249,13 @@ export function SettingsScreen({ navigation }: any) {
             <TouchableOpacity
               key={index}
               style={styles.settingItem}
-              onPress={() => handleOpenURL(item.url, item.label)}
+              onPress={() => {
+                if (item.isAction && item.onPress) {
+                  item.onPress();
+                } else if (item.url) {
+                  handleOpenURL(item.url, item.label);
+                }
+              }}
             >
               <item.icon size={22} color="#333" />
               <Text style={styles.settingItemText}>{item.label}</Text>

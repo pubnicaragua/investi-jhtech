@@ -18,6 +18,8 @@ import {
   PawPrint
 } from "lucide-react-native"
 import { getCurrentUserId, updateUser, getInvestmentGoals, saveUserGoals } from "../rest/api"
+import { HelpTooltip } from "../components/HelpTooltip"
+import { GoalInfoTooltip } from "../components/GoalInfoTooltip"
 
 interface InvestmentGoal {
   id: string
@@ -142,6 +144,12 @@ export function PickGoalsScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Help Tooltip */}
+      <HelpTooltip
+        title="Metas Financieras"
+        description="Elige las metas que más te motivan a ahorrar o invertir. Esto nos ayudará a personalizar tu experiencia y recomendaciones. Puedes seleccionar de 1 a 3 metas en orden de prioridad."
+      />
+      
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
@@ -162,12 +170,12 @@ export function PickGoalsScreen({ navigation }: any) {
         <View style={styles.content}>
           {/* Title */}
           <Text style={styles.title}>
-            ¿Cuáles son tus <Text style={styles.titleBlue}>metas</Text> al invertir?
+            ¿Cuáles son tus <Text style={styles.titleBlue}>metas</Text> al ahorrar o invertir?
           </Text>
           
           {/* Subtitle */}
           <Text style={styles.subtitle}>
-            Puedes elegir a menos una y máximo 3 por orden de prioridad
+            Puedes elegir al menos una y máximo 3 por orden de prioridad
           </Text>
 
           {/* Goals List */}
@@ -190,6 +198,8 @@ export function PickGoalsScreen({ navigation }: any) {
                   ]}
                   onPress={() => toggleGoal(goal.id)}
                   activeOpacity={0.7}
+                  accessible={true}
+                  accessibilityLabel={goal.name}
                 >
                   {/* Emoji Icon */}
                   <View style={[
@@ -209,6 +219,14 @@ export function PickGoalsScreen({ navigation }: any) {
                   >
                     {goal.name}
                   </Text>
+                  
+                  {/* Info Button - DENTRO del TouchableOpacity, al lado derecho */}
+                  <View style={styles.infoButtonGoal}>
+                    <GoalInfoTooltip 
+                      goalName={goal.name} 
+                      description={goal.description || ''} 
+                    />
+                  </View>
                   
                   {/* Priority Badge */}
                   {isSelected && priorityNumber && (
@@ -296,6 +314,9 @@ const styles = StyleSheet.create({
   goalsContainer: {
     gap: 12,
   },
+  goalWrapper: {
+    position: 'relative',
+  },
   goalItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -328,7 +349,8 @@ const styles = StyleSheet.create({
     flex: 1,
     fontWeight: '500',
     lineHeight: 20,
-    paddingRight: 8,
+    paddingRight: 4,
+    maxWidth: '70%',
   },
   goalTextSelected: {
     color: "#000000",
@@ -388,7 +410,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   emojiIcon: {
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: 36,
+  },
+  infoButtonGoal: {
+    marginLeft: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 })

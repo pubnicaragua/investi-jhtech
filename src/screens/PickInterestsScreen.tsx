@@ -9,7 +9,8 @@ import {
   ScrollView,  
   ActivityIndicator,  
   Alert,
-  Image,  
+  Image,
+  Modal,
 } from "react-native"
 import { SafeAreaView } from 'react-native-safe-area-context'  
 import { 
@@ -20,7 +21,9 @@ import {
   Home, 
   GraduationCap, 
   TrendingUp, 
-  Rocket 
+  Rocket,
+  Info,
+  X
 } from "lucide-react-native"
   
 import { getCurrentUserId, getInvestmentInterests, saveUserInterests } from "../rest/api"  
@@ -33,6 +36,50 @@ interface InvestmentInterest {
   category: string
   risk_level?: string
   popularity_score?: number
+}
+
+// Descripciones detalladas por tipo de inversión
+const INTEREST_DESCRIPTIONS: Record<string, { description: string, risk: string }> = {
+  'Acciones Internacionales': {
+    description: 'Invierte en empresas de alto potencial en otros mercados.',
+    risk: 'Medio-Alto'
+  },
+  'Acciones Locales': {
+    description: 'Invierte en las principales empresas de tu país.',
+    risk: 'Medio-Alto'
+  },
+  'Criptomonedas': {
+    description: 'Invierte en activos digitales descentralizados como Bitcoin y Ethereum.',
+    risk: 'Muy Alto'
+  },
+  'Depósitos a Plazo': {
+    description: 'Inversión segura con rentabilidad fija garantizada.',
+    risk: 'Bajo'
+  },
+  'Depósitos a plazo': {
+    description: 'Inversión segura con rentabilidad fija garantizada.',
+    risk: 'Bajo'
+  },
+  'Fondos Mutuos': {
+    description: 'Accede a múltiples activos (acciones, bonos, inmobiliario) con una sola inversión.',
+    risk: 'Medio-Alto'
+  },
+  'Crowdfunding Inmobiliario': {
+    description: 'Invierte en proyectos inmobiliarios con montos accesibles.',
+    risk: 'Medio-Alto'
+  },
+  'Inversión Inmobiliaria': {
+    description: 'Invierte en propiedades para generar ingresos por arriendo o plusvalía.',
+    risk: 'Medio-Alto'
+  },
+  'Educación Financiera': {
+    description: 'Invierte en tu conocimiento financiero para tomar mejores decisiones.',
+    risk: 'Rentabilidad Alta'
+  },
+  'Startups': {
+    description: 'Invierte en empresas emergentes con alto potencial de crecimiento.',
+    risk: 'Muy Alto'
+  }
 }
 
 // ICONOS LUCIDE - Mapeo por categoría
@@ -74,6 +121,7 @@ export const PickInterestsScreen = ({ navigation }: any) => {
       const interestsData = await getInvestmentInterests()
       
       if (interestsData) {
+        console.log('⚠️ NOMBRES EXACTOS DE INTERESES:', interestsData.map((i: any) => i.name))
         setInterests(interestsData)
       }
     } catch (error) {  
@@ -82,6 +130,9 @@ export const PickInterestsScreen = ({ navigation }: any) => {
       setInitialLoading(false)
     }
   }
+
+  const [selectedInterestInfo, setSelectedInterestInfo] = useState<InvestmentInterest | null>(null)
+  const [showInterestModal, setShowInterestModal] = useState(false)
 
   const toggleInterest = (id: string) => {
     setSelectedInterests((prev) => {  
@@ -99,6 +150,11 @@ export const PickInterestsScreen = ({ navigation }: any) => {
         return [...prev, id]  
       }  
     })  
+  }
+
+  const showInterestInfo = (interest: InvestmentInterest) => {
+    setSelectedInterestInfo(interest)
+    setShowInterestModal(true)
   }
   
   const handleContinue = async () => {
@@ -167,7 +223,7 @@ export const PickInterestsScreen = ({ navigation }: any) => {
               
               return (
                 <TouchableOpacity  
-                  key={item.id}  
+                  key={item.id}
                   style={[  
                     styles.interestItem,  
                     isSelected && styles.interestItemSelected,  
@@ -196,7 +252,17 @@ export const PickInterestsScreen = ({ navigation }: any) => {
                     ]}  
                   >  
                     {item.name}  
-                  </Text>  
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.infoButton}
+                    onPress={(e) => {
+                      e.stopPropagation()
+                      showInterestInfo(item)
+                    }}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Info size={18} color="#6B7280" />
+                  </TouchableOpacity>
                 </TouchableOpacity>
               )
             })}  
@@ -225,7 +291,54 @@ export const PickInterestsScreen = ({ navigation }: any) => {
             <Text style={styles.continueButtonText}>Continuar</Text>  
           )}  
         </TouchableOpacity>  
-      </View>  
+      </View>
+
+      {/* Modal de información de interés */}
+      <Modal
+        visible={showInterestModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowInterestModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {selectedInterestInfo?.name}
+              </Text>
+              <TouchableOpacity onPress={() => setShowInterestModal(false)}>
+                <X size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalBody}>
+              <Text style={styles.modalDescription}>
+                {INTEREST_DESCRIPTIONS[selectedInterestInfo?.name || '']?.description || 
+                  selectedInterestInfo?.description || 
+                  "Información detallada sobre este tipo de inversión."}
+              </Text>
+              <View style={styles.modalInfoRow}>
+                <Text style={styles.modalInfoLabel}>Nivel de riesgo:</Text>
+                <Text style={[styles.modalInfoValue, {
+                  color: INTEREST_DESCRIPTIONS[selectedInterestInfo?.name || '']?.risk === 'Muy Alto' ? '#EF4444' :
+                         INTEREST_DESCRIPTIONS[selectedInterestInfo?.name || '']?.risk === 'Alto' ? '#F59E0B' :
+                         INTEREST_DESCRIPTIONS[selectedInterestInfo?.name || '']?.risk === 'Medio-Alto' ? '#FBBF24' :
+                         INTEREST_DESCRIPTIONS[selectedInterestInfo?.name || '']?.risk === 'Medio' ? '#3B82F6' :
+                         '#10B981'
+                }]}>
+                  {INTEREST_DESCRIPTIONS[selectedInterestInfo?.name || '']?.risk || 
+                   selectedInterestInfo?.risk_level || 'No especificado'}
+                </Text>
+              </View>
+            </ScrollView>
+            <TouchableOpacity 
+              style={styles.modalButton}
+              onPress={() => setShowInterestModal(false)}
+            >
+              <Text style={styles.modalButtonText}>Entendido</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>  
   )  
 }  
@@ -282,17 +395,24 @@ const styles = StyleSheet.create({
     marginBottom: 32,  
     lineHeight: 20,  
   },  
-  interestsContainer: {},  
+  interestsContainer: {},
   interestItem: {  
     flexDirection: "row",  
     alignItems: "center",  
+    padding: 16,  
     backgroundColor: "white",  
-    paddingHorizontal: 16,  
-    paddingVertical: 16,  
     borderRadius: 12,  
+    marginBottom: 12,
     borderWidth: 1,  
     borderColor: "#E5E5E5",
-    marginBottom: 12,
+    position: 'relative',
+  },
+  infoButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    padding: 4,
+    zIndex: 10,
   },  
   interestItemSelected: {  
     borderColor: "#2673f3",  
@@ -356,5 +476,71 @@ const styles = StyleSheet.create({
   bitcoinIcon: {
     width: 32,
     height: 32,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    flex: 1,
+  },
+  modalBody: {
+    padding: 20,
+  },
+  modalDescription: {
+    fontSize: 15,
+    color: '#374151',
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  modalInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  modalInfoLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  modalInfoValue: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '600',
+  },
+  modalButton: {
+    backgroundColor: '#2673f3',
+    paddingVertical: 14,
+    alignItems: 'center',
+    margin: 20,
+    borderRadius: 12,
+  },
+  modalButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 })

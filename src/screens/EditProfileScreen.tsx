@@ -16,8 +16,10 @@ import { ArrowLeft, Camera, Check } from 'lucide-react-native';
 import { getCurrentUser, updateUser } from '../rest/api';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function EditProfileScreen() {
+  const { refreshUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -155,6 +157,9 @@ export default function EditProfileScreen() {
       };
 
       await updateUser(userId, updates);
+      
+      // Refrescar datos del usuario en AuthContext para actualización en tiempo real
+      await refreshUser();
 
       Alert.alert('Éxito', 'Perfil actualizado correctamente', [
         {

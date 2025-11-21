@@ -478,11 +478,13 @@ export function PromotionsScreen() {
       marginTop: -50,
     },
     personAvatar: {
-      width: 120,
-      height: 120,
-      borderRadius: 60,
+      width: 100,
+      height: 100,
+      borderRadius: 50,
       marginBottom: 16,
       backgroundColor: "#E5E7EB",
+      borderWidth: 3,
+      borderColor: "#FFFFFF",
     },
     avatarPlaceholder: {
       backgroundColor: '#3B82F6',
@@ -986,8 +988,15 @@ export function PromotionsScreen() {
             {filteredPeople.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Personas que podrías conocer</Text>
-                <Text style={styles.sectionSubtitle}>Según tus intereses</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.carousel}>
+                <Text style={styles.sectionSubtitle}>{filteredPeople.length} personas</Text>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false} 
+                  style={styles.carousel}
+                  nestedScrollEnabled={true}
+                  scrollEnabled={true}
+                  bounces={true}
+                >
                   {filteredPeople.map((person) => (
                     <View key={person.id} style={styles.personCard}>
                       <View style={styles.personCardHeader}>
@@ -999,7 +1008,11 @@ export function PromotionsScreen() {
                         <X size={18} color="#FFFFFF" />
                       </TouchableOpacity>
                       <View style={styles.personContent}>
-                        <Image source={{ uri: person.avatar_url || person.photo_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(person.full_name || person.nombre || 'User') + '&background=1382EF&color=fff&size=240' }} style={styles.personAvatar} />
+                        <Image 
+                          source={{ uri: person.avatar_url || person.photo_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(person.full_name || person.nombre || 'User') + '&background=1382EF&color=fff&size=240' }} 
+                          style={styles.personAvatar}
+                          resizeMode="cover"
+                        />
                         <Text style={styles.personName} numberOfLines={1}>{person.full_name || person.nombre || person.username || 'Usuario'}</Text>
                         <Text style={styles.personRole} numberOfLines={1}>{person.role || 'Mercadólogo y financista'}</Text>
                         <View style={styles.interestBadge}>
@@ -1023,7 +1036,12 @@ export function PromotionsScreen() {
                 <Text style={styles.sectionTitle}>Comunidades que podrían gustarte</Text>
                 <Text style={styles.sectionSubtitle}>Según tus intereses</Text>
                 {filteredCommunities.map((community) => (
-                  <View key={community.id} style={styles.communityCard}>
+                  <TouchableOpacity 
+                    key={community.id} 
+                    style={styles.communityCard}
+                    onPress={() => (navigation as any).navigate('CommunityDetail', { communityId: community.id })}
+                    activeOpacity={0.9}
+                  >
                     <View style={styles.communityImgContainer}>
                       <Image source={{ uri: community.image_url || 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800' }} style={styles.communityImg} resizeMode="cover" />
                       <View style={styles.communityIcon}>
@@ -1047,7 +1065,7 @@ export function PromotionsScreen() {
                         <Text style={styles.communityType}>• Comunidad pública</Text>
                       </View>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </View>
             )}

@@ -16,7 +16,8 @@ import {
   Linking
 } from 'react-native'
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av'
-import { WebView } from 'react-native-webview'
+import YoutubeIframe from 'react-native-youtube-iframe'
+// import { WebView } from 'react-native-webview' // No usar WebView para YouTube
 import {
   ArrowLeft,
   Play,
@@ -62,10 +63,10 @@ const getYouTubeVideoId = (url: string): string | null => {
   return (match && match[7].length === 11) ? match[7] : null
 }
 
-// Función para crear embed URL de YouTube
+// Función para crear embed URL de YouTube con permisos de embedding
 const getYouTubeEmbedUrl = (url: string): string | null => {
   const videoId = getYouTubeVideoId(url)
-  return videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=0&rel=0&modestbranding=1` : null
+  return videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1` : null
 }
 
 interface VideoData {
@@ -111,6 +112,11 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
   const videoId = route?.params?.videoId || '1'
 
   useAuthGuard()
+
+  // Dimensiones del video
+  const { width: windowWidth } = Dimensions.get('window')
+  const videoContainerWidth = windowWidth
+  const videoContainerHeight = (windowWidth * 9) / 16
 
   // Estados del reproductor
   const videoRef = useRef<Video>(null)
@@ -400,19 +406,16 @@ export function VideoPlayerScreen({ route }: VideoPlayerScreenProps) {
         {videoData.video_url ? (
           <>
             {videoData.video_url.includes('youtube.com') || videoData.video_url.includes('youtu.be') ? (
-              <WebView
-                style={styles.video}
-                source={{ uri: getYouTubeEmbedUrl(videoData.video_url) || videoData.video_url }}
-                allowsFullscreenVideo={true}
-                mediaPlaybackRequiresUserAction={false}
-                javaScriptEnabled={true}
-                domStorageEnabled={true}
-                startInLoadingState={true}
-                renderLoading={() => (
-                  <View style={styles.webViewLoading}>
-                    <ActivityIndicator size="large" color="#2673f3" />
-                  </View>
-                )}
+              <YoutubeIframe
+                height={videoContainerHeight}
+                width={videoContainerWidth}
+                videoId={getYouTubeVideoId(videoData.video_url) || ''}
+                play={isPlaying}
+                onChangeState={(state: string) => {
+                  if (state === 'ended') {
+                    setIsPlaying(false)
+                  }
+                }}
               />
             ) : (
               <>
@@ -711,8 +714,8 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   videoContainer: {
-    width: screenWidth,
-    height: screenWidth * 9 / 16, // Aspect ratio 16:9
+    width: '100%',
+    aspectRatio: 16 / 9,
     position: 'relative',
     backgroundColor: '#000',
   },
@@ -1090,6 +1093,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginTop: 16,
+  },
+  youtubeNotSupported: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
+    paddingHorizontal: 20,
+  },
+  youtubeText: {
+    fontSize: 18,
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  youtubeButton: {
+    backgroundColor: '#FF0000',
+    paddingHorizontal: 30,
+    paddingVertical: 15,
+    borderRadius: 8,
+  },
+  youtubeButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 })
 

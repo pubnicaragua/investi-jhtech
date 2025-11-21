@@ -122,16 +122,18 @@ export function PollEditor({ visible, onClose, onSave, initialData }: PollEditor
           >
             {/* Options */}
             <Text style={styles.sectionLabel}>Opciones</Text>
+            <Text style={styles.sectionHint}>Escribe al menos 2 opciones para crear la encuesta</Text>
             {options.map((option, index) => (
               <View key={index} style={styles.optionRow}>
                 <TextInput
                   style={styles.optionInput}
-                  placeholder={`Opción ${index + 1}`}
+                  placeholder={`Escribe la opción ${index + 1} aquí...`}
                   placeholderTextColor="#9CA3AF"
                   value={option}
                   onChangeText={(value) => handleOptionChange(index, value)}
                   maxLength={MAX_OPTION_LENGTH}
                   autoCapitalize="sentences"
+                  autoFocus={index === 0}
                 />
                 <Text style={styles.charCount}>
                   {option.length}/{MAX_OPTION_LENGTH}
@@ -257,7 +259,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#374151',
+    marginBottom: 8,
+  },
+  sectionHint: {
+    fontSize: 13,
+    color: '#6B7280',
     marginBottom: 12,
+    fontStyle: 'italic',
   },
   durationLabel: {
     marginTop: 24,

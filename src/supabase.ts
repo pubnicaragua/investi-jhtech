@@ -42,13 +42,17 @@ if (supabaseUrl && supabaseAnonKey) {
         storage: AsyncStorage,
         autoRefreshToken: true,
         persistSession: true,
-        // Allow the client to detect session in URL when running on web so
-        // OAuth redirects containing access_token in the URL are processed.
-        detectSessionInUrl: Platform.OS === 'web',
+        // Allow the client to detect session in URL for OAuth redirects
+        // This works on both web and mobile when using deep links
+        detectSessionInUrl: true,
+        // Flow type for OAuth - use implicit for better mobile support
+        flowType: 'implicit',
       },
     });
     console.log('✅ Supabase client initialized successfully');
     console.log('📍 Supabase URL:', supabaseUrl);
+    console.log('🔐 OAuth flow type: implicit');
+    console.log('🔗 Detect session in URL: enabled');
   } catch (error) {
     console.error('❌ Failed to initialize Supabase:', error);
   }

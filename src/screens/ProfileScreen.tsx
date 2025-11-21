@@ -775,7 +775,7 @@ export function ProfileScreen({ navigation, route }: ProfileScreenProps) {
             <>
               <TouchableOpacity  
                 style={styles.primaryButton}  
-                onPress={() => navigation.navigate('EditInterests')}
+                onPress={() => (navigation as any).navigate('PickInterests')}
               >  
                 <Text style={styles.primaryButtonText}>Cambiar mis intereses</Text>  
               </TouchableOpacity>
@@ -1299,6 +1299,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
     letterSpacing: 0.3,
+    textAlign: 'center',
   },
   primaryButtonOutline: {
     flex: 1,

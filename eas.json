@@ -26,22 +26,48 @@
         "EXPO_PUBLIC_ALPHA_VANTAGE_API_KEY": "@EXPO_PUBLIC_ALPHA_VANTAGE_API_KEY",
         "EXPO_PUBLIC_FINNHUB_API_KEY": "@EXPO_PUBLIC_FINNHUB_API_KEY",
         "EXPO_PUBLIC_SUPABASE_URL": "@EXPO_PUBLIC_SUPABASE_URL",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "@EXPO_PUBLIC_SUPABASE_ANON_KEY"
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "@EXPO_PUBLIC_SUPABASE_ANON_KEY",
+        "ELEVENLABS_API_KEY": "@ELEVENLABS_API_KEY",
+        "ELEVENLABS_VOICE_ID_FEMALE": "@ELEVENLABS_VOICE_ID_FEMALE",
+        "ELEVENLABS_VOICE_ID_MALE": "@ELEVENLABS_VOICE_ID_MALE"
       }
     },
     "production": {
       "developmentClient": false,
-      "distribution": "internal",
+      "distribution": "store",
       "android": {
-        "buildType": "apk",
-        "gradleCommand": ":app:assembleRelease"
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:bundleRelease"
       },
       "env": {
+        "NODE_ENV": "production",
         "EXPO_PUBLIC_GROK_API_KEY": "@EXPO_PUBLIC_GROK_API_KEY",
         "EXPO_PUBLIC_ALPHA_VANTAGE_API_KEY": "@EXPO_PUBLIC_ALPHA_VANTAGE_API_KEY",
         "EXPO_PUBLIC_FINNHUB_API_KEY": "@EXPO_PUBLIC_FINNHUB_API_KEY",
         "EXPO_PUBLIC_SUPABASE_URL": "@EXPO_PUBLIC_SUPABASE_URL",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "@EXPO_PUBLIC_SUPABASE_ANON_KEY"
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "@EXPO_PUBLIC_SUPABASE_ANON_KEY",
+        "ELEVENLABS_API_KEY": "@ELEVENLABS_API_KEY",
+        "ELEVENLABS_VOICE_ID_FEMALE": "@ELEVENLABS_VOICE_ID_FEMALE",
+        "ELEVENLABS_VOICE_ID_MALE": "@ELEVENLABS_VOICE_ID_MALE"
+      }
+    },
+    "playstore": {
+      "developmentClient": false,
+      "distribution": "store",
+      "android": {
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:bundleRelease"
+      },
+      "env": {
+        "NODE_ENV": "production",
+        "EXPO_PUBLIC_GROK_API_KEY": "@EXPO_PUBLIC_GROK_API_KEY",
+        "EXPO_PUBLIC_ALPHA_VANTAGE_API_KEY": "@EXPO_PUBLIC_ALPHA_VANTAGE_API_KEY",
+        "EXPO_PUBLIC_FINNHUB_API_KEY": "@EXPO_PUBLIC_FINNHUB_API_KEY",
+        "EXPO_PUBLIC_SUPABASE_URL": "@EXPO_PUBLIC_SUPABASE_URL",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "@EXPO_PUBLIC_SUPABASE_ANON_KEY",
+        "ELEVENLABS_API_KEY": "@ELEVENLABS_API_KEY",
+        "ELEVENLABS_VOICE_ID_FEMALE": "@ELEVENLABS_VOICE_ID_FEMALE",
+        "ELEVENLABS_VOICE_ID_MALE": "@ELEVENLABS_VOICE_ID_MALE"
       }
     },
     "standalone": {

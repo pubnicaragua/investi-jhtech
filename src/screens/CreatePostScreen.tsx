@@ -18,11 +18,15 @@ import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft,
   Image as ImageIcon,
-  Video as VideoIcon,
-  Star,
+  Smile,
   BarChart3,
+  Video as VideoIcon,
+  MapPin,
   Globe,
   ChevronDown,
+  Award,
+  Star,
+  X
 } from 'lucide-react-native'
 import * as ImagePicker from 'expo-image-picker'
 
@@ -40,7 +44,7 @@ import {
 } from '../rest/api'
 import { AudiencePicker, AudienceOption } from '../components/pickers/AudiencePicker'
 import { MediaPreview, MediaItem } from '../components/media/MediaPreview'
-import { PollEditor, PollData } from '../components/poll/PollEditor'
+import { SimplePollCreator, PollData } from '../components/poll/SimplePollCreator'
 
 type CelebrationType = 'milestone' | 'achievement' | 'success' | 'investment_win' | 'other'
 
@@ -425,6 +429,19 @@ export function CreatePostScreen({ navigation }: any) {
     try {
       console.log('🚀 Starting post creation...')
       
+      // Create post data
+      const postData: any = {
+        user_id: user.id,
+        content: content.trim(),
+        contenido: content.trim(),
+        last_activity_date: new Date().toISOString(),
+      }
+      
+      // Add community if selected
+      if (audience.type === 'community') {
+        postData.community_id = audience.id
+      }
+      
       // Upload media first
       const uploadedMediaUrls: string[] = []
       
@@ -458,20 +475,6 @@ export function CreatePostScreen({ navigation }: any) {
         }
       }
       
-      console.log('✅ All media uploaded:', uploadedMediaUrls)
-      
-      // Create post
-      const postData: any = {
-        user_id: user.id,
-        content: content.trim(),
-        contenido: content.trim(), // Para compatibilidad
-      }
-      
-      // Add community if selected
-      if (audience.type === 'community') {
-        postData.community_id = audience.id
-      }
-      
       // Add media URLs (usar media_url que es ARRAY en la BD)
       if (uploadedMediaUrls.length > 0) {
         postData.media_url = uploadedMediaUrls
@@ -495,6 +498,31 @@ export function CreatePostScreen({ navigation }: any) {
       }
       
       console.log('✅ Post created:', data.id)
+      
+      // Add poll if present
+      if (pollData && pollData.options.length >= 2) {
+        try {
+          console.log('📊 Adding poll to post...')
+          console.log('📊 Poll data:', { options: pollData.options, duration: pollData.duration })
+          
+          // Guardar poll_options y poll_duration en el post
+          const { error: pollError } = await supabase
+            .from('posts')
+            .update({
+              poll_options: pollData.options,
+              poll_duration: pollData.duration || 7,
+            })
+            .eq('id', data.id)
+          
+          if (pollError) {
+            console.error('❌ Error adding poll:', pollError)
+          } else {
+            console.log('✅ Poll added successfully with options:', pollData.options)
+          }
+        } catch (pollErr) {
+          console.error('❌ Poll creation failed:', pollErr)
+        }
+      }
       
       // Clear draft
       await clearDraft()
@@ -627,6 +655,25 @@ export function CreatePostScreen({ navigation }: any) {
           </Text>
         </View>
 
+        {/* Poll Preview */}
+        {pollData && (
+          <View style={styles.pollPreview}>
+            <View style={styles.pollPreviewHeader}>
+              <BarChart3 size={18} color="#3B82F6" />
+              <Text style={styles.pollPreviewTitle}>Encuesta</Text>
+              <TouchableOpacity onPress={() => setPollData(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <X size={18} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            {pollData.options.map((option, index) => (
+              <View key={index} style={styles.pollOption}>
+                <Text style={styles.pollOptionText}>• {option}</Text>
+              </View>
+            ))}
+            <Text style={styles.pollDuration}>Duración: {pollData.duration} {pollData.duration === 1 ? 'día' : 'días'}</Text>
+          </View>
+        )}
+
         {/* Media Preview */}
         {mediaItems.length > 0 && (
           <MediaPreview
@@ -680,10 +727,10 @@ export function CreatePostScreen({ navigation }: any) {
         fetchCommunities={fetchCommunitiesForPicker}
       />
 
-      <PollEditor
+      <SimplePollCreator
         visible={showPollEditor}
         onClose={() => setShowPollEditor(false)}
-        onSave={(poll) => {
+        onSave={(poll: PollData) => {
           setPollData(poll)
           setShowPollEditor(false)
         }}
@@ -806,7 +853,49 @@ const styles = StyleSheet.create({
   },
   charCounter: {
     fontSize: 12,
+    color: '#9CA3AF',
     textAlign: 'right',
+    marginTop: 8,
+  },
+  pollPreview: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  pollPreviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  pollPreviewTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
+    flex: 1,
+    marginLeft: 8,
+  },
+  pollOption: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  pollOptionText: {
+    fontSize: 14,
+    color: '#374151',
+  },
+  pollDuration: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   dividerContainer: {
     alignItems: 'center',

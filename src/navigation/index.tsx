@@ -18,6 +18,9 @@ import { PendingRequestsScreen } from '../screens/PendingRequestsScreen';
 import { ManageModeratorsScreen } from '../screens/ManageModeratorsScreen';
 import { BlockedUsersScreen } from '../screens/BlockedUsersScreen';
 import { LessonDetailScreen } from '../screens/LessonDetailScreen';
+import { MissionsScreen } from '../screens/MissionsScreen';
+import IRIChatScreen from '../screens/IRIChatScreen';
+import AuthCallbackScreen from '../screens/AuthCallbackScreen';
 import { useAuth } from '../contexts/AuthContext';
 import { ActivityIndicator, View } from 'react-native';
 import { supabase } from '../supabase';
@@ -242,6 +245,15 @@ export function RootStack() {
         }}
       />
 
+      {/* OAuth Callback Handler */}
+      <Stack.Screen 
+        name="AuthCallback"
+        component={AuthCallbackScreen}
+        options={{
+          headerShown: false
+        }}
+      />
+
       {/* Onboarding Flow - Always render */}
       <Stack.Screen 
         name="Onboarding"
@@ -348,6 +360,24 @@ export function RootStack() {
       <Stack.Screen 
         name="LessonDetail" 
         component={LessonDetailScreen}
+        options={{
+          headerShown: false
+        }}
+      />
+
+      {/* Missions and Achievements */}
+      <Stack.Screen 
+        name="Missions" 
+        component={MissionsScreen}
+        options={{
+          headerShown: false
+        }}
+      />
+
+      {/* AI Assistant */}
+      <Stack.Screen 
+        name="Iri" 
+        component={IRIChatScreen}
         options={{
           headerShown: false
         }}

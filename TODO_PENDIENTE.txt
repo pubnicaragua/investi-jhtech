@@ -1,0 +1,172 @@
+===============================================
+📋 TODO PENDIENTE - INVESTÍ
+===============================================
+
+✅ COMPLETADO:
+1. SplashScreen restaurado (solo GIF, funciona bien)
+2. SQL corregido (fg.status removido)
+3. Dashboard con gradiente azul (sin rosados)
+4. Encuestas funcionando en HomeFeed
+5. 7 herramientas en sección Herramientas (6 hardcode + 1 backend)
+6. Metas del onboarding se crean automáticamente
+
+⚠️ PENDIENTES IMPORTANTES:
+
+===============================================
+1. CREAR LOADING SCREEN (después del Splash)
+===============================================
+Actualmente: SplashScreen → App directamente
+Necesitas: SplashScreen → LoadingScreen → App
+
+El LoadingScreen debe tener:
+- Logo de Investí
+- Ruedita de carga (ActivityIndicator)
+- Mensajes motivacionales que rotan:
+  * "💰 Construyendo tu futuro financiero..."
+  * "📈 Preparando tus inversiones..."
+  * "🎯 Cargando tus metas..."
+  * "🚀 Impulsando tu crecimiento..."
+  * "💎 Tu patrimonio te espera..."
+  * "🏆 Invierte en ti mismo..."
+- Duración: 1-1.5 segundos máximo
+- Gradiente azul profesional
+
+Archivo a crear: src/components/LoadingScreen.tsx
+Modificar: App.tsx para agregar este estado intermedio
+
+===============================================
+2. DEFINIR NIVELES DEL SISTEMA
+===============================================
+En el Dashboard (tab Inicio) se muestra "Nivel X" pero no está definido qué significa cada nivel.
+
+Necesitas definir:
+- Nivel 1: Principiante (0-1000 XP)
+- Nivel 2: Aprendiz (1000-2500 XP)
+- Nivel 3: Inversionista (2500-5000 XP)
+- Nivel 4: Experto (5000-10000 XP)
+- Nivel 5: Maestro (10000+ XP)
+
+Esto debe estar en el backend (tabla levels o en user_progress logic)
+
+===============================================
+3. PROYECCIONES 100% BACKEND-DRIVEN
+===============================================
+Actualmente: Proyecciones se calculan en el frontend con fórmulas simples
+
+Debe ser: Backend calcula proyecciones basadas en:
+- Historial real de inversiones del usuario
+- Rendimientos promedio de sus fondos
+- Tendencias del mercado
+- Metas financieras activas
+
+Crear función SQL: calculate_user_projections(user_id)
+Retorna: monthly_projection, yearly_projection, five_year_projection
+
+===============================================
+4. LOGROS RECIENTES - BACKEND-DRIVEN
+===============================================
+Actualmente: Hardcodeados ("Primera Meta", "7 Días Activo", "Ahorro +10%")
+
+Debe traerse de: user_achievements JOIN achievements
+Ordenar por: unlocked_at DESC
+Limit: 3
+
+Ya existe la query en loadDashboardData pero no se está usando en el render.
+Necesitas reemplazar el bloque hardcodeado (líneas 337-363) con:
+
+```typescript
+{recentAchievements.length > 0 ? (
+  recentAchievements.map((achievement) => (
+    <View key={achievement.id} style={styles.achievementCard}>
+      <View style={[styles.achievementIcon, { backgroundColor: '#FEF3C7' }]}>
+        <Text style={{ fontSize: 24 }}>{achievement.icon}</Text>
+      </View>
+      <Text style={styles.achievementName}>{achievement.title}</Text>
+    </View>
+  ))
+) : (
+  <Text style={styles.emptyText}>Aún no tienes logros</Text>
+)}
+```
+
+===============================================
+5. ERROR DE NAVEGACIÓN: CartolaExtractor
+===============================================
+Error: "The action 'NAVIGATE' with payload {"name":"CartolaExtractor"} was not handled"
+
+Causa: Las herramientas hardcodeadas tienen rutas que no existen
+Solución temporal: Las 6 herramientas hardcodeadas deben navegar a una pantalla genérica "ComingSoon"
+
+O mejor: Crear pantallas placeholder para cada herramienta
+
+===============================================
+6. MENSAJE "NO TIENES METAS ACTIVAS"
+===============================================
+El dashboard dice "No tienes metas activas" pero el usuario SÍ seleccionó metas en onboarding.
+
+Verificar:
+1. ¿Se están guardando en user_goals?
+   SELECT * FROM user_goals WHERE user_id = 'TU_USER_ID';
+
+2. ¿Se están creando en financial_goals?
+   SELECT * FROM financial_goals WHERE user_id = 'TU_USER_ID';
+
+3. Si no existen, la función createGoalsFromOnboarding() debería crearlas automáticamente
+
+===============================================
+7. SISTEMAS ACTIVOS - ¿QUÉ ES ESTO?
+===============================================
+No está claro de dónde viene "sistemas activos" en el dashboard.
+
+Posibilidades:
+- ¿Inversiones activas?
+- ¿Fondos en los que está invertido?
+- ¿Estrategias de inversión activas?
+
+Necesitas definir qué significa y de dónde viene este dato.
+
+===============================================
+📊 RESUMEN DE ARCHIVOS MODIFICADOS
+===============================================
+✅ src/components/SplashScreen.tsx - Restaurado
+✅ src/screens/EducacionScreen.tsx - 7 herramientas
+✅ src/screens/FinancialPlannerDashboard.tsx - Gradiente azul, metas del onboarding
+✅ src/rest/posts.ts - Encuestas funcionando
+✅ GAMIFICATION_SETUP.sql - SQL corregido
+
+===============================================
+🚀 PRÓXIMOS PASOS
+===============================================
+1. Ejecutar GAMIFICATION_SETUP.sql en Supabase
+2. Insertar herramienta Cartola en educational_tools:
+   ```sql
+   INSERT INTO educational_tools (title, description, icon, route, is_premium)
+   VALUES ('Extractor de Cartola', 'Convierte tus estados de cuenta en reportes', '📄', 'CartolaExtractor', false);
+   ```
+3. Crear LoadingScreen.tsx
+4. Definir sistema de niveles
+5. Crear función SQL para proyecciones
+6. Reemplazar logros hardcodeados por backend
+7. Crear pantallas placeholder para herramientas hardcodeadas
+8. Verificar por qué no aparecen las metas del onboarding
+
+===============================================
+💡 NOTAS IMPORTANTES
+===============================================
+- Las 6 herramientas hardcodeadas son TEMPORALES
+- Solo Cartola Extractor funciona 100% backend-driven
+- El dashboard aún tiene algunos hardcodes que deben removerse
+- Los niveles necesitan definición clara
+- Las proyecciones deben calcularse en el backend
+
+===============================================
+✅ LO QUE YA FUNCIONA BIEN
+===============================================
+- SplashScreen con GIF
+- Navegación general
+- Gamificación (XP, logros, racha)
+- Encuestas en posts
+- Scroll horizontal en NewsScreen
+- Gradiente azul profesional (sin rosados)
+- Moneda USD
+- RefreshControl en dashboard

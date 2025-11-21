@@ -159,7 +159,10 @@ export function NewsScreen({ navigation }: any) {
         showsHorizontalScrollIndicator={false}
         style={styles.categoriesContainer}
         contentContainerStyle={styles.categoriesContent}
-        bounces={false}
+        scrollEnabled={true}
+        nestedScrollEnabled={true}
+        bounces={true}
+        directionalLockEnabled={true}
       >
         {NEWS_CATEGORIES.map((category) => (
           <TouchableOpacity

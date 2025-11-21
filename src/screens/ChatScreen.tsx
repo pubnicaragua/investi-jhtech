@@ -31,7 +31,8 @@ import {
 } from "../api";
 import { useAuthGuard } from "../hooks/useAuthGuard";
 import { supabase } from "../supabase";
-  
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 interface Message {
   id: string;
   content: string;
@@ -47,13 +48,14 @@ interface Message {
     avatar: string;
   };
 }
-  
+
 export function ChatScreen({ navigation, route }: any) {  
-  const { conversationId: initialConversationId, type = "direct", name, participant, userId: targetUserId } = route.params || {};  
-  
+  const { conversationId: initialConversationId, type = "direct", name, participant, userId: targetUserId } = route.params || {};
+  const insets = useSafeAreaInsets();
+
   // Validación crítica de parámetros
   console.log('🔍 [ChatScreen] Route params:', { conversationId: initialConversationId, type, name, participant, targetUserId });
-  
+
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId || null);
   const [messages, setMessages] = useState<Message[]>([]);  
   const [chatInfo, setChatInfo] = useState<any>(null);  
@@ -67,15 +69,15 @@ export function ChatScreen({ navigation, route }: any) {
   const [pendingMedia, setPendingMedia] = useState<{ type: string; uri: string; file: any } | null>(null);
   const [showAttachModal, setShowAttachModal] = useState(false);
   const [shareSent, setShareSent] = useState(false);
-  
+
   // Estados de presencia
   const [isOnline, setIsOnline] = useState(false);
   const [lastSeen, setLastSeen] = useState<string | null>(null);
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   useAuthGuard();  
-  
+
   useEffect(() => {  
     loadInitialData();
   }, []);  
@@ -481,7 +483,11 @@ export function ChatScreen({ navigation, route }: any) {
           }
         };
 
-        setMessages(prev => [...prev, tempMessage]);
+        setMessages(prev => {
+          // Evitar duplicados
+          if (prev.some(m => m.id === tempId)) return prev;
+          return [...prev, tempMessage];
+        });
         setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 50);
 
         // Upload in background
@@ -554,22 +560,28 @@ export function ChatScreen({ navigation, route }: any) {
         // Replace temporary message with server message if available
         const serverMessage = Array.isArray(sentMessage) ? sentMessage[0] : sentMessage;
         if (serverMessage && serverMessage.id) {
-          setMessages(prev => prev.map(m => {
-            if (m.id === tempId) {
-              return {
-                id: serverMessage.id,
-                content: serverMessage.content || serverMessage.contenido,
-                created_at: serverMessage.created_at || m.created_at,
-                sender_id: serverMessage.sender_id || serverMessage.user_id || uid,
-                user: {
-                  id: serverMessage.user_id || serverMessage.sender_id || uid,
-                  nombre: 'Yo',
-                  avatar: m.user?.avatar || undefined as any
-                }
-              } as Message;
+          setMessages(prev => {
+            // Evitar duplicados: si ya existe el mensaje del servidor, no agregarlo
+            if (prev.some(m => m.id === serverMessage.id && !m.id.startsWith('tmp-'))) {
+              return prev.filter(m => m.id !== tempId);
             }
-            return m;
-          }));
+            return prev.map(m => {
+              if (m.id === tempId) {
+                return {
+                  id: serverMessage.id,
+                  content: serverMessage.content || serverMessage.contenido,
+                  created_at: serverMessage.created_at || m.created_at,
+                  sender_id: serverMessage.sender_id || serverMessage.user_id || uid,
+                  user: {
+                    id: serverMessage.user_id || serverMessage.sender_id || uid,
+                    nombre: 'Yo',
+                    avatar: m.user?.avatar || undefined as any
+                  }
+                } as Message;
+              }
+              return m;
+            });
+          });
         }
       }
 
@@ -728,19 +740,26 @@ export function ChatScreen({ navigation, route }: any) {
               try {
                 const parsed = typeof item.content === 'string' ? JSON.parse(item.content) : item.content
                 const postId = parsed?.postId || parsed?.id
-                const postContent = parsed?.content || ''
+                const postContent = parsed?.content || 'Publicación compartida'
                 const isCommunity = !!parsed?.isCommunity
                 return (
-                  <TouchableOpacity
-                    onPress={() => {
-                      if (isCommunity) navigation.navigate('CommunityPostDetail', { postId })
-                      else navigation.navigate('PostDetail', { postId })
-                    }}
-                    style={{ padding: 8, backgroundColor: isMine ? 'transparent' : 'transparent' }}
-                  >
-                    <Text style={[styles.messageText, isMine && styles.myMessageText, { fontWeight: '700', marginBottom: 6 }]} numberOfLines={2}>{postContent}</Text>
-                    <Text style={[{ color: isMine ? '#e6f0ff' : '#2673f3', fontSize: 12 }]}>Ver publicación</Text>
-                  </TouchableOpacity>
+                  <View style={styles.sharedPostContainer}>
+                    <View style={styles.sharedPostHeader}>
+                      <Text style={styles.sharedPostLabel}>📌 Publicación compartida</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (isCommunity) navigation.navigate('CommunityPostDetail', { postId })
+                        else navigation.navigate('PostDetail', { postId })
+                      }}
+                      style={styles.sharedPostContent}
+                    >
+                      <Text style={styles.sharedPostText} numberOfLines={3}>{postContent}</Text>
+                      <View style={styles.sharedPostFooter}>
+                        <Text style={styles.sharedPostLink}>Ver publicación completa →</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </View>
                 )
               } catch (err) {
                 return null
@@ -796,16 +815,16 @@ export function ChatScreen({ navigation, route }: any) {
   
   if (loading) {  
     return (  
-      <SafeAreaView style={styles.container}>  
+      <View style={[styles.container, { paddingTop: insets.top }]} >  
         <View style={styles.loadingContainer}>  
           <ActivityIndicator size="large" color="#2673f3" />  
         </View>  
-      </SafeAreaView>  
+      </View>  
     );  
   }  
   
   return (  
-    <SafeAreaView style={styles.container}>  
+    <View style={[styles.container, { paddingTop: insets.top }]} >  
       <LinearGradient 
         colors={['#2673f3', '#1e5fd9']} 
         style={styles.header}
@@ -947,7 +966,7 @@ export function ChatScreen({ navigation, route }: any) {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }  
   
@@ -1135,7 +1154,43 @@ const styles = StyleSheet.create({
   },
   modalCancelText: {
     fontSize: 16,
+    color: '#666',
+  },
+  sharedPostContainer: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    overflow: 'hidden',
+    marginVertical: 4,
+  },
+  sharedPostHeader: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  sharedPostLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  sharedPostContent: {
+    padding: 12,
+  },
+  sharedPostText: {
+    fontSize: 14,
+    color: '#111827',
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  sharedPostFooter: {
+    marginTop: 4,
+  },
+  sharedPostLink: {
+    fontSize: 13,
     color: '#2673f3',
     fontWeight: '600',
   },
-});
+});  

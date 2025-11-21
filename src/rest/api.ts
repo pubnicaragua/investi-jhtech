@@ -795,7 +795,7 @@ export async function getUserFeed(uid: string, limit = 20) {
     // Paso 1: Obtener posts sin relaciones (evita conflictos)
     const response = await request("GET", "/posts", {
       params: {
-        select: "id,contenido,created_at,likes_count,comment_count,user_id,media_url,shares_count",
+        select: "id,contenido,created_at,likes_count,comment_count,user_id,media_url,shares_count,poll_options,poll_duration",
         order: "created_at.desc",
         limit: limit.toString()
       }
@@ -819,8 +819,48 @@ export async function getUserFeed(uid: string, limit = 20) {
       })
     }
     
-    // Paso 3: Obtener likes del usuario actual
+    // Paso 3: Obtener encuestas (polls) de los posts
+    // NOTA: Tabla de polls no existe en Supabase aún, comentado para evitar errores
     const postIds = response.map((p: any) => p.id).filter(Boolean)
+    let pollsData: any = {}
+    
+    // if (postIds.length > 0) {
+    //   try {
+    //     const pollsResponse = await request("GET", "/polls", {
+    //       params: {
+    //         select: "id,post_id,duration_hours,created_at",
+    //         post_id: `in.(${postIds.join(',')})`
+    //       }
+    //     })
+    //     
+    //     // Obtener opciones de las encuestas
+    //     if (pollsResponse && pollsResponse.length > 0) {
+    //       const pollIds = pollsResponse.map((p: any) => p.id).filter(Boolean)
+    //       const pollOptionsResponse = await request("GET", "/poll_options", {
+    //         params: {
+    //           select: "poll_id,option_text,option_order",
+    //           poll_id: `in.(${pollIds.join(',')})`,
+    //           order: "option_order.asc"
+    //         }
+    //       })
+    //       
+    //       // Mapear opciones por poll_id
+    //       pollsResponse.forEach((poll: any) => {
+    //         const options = pollOptionsResponse?.filter((opt: any) => opt.poll_id === poll.id) || []
+    //         pollsData[poll.post_id] = {
+    //           id: poll.id,
+    //           options: options.map((opt: any) => opt.option_text),
+    //           duration_hours: poll.duration_hours,
+    //           created_at: poll.created_at
+    //         }
+    //       })
+    //     }
+    //   } catch (pollError) {
+    //     console.error('Error loading polls:', pollError)
+    //   }
+    // }
+    
+    // Paso 4: Obtener likes del usuario actual
     let likedPostIds = new Set()
     let savedPostIds = new Set()
     
@@ -834,7 +874,7 @@ export async function getUserFeed(uid: string, limit = 20) {
       })
       likedPostIds = new Set(likesResponse?.map((l: any) => l.post_id) || [])
       
-      // Paso 4: Obtener posts guardados del usuario
+      // Paso 5: Obtener posts guardados del usuario
       const savedResponse = await request("GET", "/saved_posts", {
         params: {
           select: "post_id",
@@ -861,11 +901,22 @@ export async function getUserFeed(uid: string, limit = 20) {
       return past.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
     }
     
-    // Paso 6: Mapear datos completos (usar uniquePosts)
+    // Paso 6: Calcular duración de encuesta
+    const getPollDaysRemaining = (createdAt: string, durationHours: number) => {
+      const created = new Date(createdAt)
+      const expiresAt = new Date(created.getTime() + durationHours * 60 * 60 * 1000)
+      const now = new Date()
+      const diffMs = expiresAt.getTime() - now.getTime()
+      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+      return diffDays > 0 ? diffDays : 0
+    }
+    
+    // Paso 7: Mapear datos completos (usar uniquePosts)
     return uniquePosts.map((post: any) => {
       const user = usersResponse?.find((u: any) => u.id === post.user_id)
       const mediaUrls = post.media_url || []
       const firstImage = Array.isArray(mediaUrls) && mediaUrls.length > 0 ? mediaUrls[0] : null
+      const poll = pollsData[post.id]
       
       return {
         id: post.id,
@@ -882,7 +933,11 @@ export async function getUserFeed(uid: string, limit = 20) {
         is_liked: likedPostIds.has(post.id),
         is_saved: savedPostIds.has(post.id),
         is_following: false, // TODO: Implementar lógica de seguimiento
-        created_at: post.created_at
+        created_at: post.created_at,
+        // Datos de encuesta
+        poll_options: poll?.options || null,
+        poll_duration: poll ? getPollDaysRemaining(poll.created_at, poll.duration_hours) : null,
+        user_vote: null // TODO: Implementar lógica de voto del usuario
       }
     })
   } catch (error: any) {  
@@ -3852,7 +3907,7 @@ Crea contenido educativo completo y estructurado.`;
         'Authorization': `Bearer ${GROK_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'llama-3.1-8b-instant',
         messages: [
           { role: 'system', content: LESSON_GENERATION_PROMPT },
           { role: 'user', content: userPrompt }

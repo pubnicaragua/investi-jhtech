@@ -11,8 +11,7 @@ export default {
     },
     icon: './assets/investi-logo.png',
     assetBundlePatterns: [
-      'assets/**/*',
-      'assets/gif.mp4'
+      'assets/**/*'
     ],
     scheme: 'investi-community',
     // Deep linking configuration for OAuth callbacks
@@ -58,14 +57,20 @@ export default {
     },
     android: {
       package: 'com.investi.app',
-      versionCode: 7,
+      versionCode: 8,
       runtimeVersion: '1.0.0',
       adaptiveIcon: {
         foregroundImage: './assets/investi-logo.png',
         backgroundColor: '#FFFFFF',
         monochromeImage: './assets/investi-logo.png'
       },
-      jsEngine: 'hermes'
+      jsEngine: 'hermes',
+      permissions: [
+        'CAMERA',
+        'READ_EXTERNAL_STORAGE',
+        'WRITE_EXTERNAL_STORAGE',
+        'NOTIFICATIONS'
+      ]
     },
     web: {
       bundler: 'metro',
@@ -74,6 +79,7 @@ export default {
     extra: {
       supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
       supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+      EXPO_PUBLIC_GROK_API_KEY: process.env.EXPO_PUBLIC_GROK_API_KEY,
       eas: {
         projectId: '82b22488-cbbd-45ea-bd0e-dd6ec1f2b7fb'
       }

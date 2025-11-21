@@ -6,6 +6,10 @@ import { InvestmentSimulatorScreen } from '../screens/InvestmentSimulatorScreen'
 import { CalculadoraDividendosScreen } from '../screens/CalculadoraDividendosScreen';
 import { AnalizadorRatiosScreen } from '../screens/AnalizadorRatiosScreen';
 import { SimuladorPortafolioScreen } from '../screens/SimuladorPortafolioScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
+import { EducacionScreen } from '../screens/EducacionScreen';
+import { SupportTicketScreen } from '../screens/SupportTicketScreen';
+import { CartolaExtractorScreen } from '../screens/CartolaExtractorScreen';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
 import { useNavigation } from '@react-navigation/native';
@@ -156,6 +160,48 @@ export function DrawerNavigator() {
           drawerIcon: ({ color, size }) => (
             <PieChart size={size} color={color} />
           )
+        }}
+      />
+      <Drawer.Screen 
+        name="Educacion" 
+        component={EducacionScreen} 
+        options={{
+          title: 'Educación',
+          headerShown: false,
+          drawerLabel: 'Educación',
+          drawerIcon: ({ color, size }) => (
+            <TrendingUp size={size} color={color} />
+          )
+        }}
+      />
+      <Drawer.Screen 
+        name="Settings" 
+        component={SettingsScreen} 
+        options={{
+          title: 'Configuración',
+          headerShown: false,
+          drawerLabel: 'Configuración',
+          drawerIcon: ({ color, size }) => (
+            <Settings size={size} color={color} />
+          )
+        }}
+      />
+      
+      {/* Pantallas ocultas del drawer pero accesibles por navegación */}
+      <Drawer.Screen
+        name="SupportTicket"
+        component={SupportTicketScreen}
+        options={{
+          headerShown: false,
+          drawerItemStyle: { display: 'none' }
+        }}
+      />
+      <Drawer.Screen
+        name="CartolaExtractor"
+        component={CartolaExtractorScreen}
+        options={{
+          headerShown: false,
+          drawerItemStyle: { display: 'none' }
         }}
       />
     </Drawer.Navigator>

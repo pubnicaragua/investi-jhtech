@@ -12,6 +12,8 @@ import {
   TextInput,
   Dimensions,
   FlatList,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
@@ -26,6 +28,9 @@ import {
   Crown,
   Target,
   Calendar,
+  Utensils,
+  Home,
+  Info,
   DollarSign,
   Plus,
   Edit3,
@@ -36,28 +41,35 @@ import {
   PieChart,
   Settings,
   Filter,
-  Search
+  Search,
+  Sparkles,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FloatingMicrophone } from '../components/FloatingMicrophone';
+import { VoiceInstructionsModal } from '../components/VoiceInstructionsModal';
+import { IriAlert } from '../components/IriAlert';
+import { getCurrentUserId } from '../rest/api';
+import {
+  getAntExpenses,
+  createAntExpense,
+  updateAntExpense,
+  deleteAntExpense,
+  getAntExpensesStats,
+  getExpenseCategories,
+  getAIRecommendations,
+  createAIRecommendation,
+  calculateYearlyImpact,
+  type AntExpense as AntExpenseType,
+  type ExpenseCategory,
+} from '../rest/toolsApi';
+import {
+  analyzeAntExpenses,
+  chatWithTool,
+} from '../services/grokToolsService';
 
 const { width } = Dimensions.get('window');
 
-interface AntExpense {
-  id: string;
-  description: string;
-  amount: number;
-  frequency: 'daily' | 'weekly' | 'monthly';
-  category: string;
-  icon: string;
-  color: string;
-  yearlyImpact: number;
-  eliminated: boolean;
-  notes?: string;
-  dateAdded: string;
-  goal?: number; // Meta mensual máxima
-  currentMonthSpent?: number; // Gasto actual del mes
-  detected: boolean;
-}
+// Tipos ahora vienen de toolsApi.ts
 
 interface ProjectionPeriod {
   daily: number;
@@ -66,86 +78,26 @@ interface ProjectionPeriod {
   annual: number;
 }
 
-interface Category {
-  id: string;
-  name: string;
-  icon: string;
-  color: string;
-}
+// Tipos ahora vienen de toolsApi.ts
 
 export function CazaHormigasScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   
-  const [antExpenses, setAntExpenses] = useState<AntExpense[]>([
-    {
-      id: '1',
-      description: 'Café diario en Starbucks',
-      amount: 5.50,
-      frequency: 'daily',
-      category: 'food',
-      icon: 'coffee',
-      color: '#8B4513',
-      yearlyImpact: 2007.50,
-      detected: true,
-      dateAdded: '2024-01-01',
-      eliminated: false,
-      notes: 'Podría hacer café en casa'
-    },
-    {
-      id: '2',
-      description: 'Suscripción Netflix no usada',
-      amount: 15.99,
-      frequency: 'monthly',
-      category: 'entertainment',
-      icon: 'tv',
-      color: '#E50914',
-      yearlyImpact: 191.88,
-      detected: true,
-      dateAdded: '2024-01-02',
-      eliminated: false,
-      notes: 'No he visto nada en 3 meses'
-    },
-    {
-      id: '3',
-      description: 'Snacks en gasolinera',
-      amount: 8.00,
-      frequency: 'weekly',
-      category: 'food',
-      icon: 'shopping-bag',
-      color: '#FF6B6B',
-      yearlyImpact: 416.00,
-      detected: false,
-      dateAdded: '2024-01-03',
-      eliminated: false
-    },
-    {
-      id: '4',
-      description: 'Apps premium no utilizadas',
-      amount: 4.99,
-      frequency: 'monthly',
-      category: 'tech',
-      icon: 'smartphone',
-      color: '#4ECDC4',
-      yearlyImpact: 59.88,
-      detected: true,
-      dateAdded: '2024-01-04',
-      eliminated: false
-    }
-  ]);
+  // Estados principales
+  const [userId, setUserId] = useState<string | null>(null);
+  const [antExpenses, setAntExpenses] = useState<AntExpenseType[]>([]);
+  const [categories, setCategories] = useState<ExpenseCategory[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [aiRecommendations, setAiRecommendations] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [analyzingWithAI, setAnalyzingWithAI] = useState(false);
 
-  const [categories] = useState<Category[]>([
-    { id: 'food', name: 'Alimentación', icon: 'coffee', color: '#FF6B6B' },
-    { id: 'entertainment', name: 'Entretenimiento', icon: 'tv', color: '#9C27B0' },
-    { id: 'transport', name: 'Transporte', icon: 'car', color: '#2196F3' },
-    { id: 'tech', name: 'Tecnología', icon: 'smartphone', color: '#4CAF50' },
-    { id: 'shopping', name: 'Compras', icon: 'shopping-bag', color: '#FF9800' },
-    { id: 'subscriptions', name: 'Suscripciones', icon: 'credit-card', color: '#795548' },
-  ]);
-
+  // Estados de UI
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingExpense, setEditingExpense] = useState<AntExpense | null>(null);
+  const [editingExpense, setEditingExpense] = useState<AntExpenseType | null>(null);
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
@@ -157,50 +109,147 @@ export function CazaHormigasScreen() {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showEliminated, setShowEliminated] = useState(false);
-
+  const [showMicrophone, setShowMicrophone] = useState(true);
+  const [showVoiceInstructions, setShowVoiceInstructions] = useState(false);
+  const [iriAlertVisible, setIriAlertVisible] = useState(false);
+  const [iriAlertMessage, setIriAlertMessage] = useState('');
+  const [iriAlertType, setIriAlertType] = useState<'success' | 'error' | 'info'>('info');
+  
+  // Animaciones
   const [scanAnimation] = useState(new Animated.Value(0));
   const [isScanning, setIsScanning] = useState(false);
 
-  const totalYearlyWaste = antExpenses.reduce((sum, expense) => sum + expense.yearlyImpact, 0);
-  const detectedExpenses = antExpenses.filter(expense => expense.detected);
+  // Cargar datos iniciales
+  useEffect(() => {
+    loadInitialData();
+  }, []);
 
-  const startScan = () => {
+  const loadInitialData = async () => {
+    try {
+      setLoading(true);
+      const uid = await getCurrentUserId();
+      if (!uid) {
+        Alert.alert('Error', 'No se pudo obtener el usuario');
+        return;
+      }
+      
+      setUserId(uid);
+      
+      // Cargar en paralelo
+      await Promise.all([
+        loadAntExpenses(uid),
+        loadCategories(),
+        loadStats(uid),
+        loadAIRecommendations(uid),
+      ]);
+    } catch (error) {
+      console.error('Error loading initial data:', error);
+      Alert.alert('Error', 'No se pudieron cargar los datos');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAntExpenses = async (uid: string) => {
+    try {
+      const expenses = await getAntExpenses(uid);
+      setAntExpenses(expenses);
+    } catch (error) {
+      console.error('Error loading ant expenses:', error);
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const cats = await getExpenseCategories();
+      setCategories(cats);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  };
+
+  const loadStats = async (uid: string) => {
+    try {
+      const statistics = await getAntExpensesStats(uid);
+      setStats(statistics);
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    }
+  };
+
+  const loadAIRecommendations = async (uid: string) => {
+    try {
+      const recs = await getAIRecommendations(uid, 'cazahormigas');
+      setAiRecommendations(recs.map(r => r.recommendation_text).slice(0, 3));
+    } catch (error) {
+      console.error('Error loading AI recommendations:', error);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    if (userId) {
+      await Promise.all([
+        loadAntExpenses(userId),
+        loadStats(userId),
+        loadAIRecommendations(userId),
+      ]);
+    }
+    setRefreshing(false);
+  };
+
+  const totalYearlyWaste = stats?.total_yearly_waste || 0;
+  const detectedCount = stats?.detected_expenses || 0;
+
+  const startScan = async () => {
+    if (!userId) return;
+    
     setIsScanning(true);
+    setAnalyzingWithAI(true);
+    
     Animated.loop(
       Animated.timing(scanAnimation, {
         toValue: 1,
         duration: 2000,
-        useNativeDriver: true,
+        useNativeDriver: false,
       })
     ).start();
 
-    setTimeout(() => {
-      setIsScanning(false);
-      scanAnimation.stopAnimation();
-      scanAnimation.setValue(0);
+    try {
+      // Analizar con Grok IA
+      const analysis = await analyzeAntExpenses(antExpenses);
       
-      // Simulate detecting new ant expenses
-      setAntExpenses(prev => prev.map(expense => ({
-        ...expense,
-        detected: true
-      })));
+      // Guardar recomendaciones en BD
+      for (const rec of analysis.recommendations) {
+        await createAIRecommendation(userId, {
+          tool_name: 'cazahormigas',
+          recommendation_text: rec,
+          priority: 'high',
+          potential_savings: analysis.totalSavings / analysis.recommendations.length,
+          is_read: false,
+        });
+      }
+      
+      // Actualizar UI
+      setAiRecommendations(analysis.recommendations);
       
       Alert.alert(
-        '🐜 ¡Hormigas Detectadas!',
-        `Encontré ${antExpenses.length} gastos hormiga que podrían ahorrarte $${totalYearlyWaste.toFixed(2)} al año`,
-        [{ text: 'Ver Detalles', style: 'default' }]
+        '🐜 ¡Análisis Completado!',
+        `Encontré ${antExpenses.length} gastos hormiga. Ahorro potencial: $${analysis.totalSavings.toFixed(2)} anuales`,
+        [{ text: 'Ver Recomendaciones', style: 'default' }]
       );
-    }, 3000);
-  };
-
-  const calculateYearlyImpact = (amount: number, frequency: 'daily' | 'weekly' | 'monthly') => {
-    switch (frequency) {
-      case 'daily': return amount * 365;
-      case 'weekly': return amount * 52;
-      case 'monthly': return amount * 12;
-      default: return 0;
+    } catch (error) {
+      console.error('Error analyzing with AI:', error);
+      Alert.alert('Error', 'No se pudo completar el análisis con IA');
+    } finally {
+      setIsScanning(false);
+      setAnalyzingWithAI(false);
+      scanAnimation.stopAnimation();
+      scanAnimation.setValue(0);
     }
   };
+
+  // calculateYearlyImpact ahora viene de toolsApi.ts
 
   const calculateProjections = (amount: number, frequency: 'daily' | 'weekly' | 'monthly'): ProjectionPeriod => {
     let dailyAmount = 0;
@@ -225,10 +274,10 @@ export function CazaHormigasScreen() {
     };
   };
 
-  const getGoalStatus = (expense: AntExpense) => {
+  const getGoalStatus = (expense: AntExpenseType) => {
     if (!expense.goal) return null;
     
-    const currentSpent = expense.currentMonthSpent || 0;
+    const currentSpent = expense.current_month_spent || 0;
     const goalAmount = expense.goal;
     const percentage = (currentSpent / goalAmount) * 100;
     
@@ -240,7 +289,9 @@ export function CazaHormigasScreen() {
     };
   };
 
-  const addOrUpdateExpense = () => {
+  const addOrUpdateExpense = async () => {
+    if (!userId) return;
+    
     if (!formData.description.trim() || !formData.amount.trim()) {
       Alert.alert('Error', 'Por favor completa todos los campos obligatorios');
       return;
@@ -257,54 +308,45 @@ export function CazaHormigasScreen() {
       return;
     }
 
-    const goal = formData.goal.trim() ? parseFloat(formData.goal) : undefined;
-
-    if (editingExpense) {
+    try {
       const category = categories.find(c => c.id === formData.category);
       const yearlyImpact = calculateYearlyImpact(amount, formData.frequency);
-      
-      setAntExpenses(prev => prev.map(expense => 
-        expense.id === editingExpense.id 
-          ? {
-              ...expense,
-              description: formData.description,
-              amount,
-              frequency: formData.frequency,
-              category: formData.category,
-              notes: formData.notes,
-              yearlyImpact,
-              color: category?.color || '#666',
-              icon: category?.icon || 'dollar-sign',
-              goal,
-              currentMonthSpent: expense.currentMonthSpent || (Math.random() * (goal || amount) * 0.8),
-            }
-          : expense
-      ));
-    } else {
-      const newExpense: AntExpense = {
-        id: Date.now().toString(),
+      const goal = formData.goal.trim() ? parseFloat(formData.goal) : undefined;
+
+      const expenseData = {
         description: formData.description.trim(),
         amount,
         frequency: formData.frequency,
         category: formData.category,
-        color: categories.find(c => c.id === formData.category)?.color || '#666',
-        icon: categories.find(c => c.id === formData.category)?.icon || 'dollar-sign',
-        yearlyImpact: calculateYearlyImpact(amount, formData.frequency),
+        icon: category?.icon,
+        color: category?.color,
+        yearly_impact: yearlyImpact,
         eliminated: false,
         notes: formData.notes.trim() || undefined,
-        dateAdded: new Date().toLocaleDateString(),
-        detected: true,
         goal,
-        currentMonthSpent: Math.random() * (goal || amount) * 0.8, // Simular gasto actual
+        current_month_spent: goal ? Math.random() * goal * 0.8 : 0,
+        detected: true,
       };
-      setAntExpenses(prev => [...prev, newExpense]);
-    }
 
-    closeModal();
-    Alert.alert('¡Éxito!', editingExpense ? 'Gasto hormiga actualizado' : 'Nuevo gasto hormiga agregado');
+      if (editingExpense) {
+        await updateAntExpense(editingExpense.id, expenseData);
+        Alert.alert('¡Éxito!', 'Gasto hormiga actualizado');
+      } else {
+        await createAntExpense(userId, expenseData);
+        Alert.alert('¡Éxito!', 'Nuevo gasto hormiga agregado');
+      }
+
+      // Recargar datos
+      await loadAntExpenses(userId);
+      await loadStats(userId);
+      closeModal();
+    } catch (error) {
+      console.error('Error saving expense:', error);
+      Alert.alert('Error', 'No se pudo guardar el gasto');
+    }
   };
 
-  const deleteExpense = (id: string) => {
+  const deleteExpense = (expense: AntExpenseType) => {
     Alert.alert(
       'Eliminar Gasto Hormiga',
       '¿Estás seguro de que quieres eliminar este gasto permanentemente?',
@@ -313,24 +355,38 @@ export function CazaHormigasScreen() {
         { 
           text: 'Eliminar', 
           style: 'destructive', 
-          onPress: () => {
-            setAntExpenses(prev => prev.filter(expense => expense.id !== id));
-            Alert.alert('Eliminado', 'Gasto hormiga eliminado correctamente');
+          onPress: async () => {
+            try {
+              await deleteAntExpense(expense.id);
+              if (userId) {
+                await loadAntExpenses(userId);
+                await loadStats(userId);
+              }
+              Alert.alert('Eliminado', 'Gasto hormiga eliminado correctamente');
+            } catch (error) {
+              console.error('Error deleting expense:', error);
+              Alert.alert('Error', 'No se pudo eliminar el gasto');
+            }
           }
         }
       ]
     );
   };
 
-  const toggleEliminated = (id: string) => {
-    setAntExpenses(prev => prev.map(expense => 
-      expense.id === id 
-        ? { ...expense, eliminated: !expense.eliminated }
-        : expense
-    ));
+  const toggleEliminated = async (expense: AntExpenseType) => {
+    try {
+      await updateAntExpense(expense.id, { eliminated: !expense.eliminated });
+      if (userId) {
+        await loadAntExpenses(userId);
+        await loadStats(userId);
+      }
+    } catch (error) {
+      console.error('Error toggling eliminated:', error);
+      Alert.alert('Error', 'No se pudo actualizar el gasto');
+    }
   };
 
-  const openModal = (expense?: AntExpense) => {
+  const openModal = (expense?: AntExpenseType) => {
     if (expense) {
       setEditingExpense(expense);
       setFormData({
@@ -375,16 +431,18 @@ export function CazaHormigasScreen() {
     return matchesCategory && matchesSearch && matchesEliminated;
   });
 
-  const getIcon = (iconName: string) => {
+  const getIcon = (iconName?: string) => {
     switch(iconName) {
       case 'coffee': return <Coffee size={24} color="#8B4513" />;
       case 'shopping-bag': return <ShoppingBag size={24} color="#FF6B6B" />;
-      case 'car': return <Car size={24} color="#4ECDC4" />;
-      default: return <DollarSign size={24} color="#666" />;
+      case 'utensils': return <Utensils size={24} color="#FF8C00" />;
+      case 'car': return <Car size={24} color="#4169E1" />;
+      case 'home': return <Home size={24} color="#32CD32" />;
+      default: return <DollarSign size={24} color="#FFD700" />;
     }
   };
 
-  const renderAntExpense = (expense: AntExpense) => (
+  const renderAntExpense = (expense: AntExpenseType) => (
     <View key={expense.id} style={[
       styles.antCard, 
       expense.eliminated && styles.eliminatedAnt
@@ -416,7 +474,7 @@ export function CazaHormigasScreen() {
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.actionBtn, expense.eliminated ? styles.restoreBtn : styles.eliminateBtn]}
-            onPress={() => toggleEliminated(expense.id)}
+            onPress={() => toggleEliminated(expense)}
           >
             {expense.eliminated ? (
               <Save size={16} color="#2673f3" />
@@ -426,7 +484,7 @@ export function CazaHormigasScreen() {
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.deleteBtn}
-            onPress={() => deleteExpense(expense.id)}
+            onPress={() => deleteExpense(expense)}
           >
             <Trash2 size={16} color="#FF6B6B" />
           </TouchableOpacity>
@@ -457,7 +515,7 @@ export function CazaHormigasScreen() {
             />
           </View>
           <Text style={styles.goalDetails}>
-            Gastado: ${expense.currentMonthSpent?.toFixed(2) || '0.00'} | 
+            Gastado: ${expense.current_month_spent?.toFixed(2) || '0.00'} | 
             {getGoalStatus(expense)?.isOverGoal 
               ? ` Exceso: $${getGoalStatus(expense)?.overage.toFixed(2)}`
               : ` Restante: $${getGoalStatus(expense)?.remaining.toFixed(2)}`
@@ -493,13 +551,44 @@ export function CazaHormigasScreen() {
       <View style={styles.impactSection}>
         <View style={styles.savingsProjection}>
           <Text style={styles.savingsText}>
-            💡 {expense.eliminated ? 'Ahorro logrado' : 'Podrías ahorrar'}: ${(expense.yearlyImpact / 12).toFixed(2)} mensuales
+            💡 {expense.eliminated ? 'Ahorro logrado' : 'Podrías ahorrar'}: ${(expense.yearly_impact / 12).toFixed(2)} mensuales
           </Text>
         </View>
-        <Text style={styles.dateAdded}>Agregado: {expense.dateAdded}</Text>
+        <Text style={styles.dateAdded}>Agregado: {new Date(expense.created_at).toLocaleDateString()}</Text>
       </View>
     </View>
   );
+
+  // Micrófono flotante
+  const handleMicrophoneTranscript = async (transcript: string) => {
+    if (!userId) return;
+    
+    try {
+      const response = await chatWithTool('cazahormigas', transcript, {
+        expenses: antExpenses,
+        stats,
+      });
+      
+      setIriAlertMessage(response);
+      setIriAlertType('success');
+      setIriAlertVisible(true);
+    } catch (error: any) {
+      console.error('Error processing voice:', error);
+      const errorMessage = error?.message || 'No pude procesar tu solicitud';
+      setIriAlertMessage(errorMessage);
+      setIriAlertType('error');
+      setIriAlertVisible(true);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#2673f3" />
+        <Text style={{ marginTop: 16, color: '#666' }}>Cargando gastos hormiga...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -510,16 +599,32 @@ export function CazaHormigasScreen() {
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>El CazaHormigas</Text>
+          <View style={styles.aiPoweredBadge}>
+            <Sparkles size={12} color="#FFD700" />
+            <Text style={styles.aiPoweredText}>IA</Text>
+          </View>
         </View>
+        <TouchableOpacity 
+          onPress={() => setShowVoiceInstructions(true)}
+          style={styles.infoButton}
+        >
+          <Info size={24} color="#2673f3" />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {/* Hero Section */}
         <View style={styles.heroCard}>
           <View style={styles.heroIcon}>
             <Text style={styles.antEmoji}>🐜</Text>
           </View>
-          <Text style={styles.heroTitle}>Detector de Gastos Hormiga</Text>
+          <Text style={styles.heroTitle}>Detector de Gastos Hormiga con IA</Text>
           <Text style={styles.heroDescription}>
             Identifica pequeños gastos recurrentes que suman grandes cantidades al año
           </Text>
@@ -527,7 +632,7 @@ export function CazaHormigasScreen() {
           <TouchableOpacity 
             style={[styles.scanButton, isScanning && styles.scanningButton]}
             onPress={startScan}
-            disabled={isScanning}
+            disabled={isScanning || analyzingWithAI}
           >
             <Animated.View style={{
               transform: [{
@@ -540,7 +645,7 @@ export function CazaHormigasScreen() {
               <Zap size={20} color="#fff" />
             </Animated.View>
             <Text style={styles.scanButtonText}>
-              {isScanning ? 'Analizando...' : 'Iniciar Análisis IA'}
+              {analyzingWithAI ? 'Analizando con IA...' : 'Analizar con Irï'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -549,7 +654,7 @@ export function CazaHormigasScreen() {
         <View style={styles.statsCard}>
           <View style={styles.statItem}>
             <AlertTriangle size={20} color="#FF6B6B" />
-            <Text style={styles.statNumber}>{detectedExpenses.length}</Text>
+            <Text style={styles.statNumber}>{detectedCount}</Text>
             <Text style={styles.statLabel}>Hormigas Detectadas</Text>
           </View>
           <View style={styles.statDivider} />
@@ -561,27 +666,19 @@ export function CazaHormigasScreen() {
         </View>
 
         {/* AI Recommendations */}
-        <View style={styles.recommendationsCard}>
-          <View style={styles.recommendationsHeader}>
-            <Zap size={20} color="#FFD700" />
-            <Text style={styles.recommendationsTitle}>Recomendaciones IA</Text>
+        {aiRecommendations.length > 0 && (
+          <View style={styles.recommendationsCard}>
+            <View style={styles.recommendationsHeader}>
+              <Sparkles size={20} color="#FFD700" />
+              <Text style={styles.recommendationsTitle}>Recomendaciones de Irï</Text>
+            </View>
+            {aiRecommendations.map((rec, index) => (
+              <View key={index} style={styles.recommendation}>
+                <Text style={styles.recommendationText}>{rec}</Text>
+              </View>
+            ))}
           </View>
-          <View style={styles.recommendation}>
-            <Text style={styles.recommendationText}>
-              🎯 Prioridad Alta: Elimina el café diario, ahorra $2,007 anuales
-            </Text>
-          </View>
-          <View style={styles.recommendation}>
-            <Text style={styles.recommendationText}>
-              💡 Alternativa: Café casero te ahorraría $1,500 al año
-            </Text>
-          </View>
-          <View style={styles.recommendation}>
-            <Text style={styles.recommendationText}>
-              📱 Revisa suscripciones: 3 apps no usadas en 30 días
-            </Text>
-          </View>
-        </View>
+        )}
 
         {/* Search and Filters */}
         <View style={styles.filtersSection}>
@@ -699,7 +796,35 @@ export function CazaHormigasScreen() {
           <Text style={styles.tipText}>• Usa apps de presupuesto</Text>
           <Text style={styles.tipText}>• Revisa gastos cada 15 días</Text>
         </View>
+
+        <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Micrófono Flotante */}
+      {showMicrophone && (
+        <FloatingMicrophone
+          onTranscript={handleMicrophoneTranscript}
+          onClose={() => setShowMicrophone(false)}
+          toolName="cazahormigas"
+          isVisible={showMicrophone}
+        />
+      )}
+
+      {/* Modal de Instrucciones de Voz */}
+      <VoiceInstructionsModal
+        visible={showVoiceInstructions}
+        onClose={() => setShowVoiceInstructions(false)}
+        toolName="cazahormigas"
+      />
+
+      {/* Alert de Irï */}
+      <IriAlert
+        visible={iriAlertVisible}
+        title="Irï"
+        message={iriAlertMessage}
+        onClose={() => setIriAlertVisible(false)}
+        type={iriAlertType}
+      />
 
       {/* Add/Edit Modal */}
       <Modal
@@ -882,6 +1007,24 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFD700',
     marginLeft: 4,
+  },
+  aiPoweredBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8DC',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  aiPoweredText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#FFD700',
+  },
+  infoButton: {
+    padding: 8,
+    marginLeft: 8,
   },
   content: {
     flex: 1,

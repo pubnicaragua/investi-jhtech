@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { View, StyleSheet, Dimensions, Animated, Easing } from 'react-native'
+import { View, StyleSheet, Dimensions, Animated } from 'react-native'
 import { Video, ResizeMode } from 'expo-av'
+import { Asset } from 'expo-asset'
 
 const { width, height } = Dimensions.get('window')
 
@@ -12,7 +13,27 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
   const [videoRef, setVideoRef] = useState<Video | null>(null)
   const [hasFinished, setHasFinished] = useState(false)
   const [videoLoaded, setVideoLoaded] = useState(false)
+  const [videoUri, setVideoUri] = useState<string | null>(null)
   const fadeAnim = useState(new Animated.Value(0))[0]
+
+  // Precargar el asset del video para producción
+  useEffect(() => {
+    const loadVideoAsset = async () => {
+      try {
+        console.log('📦 [SplashScreen] Precargando video asset...');
+        const asset = Asset.fromModule(require('../../assets/gif.mp4'));
+        await asset.downloadAsync();
+        console.log('✅ [SplashScreen] Video asset precargado:', asset.localUri);
+        setVideoUri(asset.localUri || asset.uri);
+      } catch (error) {
+        console.error('❌ [SplashScreen] Error precargando video:', error);
+        // Si falla la carga, usar require directo como fallback
+        setVideoUri('fallback');
+      }
+    };
+
+    loadVideoAsset();
+  }, []);
 
   useEffect(() => {
     console.log('🎬 [SplashScreen] Iniciando...');
@@ -69,12 +90,21 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
     }
   }
 
+  // No renderizar hasta que el video esté listo
+  if (!videoUri) {
+    return (
+      <View style={styles.container}>
+        <Animated.View style={[styles.videoContainer, { opacity: fadeAnim }]} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.videoContainer, { opacity: fadeAnim }]}>
         <Video
           ref={(ref) => setVideoRef(ref)}
-          source={require('../../assets/gif.mp4')}
+          source={videoUri === 'fallback' ? require('../../assets/gif.mp4') : { uri: videoUri }}
           style={styles.video}
           resizeMode={ResizeMode.CONTAIN}
           shouldPlay

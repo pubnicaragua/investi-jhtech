@@ -12,8 +12,23 @@ import { useOnlineStatus } from "./src/hooks/useOnlineStatus"
 // DESHABILITADO: Causa error TurboModuleRegistry al cargar todas las pantallas
 // import { TESTING_CONFIG, TestingScreen } from "./src/utils/screenTesting"  
 
-// Deshabilitar linking temporalmente para Expo Go
-const linking = undefined;
+// Configuración de Deep Linking para OAuth
+const linking = {
+  prefixes: [
+    'investi-community://', 
+    'https://investi.app',
+    'https://paoliakwfoczcallnecf.supabase.co',
+    'http://localhost:19006'
+  ],
+  config: {
+    screens: {
+      SignIn: 'auth/signin',
+      SignUp: 'auth/signup',
+      AuthCallback: 'auth/callback',
+      Welcome: '',
+    },
+  },
+};
 
 // Componente interno que usa useAuth
 function AppContent() {

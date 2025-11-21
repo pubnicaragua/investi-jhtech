@@ -49,6 +49,7 @@ type AuthContextData = {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateUser: (user: Partial<User>) => void;
+  refreshUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextData>({} as AuthContextData);
@@ -306,6 +307,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const refreshUser = async () => {
+    try {
+      console.log('[AuthContext] 🔄 Refreshing user data...');
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      if (sessionData?.session?.user) {
+        const completeUserData = await loadCompleteUserData(sessionData.session.user.id);
+        if (completeUserData) {
+          console.log('[AuthContext] ✅ User data refreshed:', completeUserData.username || completeUserData.full_name);
+          setUser(completeUserData);
+        }
+      }
+    } catch (error) {
+      console.error('[AuthContext] ❌ Error refreshing user:', error);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -315,6 +333,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signIn,
         signOut,
         updateUser,
+        refreshUser,
       }}>
       {children}
     </AuthContext.Provider>

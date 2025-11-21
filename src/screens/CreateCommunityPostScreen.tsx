@@ -39,10 +39,8 @@ import {
 import {
   createCommunityPost
 } from '../rest/communityPosts'
-import { MediaPreview } from '../components/media/MediaPreview'
-import { PollEditor } from '../components/poll/PollEditor'
-import { MediaItem } from '../components/media/MediaPreview'
-import { PollData } from '../components/poll/PollEditor'
+import { MediaPreview, MediaItem } from '../components/media/MediaPreview'
+import { SimplePollCreator, PollData } from '../components/poll/SimplePollCreator'
 
 type CelebrationType = 'milestone' | 'achievement' | 'success' | 'investment_win' | 'other'
 
@@ -408,7 +406,7 @@ export function CreateCommunityPostScreen({ navigation }: any) {
           </View>
 
           {/* Poll Editor */}
-          <PollEditor
+          <SimplePollCreator
             visible={showPollEditor}
             onClose={handlePollClose}
             onSave={handlePollSave}

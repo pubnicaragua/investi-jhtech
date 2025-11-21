@@ -9,7 +9,7 @@
  * - Historial de conversación
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -22,11 +22,23 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Send, Trash2 } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  Send,
+  Trash2, 
+  Volume2, 
+  Mic, 
+  MicOff, 
+} from 'lucide-react-native';
+import Voice from '@react-native-voice/voice';
 import { useAuthGuard } from '../hooks/useAuthGuard';
 import { getCurrentUserId, saveIRIChatMessage, loadIRIChatHistory, clearIRIChatHistory } from '../rest/api';
+import iriVoiceService, { VoiceGender } from '../services/iriVoiceService';
+import * as Speech from 'expo-speech';
 
 interface Message {
   id: string;
@@ -83,7 +95,84 @@ export default function IRIChatScreen({ navigation }: any) {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voiceGender, setVoiceGender] = useState<VoiceGender>('FEMALE');
+  const [lastTap, setLastTap] = useState<number>(0);
+  const [currentSound, setCurrentSound] = useState<any>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [recognizedText, setRecognizedText] = useState('');
   const scrollViewRef = useRef<ScrollView>(null);
+  const waveAnimation = useRef(new Animated.Value(0)).current;
+  
+  // Animación del fondo
+  const animatedValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(animatedValue, {
+          toValue: 1,
+          duration: 8000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(animatedValue, {
+          toValue: 0,
+          duration: 8000,
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+  }, []);
+
+  // Configurar Voice Recognition
+  useEffect(() => {
+    Voice.onSpeechStart = () => {
+      console.log('🎤 Speech started');
+      setIsListening(true);
+      startWaveAnimation();
+    };
+
+    Voice.onSpeechEnd = () => {
+      console.log('🎤 Speech ended');
+      setIsListening(false);
+      stopWaveAnimation();
+    };
+
+    Voice.onSpeechResults = (e: any) => {
+      console.log('🎤 Speech results:', e.value);
+      if (e.value && e.value[0]) {
+        const text = e.value[0];
+        setRecognizedText(text);
+        setInputText(text);
+      }
+    };
+
+    Voice.onSpeechError = (e: any) => {
+      console.error('🎤 Speech error:', e.error);
+      setIsListening(false);
+      stopWaveAnimation();
+    };
+
+    return () => {
+      Voice.destroy().then(Voice.removeAllListeners);
+    };
+  }, []);
+
+  // Auto-saludo al entrar
+  useEffect(() => {
+    const greetUser = async () => {
+      // Esperar 500ms para que cargue el historial
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Si no hay mensajes, dar bienvenida automática
+      if (messages.length === 0) {
+        handleHolaIri();
+      }
+    };
+    
+    greetUser();
+  }, []);
 
   // Cargar historial al montar el componente
   useEffect(() => {
@@ -153,7 +242,87 @@ export default function IRIChatScreen({ navigation }: any) {
     scrollViewRef.current?.scrollToEnd({ animated: true });
   }, [messages]);
 
-  const sendMessage = async () => {
+  // Funciones de Voice
+  const startWaveAnimation = () => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(waveAnimation, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(waveAnimation, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  };
+
+  const stopWaveAnimation = () => {
+    waveAnimation.setValue(0);
+  };
+
+  const toggleVoiceInput = useCallback(async () => {
+    try {
+      if (isListening) {
+        // Detener escucha
+        await Voice.stop();
+        setIsListening(false);
+        stopWaveAnimation();
+      } else {
+        // Iniciar escucha
+        setRecognizedText('');
+        await Voice.start('es-ES'); // Español
+        setIsListening(true);
+        startWaveAnimation();
+      }
+    } catch (error) {
+      console.error('Error toggling voice:', error);
+      Alert.alert(
+        'Error de Micrófono',
+        'No se pudo acceder al micrófono. Verifica los permisos de la aplicación.',
+        [{ text: 'OK' }]
+      );
+      setIsListening(false);
+      stopWaveAnimation();
+    }
+  }, [isListening]);
+
+  const handleHolaIri = async () => {
+    // Responder inmediatamente con voz
+    const greeting = '¡Hola! Soy Iri, tu asistente financiera. ¿En qué puedo ayudarte?';
+    
+    // Agregar mensaje de Iri
+    const iriMessage: Message = {
+      id: Date.now().toString(),
+      content: greeting,
+      role: 'assistant',
+      timestamp: new Date(),
+    };
+    
+    setMessages(prev => [...prev, iriMessage]);
+    
+    // Hablar inmediatamente
+    if (voiceEnabled) {
+      try {
+        setIsSpeaking(true);
+        await iriVoiceService.speak(greeting);
+        setIsSpeaking(false);
+      } catch (error) {
+        console.error('Error speaking:', error);
+        setIsSpeaking(false);
+      }
+    }
+    
+    // Guardar en historial
+    if (userId) {
+      await saveIRIChatMessage(userId, 'assistant', greeting);
+    }
+  };
+
+  const sendMessage = useCallback(async () => {
     if (!inputText.trim() || isLoading) return;
 
     if (!GROK_API_KEY) {
@@ -189,7 +358,7 @@ export default function IRIChatScreen({ navigation }: any) {
           Authorization: `Bearer ${GROK_API_KEY}`,
         },
         body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
+          model: 'llama-3.1-8b-instant',
           messages: [
             { role: 'system', content: SYSTEM_CONTEXT },
             ...messages.map((msg) => ({
@@ -209,14 +378,31 @@ export default function IRIChatScreen({ navigation }: any) {
         const errorData = await response.text();
         console.error('❌ Error response:', errorData);
         
+        let errorMessage = 'No se pudo enviar el mensaje';
+        
+        try {
+          const errorJson = JSON.parse(errorData);
+          if (errorJson.error?.message) {
+            errorMessage = errorJson.error.message;
+          }
+        } catch {
+          // Si no es JSON, usar el texto directamente
+          errorMessage = errorData.substring(0, 100);
+        }
+        
         if (response.status === 401) {
           Alert.alert(
             'API Key Inválida',
-            'La API key de Groq es inválida o ha expirado.\n\nPor favor:\n1. Verifica que EXPO_PUBLIC_GROK_API_KEY esté correcta en .env\n2. Reinicia el servidor con: npm start --reset-cache\n3. Si el problema persiste, genera una nueva API key en https://console.groq.com/keys'
+            `Error 401: ${errorMessage}\n\nVerifica que la API key esté configurada correctamente en .env`
+          );
+        } else {
+          Alert.alert(
+            'Error',
+            `Error ${response.status}: ${errorMessage}`
           );
         }
         
-        throw new Error(`Error ${response.status}: ${response.statusText}. ${errorData}`);
+        throw new Error(`Error ${response.status}: ${errorMessage}`);
       }
 
       const data = await response.json();
@@ -235,6 +421,17 @@ export default function IRIChatScreen({ navigation }: any) {
       if (userId) {
         await saveIRIChatMessage(userId, 'assistant', assistantMessage.content);
       }
+
+      // Reproducir respuesta con voz
+      try {
+        setIsSpeaking(true);
+        iriVoiceService.setVoicePreferences({ gender: voiceGender });
+        await iriVoiceService.speak(assistantMessage.content);
+        setIsSpeaking(false);
+      } catch (voiceError) {
+        console.error('Error reproduciendo voz:', voiceError);
+        setIsSpeaking(false);
+      }
     } catch (error: any) {
       console.error('❌ Error al enviar mensaje:', error);
       Alert.alert(
@@ -244,9 +441,9 @@ export default function IRIChatScreen({ navigation }: any) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [inputText, isLoading, messages, userId]);
 
-  const handleClearHistory = async () => {
+  const handleClearHistory = useCallback(async () => {
     Alert.alert(
       'Limpiar Historial',
       '¿Estás seguro de que quieres borrar todo el historial de conversación?',
@@ -270,46 +467,84 @@ export default function IRIChatScreen({ navigation }: any) {
         },
       ]
     );
-  };
+  }, [userId]);
 
-  const formatTime = (date: Date) => {
+  const formatTime = useCallback((date: Date) => {
     return date.toLocaleTimeString('es-NI', {
       hour: '2-digit',
       minute: '2-digit',
     });
-  };
+  }, []);
+
+  // Memoizar mensajes para evitar re-renders innecesarios
+  const memoizedMessages = useMemo(() => messages, [messages]);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
+    <View style={styles.container}>
+      {/* Fondo animado con gradiente */}
+      <Animated.View
+        style={[
+          styles.animatedBackground,
+          {
+            opacity: animatedValue.interpolate({
+              inputRange: [0, 0.5, 1],
+              outputRange: [0.3, 0.6, 0.3],
+            }),
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={['#F9A8D4', '#FDF2F8', '#F5F3FF', '#FCE7F3']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradient}
+        />
+      </Animated.View>
+
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        {/* Header blanco con iconos morados */}
+        <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
-          <ArrowLeft size={24} color="#111" />
+          <ArrowLeft size={24} color="#8B5CF6" />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Image 
-            source={require('../../assets/iri-icono-Sin-fondo.gif')} 
-            style={styles.iriIcon}
-            resizeMode="contain"
-          />
+            <Image 
+              source={require('../../assets/iri-icono.jpg')} 
+              style={styles.iriGif}
+              resizeMode="contain"
+            />
           <View>
             <Text style={styles.headerTitle}>Irï</Text>
             <Text style={styles.headerSubtitle}>Asistente IA</Text>
           </View>
         </View>
-        <TouchableOpacity onPress={handleClearHistory} style={styles.headerRight}>
-          <Trash2 size={20} color="#666" />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          {isSpeaking && (
+            <TouchableOpacity 
+              onPress={() => {
+                console.log('⏹️ Pausando audio...');
+                Speech.stop();
+                setIsSpeaking(false);
+              }} 
+              style={styles.stopButton}
+            >
+              <MicOff size={20} color="#EF4444" />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={handleClearHistory}>
+            <Trash2 size={20} color="#8B5CF6" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Messages */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior='padding'
         style={styles.keyboardView}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 100}
       >
         <ScrollView
           ref={scrollViewRef}
@@ -323,8 +558,8 @@ export default function IRIChatScreen({ navigation }: any) {
               <Text style={styles.historyLoadingText}>Cargando historial...</Text>
             </View>
           ) : (
-            messages.map((message) => (
-            <View
+            memoizedMessages.map((message) => (
+            <TouchableOpacity
               key={message.id}
               style={[
                 styles.messageBubble,
@@ -332,6 +567,36 @@ export default function IRIChatScreen({ navigation }: any) {
                   ? styles.userBubble
                   : styles.assistantBubble,
               ]}
+              onPress={async () => {
+                // Doble tap para reproducir mensaje en voz
+                if (message.role === 'assistant') {
+                  const now = Date.now();
+                  const DOUBLE_TAP_DELAY = 300; // 300ms para doble tap
+                  
+                  if (now - lastTap < DOUBLE_TAP_DELAY) {
+                    // Es doble tap - reproducir
+                    setLastTap(0);
+                    try {
+                      setIsSpeaking(true);
+                      await iriVoiceService.speak(message.content);
+                      setIsSpeaking(false);
+                    } catch (error) {
+                      console.error('Error speaking message:', error);
+                      setIsSpeaking(false);
+                      // Fallback a expo-speech si ElevenLabs falla
+                      await Speech.speak(message.content, {
+                        language: 'es-ES',
+                        pitch: voiceGender === 'FEMALE' ? 1.2 : 0.8,
+                        rate: 1.0,
+                      });
+                    }
+                  } else {
+                    // Primer tap - esperar segundo tap
+                    setLastTap(now);
+                  }
+                }
+              }}
+              activeOpacity={message.role === 'assistant' ? 0.7 : 1}
             >
               {message.role === 'assistant' && (
                 <Image 
@@ -362,7 +627,7 @@ export default function IRIChatScreen({ navigation }: any) {
                   {formatTime(message.timestamp)}
                 </Text>
               </View>
-            </View>
+            </TouchableOpacity>
           ))
           )}
 
@@ -383,49 +648,123 @@ export default function IRIChatScreen({ navigation }: any) {
 
         {/* Input */}
         <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Escribe tu mensaje..."
-            placeholderTextColor="#999"
-            value={inputText}
-            onChangeText={setInputText}
-            multiline
-            maxLength={500}
-            editable={!isLoading}
-          />
-          <TouchableOpacity
-            onPress={sendMessage}
-            style={[
-              styles.sendButton,
-              (!inputText.trim() || isLoading) && styles.sendButtonDisabled,
-            ]}
-            disabled={!inputText.trim() || isLoading}
-          >
-            <Send
-              size={20}
-              color={!inputText.trim() || isLoading ? '#ccc' : '#fff'}
+          {/* Animación de onda cuando está escuchando */}
+          {isListening && (
+            <View style={styles.waveContainer}>
+              {[0, 1, 2, 3, 4].map(i => (
+                <Animated.View
+                  key={i}
+                  style={[
+                    styles.wave,
+                    {
+                      transform: [
+                        {
+                          scaleY: waveAnimation.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [1, 2 + Math.random()],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                />
+              ))}
+              <Text style={styles.listeningText}>Escuchando... Di "Hola Iri"</Text>
+            </View>
+          )}
+
+          <View style={styles.inputRow}>
+            {/* Botón de micrófono */}
+            <TouchableOpacity
+              style={[styles.micButton, isListening && styles.micButtonActive]}
+              onPress={toggleVoiceInput}
+              disabled={isLoading}
+            >
+              {isListening ? (
+                <MicOff size={24} color="#FFFFFF" />
+              ) : (
+                <Mic size={24} color="#FFFFFF" />
+              )}
+            </TouchableOpacity>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Pregúntale a Iri..."
+              placeholderTextColor="#C084FC"
+              value={inputText}
+              onChangeText={setInputText}
+              multiline
+              maxLength={500}
+              editable={!isLoading && !isListening}
             />
-          </TouchableOpacity>
+            
+            {/* Selector de voz (Masculino/Femenino) */}
+            <TouchableOpacity
+              style={[styles.voiceButton, isSpeaking && styles.voiceButtonActive]}
+              onPress={() => {
+                const newGender = voiceGender === 'FEMALE' ? 'MALE' : 'FEMALE';
+                setVoiceGender(newGender);
+              }}
+              disabled={isLoading}
+            >
+              <Volume2 size={20} color={isSpeaking ? '#F9A8D4' : '#C084FC'} />
+              <Text style={styles.voiceGenderText}>
+                {voiceGender === 'FEMALE' ? '♀' : '♂'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={sendMessage}
+              style={[
+                styles.sendButton,
+                (!inputText.trim() || isLoading) && styles.sendButtonDisabled,
+              ]}
+              disabled={!inputText.trim() || isLoading}
+            >
+              <Send
+                size={22}
+                color={!inputText.trim() || isLoading ? '#ccc' : '#fff'}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f7f8fa',
+    backgroundColor: '#0F0F1E',
+  },
+  animatedBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  gradient: {
+    flex: 1,
+    opacity: 0.15,
+  },
+  safeArea: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
   },
   backButton: {
     padding: 8,
@@ -435,30 +774,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  iriIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#eff6ff',
-    alignItems: 'center',
+  headerIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#fff',
     justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    overflow: 'hidden',
+  },
+  iriGif: {
+    width: 48,
+    height: 48,
   },
   iriIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#111',
+    color: '#8B5CF6',
+    letterSpacing: 0.5,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#666',
+    color: '#A78BFA',
+    fontWeight: '500',
   },
   headerRight: {
-    width: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  stopButton: {
+    padding: 4,
   },
   keyboardView: {
     flex: 1,
@@ -512,27 +863,34 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userText: {
-    backgroundColor: '#2673f3',
+    backgroundColor: '#8B5CF6',
     color: '#fff',
-    padding: 12,
-    borderRadius: 16,
-    borderTopRightRadius: 4,
+    padding: 14,
+    borderRadius: 20,
+    borderTopRightRadius: 6,
     fontSize: 15,
-    lineHeight: 20,
+    lineHeight: 22,
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 4,
   },
   assistantText: {
-    backgroundColor: '#fff',
-    color: '#111',
-    padding: 12,
-    borderRadius: 16,
-    borderTopLeftRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    color: '#1F2937',
+    padding: 14,
+    borderRadius: 20,
+    borderTopLeftRadius: 6,
     fontSize: 15,
-    lineHeight: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    lineHeight: 22,
+    shadowColor: '#06B6D4',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(6, 182, 212, 0.2)',
   },
   messageText: {
     fontSize: 15,
@@ -553,11 +911,16 @@ const styles = StyleSheet.create({
   loadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 16,
-    borderTopLeftRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    padding: 14,
+    borderRadius: 20,
+    borderTopLeftRadius: 6,
     gap: 8,
+    shadowColor: '#06B6D4',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   loadingText: {
     fontSize: 14,
@@ -565,33 +928,101 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   inputContainer: {
+    padding: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  waveContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 12,
+  },
+  wave: {
+    width: 4,
+    height: 20,
+    backgroundColor: '#F9A8D4',
+    borderRadius: 2,
+  },
+  listeningText: {
+    marginLeft: 12,
+    fontSize: 14,
+    color: '#F9A8D4',
+    fontWeight: '600',
+  },
+  inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    padding: 12,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
     gap: 8,
+  },
+  micButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#F9A8D4',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#F9A8D4',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  micButtonActive: {
+    backgroundColor: '#EF4444',
   },
   input: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
     fontSize: 15,
     maxHeight: 100,
-    color: '#111',
+    color: '#1F2937',
+    borderWidth: 2,
+    borderColor: '#F9A8D4',
   },
   sendButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#A855F7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#A855F7',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#D1D5DB',
+    shadowOpacity: 0,
+  },
+  voiceButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#2673f3',
-    alignItems: 'center',
+    backgroundColor: '#f3f4f6',
     justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
   },
-  sendButtonDisabled: {
-    backgroundColor: '#e5e7eb',
+  voiceButtonActive: {
+    backgroundColor: '#f3e8ff',
+    borderColor: '#8B5CF6',
+  },
+  voiceGenderText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#666',
+    marginTop: 2,
   },
 });

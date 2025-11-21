@@ -100,7 +100,7 @@ Formato: Texto claro y estructurado, sin markdown. Usa emojis para hacer más am
           Authorization: `Bearer ${GROK_API_KEY}`,
         },
         body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
+          model: 'llama-3.1-8b-instant',
           messages: [
             { role: 'system', content: 'Eres un experto en educación financiera que crea contenido educativo claro y práctico.' },
             { role: 'user', content: prompt }

@@ -36,6 +36,7 @@ export function SignUpScreen({ navigation }: any) {
   const handleOAuth = async (provider: "google" | "apple" | "facebook" | "linkedin_oidc") => {
     try {
       setLoading(true)
+      console.log('[SignUpScreen] 🔐 Initiating OAuth for provider:', provider)
 
       if (provider === "linkedin_oidc") {
         // Use custom LinkedIn OAuth flow via Edge Function
@@ -87,32 +88,50 @@ export function SignUpScreen({ navigation }: any) {
         return
       }
 
-      // Use Expo Linking which will correctly create deep links for native and web-aware URLs.
-      // Prefer Linking.createURL to avoid web 404s when hosting doesn't handle absolute paths like /auth/callback
+      // For mobile: use app scheme. For web: use window origin
       let redirectTo = ''
-      try {
-        redirectTo = Linking.createURL('auth/callback')
-      } catch (e) {
-        if (typeof window !== 'undefined' && window.location && window.location.origin) {
-          redirectTo = `${window.location.origin}/auth/callback`
-        } else {
-          redirectTo = 'auth/callback'
-        }
+      let skipBrowserRedirect = false
+      
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
+        redirectTo = `${window.location.origin}/auth/callback`
+      } else {
+        redirectTo = 'investi-community://auth/callback'
+        skipBrowserRedirect = false
       }
-      console.log('[SignUpScreen] OAuth redirectTo:', redirectTo)
+      console.log('[SignUpScreen] OAuth redirectTo:', redirectTo, 'Platform:', Platform.OS)
 
-      const { data, error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } })
-      if (error) throw error
+      const { data, error } = await supabase.auth.signInWithOAuth({ 
+        provider, 
+        options: { 
+          redirectTo,
+          skipBrowserRedirect,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
+        } 
+      })
+      if (error) {
+        console.error('[SignUpScreen] ❌ OAuth error:', error)
+        throw error
+      }
 
       const url = (data && (data.url || data?.providerUrl || data?.redirectTo)) || null
+      console.log('[SignUpScreen] ✅ OAuth URL received:', url ? 'Yes' : 'No')
+      
       if (url) {
+        console.log('[SignUpScreen] 🚀 Redirecting to OAuth provider...')
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
           window.location.href = url
         } else {
           await Linking.openURL(url)
         }
+      } else {
+        console.error('[SignUpScreen] ❌ No OAuth URL received from Supabase')
+        throw new Error('No se recibió URL de autenticación')
       }
     } catch (err: any) {
+      console.error('[SignUpScreen] ❌ OAuth error:', err)
       Alert.alert("Error", err?.message || "No se pudo continuar con el proveedor seleccionado")
     } finally {
       setLoading(false)

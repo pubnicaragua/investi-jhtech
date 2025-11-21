@@ -123,7 +123,7 @@ export async function getUserFeed(uid: string, limit = 20) {
     // Paso 1: Obtener posts sin relaciones (evita conflictos)
     const response = await request("GET", "/posts", {
       params: {
-        select: "id,contenido,created_at,likes_count,comment_count,user_id,media_url,shares_count",
+        select: "id,contenido,created_at,likes_count,comment_count,user_id,media_url,shares_count,community_id,poll_options,poll_duration",
         order: "created_at.desc",
         limit: limit.toString()
       }
@@ -140,6 +140,18 @@ export async function getUserFeed(uid: string, limit = 20) {
         params: {
           select: "id,nombre,full_name,username,photo_url,avatar_url,role",
           id: `in.(${userIds.join(',')})`
+        }
+      })
+    }
+
+    // Paso 2.5: Obtener datos de comunidades
+    const communityIds = [...new Set(response.map((post: any) => post.community_id).filter(Boolean))]
+    let communitiesResponse = []
+    if (communityIds.length > 0) {
+      communitiesResponse = await request("GET", "/communities", {
+        params: {
+          select: "id,name",
+          id: `in.(${communityIds.join(',')})`
         }
       })
     }
@@ -189,6 +201,7 @@ export async function getUserFeed(uid: string, limit = 20) {
     // Paso 6: Mapear datos completos
     return response.map((post: any) => {
       const user = usersResponse?.find((u: any) => u.id === post.user_id)
+      const community = communitiesResponse?.find((c: any) => c.id === post.community_id)
       const mediaUrls = post.media_url || []
       const firstImage = Array.isArray(mediaUrls) && mediaUrls.length > 0 ? mediaUrls[0] : null
 
@@ -196,17 +209,22 @@ export async function getUserFeed(uid: string, limit = 20) {
         id: post.id,
         user_id: post.user_id,
         user_name: user?.full_name || user?.nombre || user?.username || 'Usuario',
-        user_avatar: user?.avatar_url || user?.photo_url || 'https://ui-avatars.com/api/?name=User&background=3B82F6&color=fff',
+        user_avatar: user?.avatar_url || user?.photo_url || null,
         user_role: user?.role || 'Usuario',
+        community_id: post.community_id || null,
+        community_name: community?.name || null,
         content: post.contenido || '',
         image: firstImage,
+        media_url: mediaUrls,
         time_ago: getTimeAgo(post.created_at),
         likes: post.likes_count || 0,
         comments: post.comment_count || 0,
         shares: post.shares_count || 0,
         is_liked: likedPostIds.has(post.id),
         is_saved: savedPostIds.has(post.id),
-        is_following: false, // TODO: Implementar lógica de seguimiento
+        is_following: false,
+        poll_options: post.poll_options || null,
+        poll_duration: post.poll_duration || null,
         created_at: post.created_at
       }
     })

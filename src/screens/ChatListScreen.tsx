@@ -97,6 +97,7 @@ export function ChatListScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);  
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
+  const [selectedChats, setSelectedChats] = useState<Set<string>>(new Set());
   
   useAuthGuard();  
   
@@ -332,23 +333,36 @@ export function ChatListScreen({ navigation }: any) {
       : item.user?.avatar_url;  
     const lastMessage = item.last_message || "Sin mensajes aún";  
     const time = formatTime(item.last_message_at);
+    const isSelected = selectedChats.has(item.id);
   
     return (  
       <TouchableOpacity
-        style={styles.chatItem}
+        style={[styles.chatItem, isSelected && incomingSharePost && styles.chatItemSelected]}
         activeOpacity={0.6}
         onPress={async () => {
-          // Optimistic update
+          // Si hay sharePost, permitir selección múltiple
+          if (incomingSharePost) {
+            setSelectedChats(prev => {
+              const newSet = new Set(prev);
+              if (newSet.has(item.id)) {
+                newSet.delete(item.id);
+              } else {
+                newSet.add(item.id);
+              }
+              return newSet;
+            });
+            return;
+          }
+
+          // Navegación normal
           setChats(prev => prev.map(c => c.id === item.id ? { ...c, unread_count: 0 } : c));
 
-          // Mark as read
           try {
             if (currentUserId) await markConversationAsRead(item.id, currentUserId);
           } catch (err) {
             console.warn('No se pudo marcar como leído:', err);
           }
 
-          // Navigate
           if (isCommunity) {
             navigation.navigate('GroupChatScreen', { groupId: item.id, name: name, sharePost: incomingSharePost });
           } else {
@@ -660,6 +674,37 @@ export function ChatListScreen({ navigation }: any) {
           />
         </TouchableOpacity>
       </View>
+
+      {/* Botón flotante de enviar cuando hay selección */}
+      {incomingSharePost && selectedChats.size > 0 && (
+        <TouchableOpacity
+          style={styles.sendButton}
+          activeOpacity={0.8}
+          onPress={() => {
+            Alert.alert(
+              'Enviar a ' + selectedChats.size + ' chat(s)',
+              '¿Deseas compartir esta publicación?',
+              [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                  text: 'Enviar',
+                  onPress: () => {
+                    // TODO: Implementar envío múltiple
+                    Alert.alert('Enviado', `Publicación compartida a ${selectedChats.size} chat(s)`);
+                    setSelectedChats(new Set());
+                    navigation.goBack();
+                  }
+                }
+              ]
+            );
+          }}
+        >
+          <Ionicons name="send" size={24} color="#FFFFFF" />
+          <View style={styles.sendCounter}>
+            <Text style={styles.sendCounterText}>{selectedChats.size}</Text>
+          </View>
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   ); 
 }  
@@ -991,6 +1036,57 @@ const styles = StyleSheet.create({
     bottom: 100,
     right: 20,
     zIndex: 10,
+  },
+  
+  chatItemSelected: {
+    backgroundColor: '#EFF6FF',
+    borderLeftWidth: 4,
+    borderLeftColor: '#3B82F6',
+  },
+  
+  sendButton: {
+    position: 'absolute',
+    bottom: 100,
+    right: 20,
+    backgroundColor: '#3B82F6',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
+    zIndex: 100,
+  },
+  
+  sendButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  
+  sendCounter: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#EF4444',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  
+  sendCounterText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
 
   fab: {

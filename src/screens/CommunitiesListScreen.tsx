@@ -43,12 +43,26 @@ export const CommunitiesListScreen = ({ navigation }: any) => {
   const loadCommunities = async () => {  
     try {  
       setLoading(true);  
-      setError(null);  
+      const userId = await getCurrentUserId();
       const data = await listCommunities();  
-      setCommunities(data || []);  
-    } catch (error: any) {  
-      console.error('Error loading communities:', error);  
-      setError(error.message || 'Error al cargar comunidades');  
+      setCommunities(data);
+      
+      // ✅ Cargar comunidades ya joined
+      if (userId && data) {
+        const { supabase } = await import('../supabase');
+        const { data: userCommunities } = await supabase
+          .from('community_members')
+          .select('community_id')
+          .eq('user_id', userId);
+        
+        if (userCommunities) {
+          const joinedIds = userCommunities.map((uc: any) => uc.community_id);
+          setJoinedCommunities(joinedIds);
+        }
+      }
+    } catch (err: any) {  
+      console.error('Error loading communities:', err);  
+      setError(err.message || 'Error al cargar comunidades');  
     } finally {  
       setLoading(false);  
     }  

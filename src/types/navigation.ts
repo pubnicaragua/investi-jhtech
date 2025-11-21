@@ -119,6 +119,16 @@ export type RootStackParamList = {
   
   // Development
   DevMenu: undefined;
+
+  // Support & Tickets
+  SupportTicket: undefined;
+  
+  // Financial Tools
+  CartolaExtractor: undefined;
+  Missions: undefined;
+  
+  // AI Assistant
+  Iri: undefined;
 };
 
 export type OnboardingStackParamList = {

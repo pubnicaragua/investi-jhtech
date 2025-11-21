@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "973539516515",
+    "project_id": "investi-app",
+    "storage_bucket": "investi-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:973539516515:android:e30af055cb9cc693395856",
+        "android_client_info": {
+          "package_name": "com.jhtech.investi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBz34m9ACgler6ta7evldbf1uCw7Mh0p8Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

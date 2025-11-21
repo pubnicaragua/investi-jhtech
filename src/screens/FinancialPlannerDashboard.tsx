@@ -1,0 +1,650 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator, RefreshControl
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Target, TrendingUp, Award, Zap, Trophy, CheckCircle, Flame, Calendar, Star, DollarSign } from 'lucide-react-native';
+import { supabase } from '../supabase';
+import { getCurrentUserId } from '../rest/api';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+
+interface FinancialGoal {
+  id: string;
+  user_id: string;
+  goal_type: string;
+  target_amount: number;
+  current_amount: number;
+  deadline: string;
+  created_at: string;
+}
+
+interface UserProgress {
+  level: number;
+  xp: number;
+  nextLevelXp: number;
+  achievements: number;
+  streakDays: number;
+}
+
+export function FinancialPlannerDashboard() {
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [goals, setGoals] = useState<FinancialGoal[]>([]);
+  const [progress, setProgress] = useState<UserProgress>({
+    level: 1,
+    xp: 0,
+    nextLevelXp: 1000,
+    achievements: 0,
+    streakDays: 0
+  });
+  const [projections, setProjections] = useState({
+    monthly: 0,
+    yearly: 0,
+    fiveYears: 0
+  });
+  const [currency, setCurrency] = useState('USD');
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const createGoalsFromOnboarding = async (uid: string) => {
+    try {
+      console.log('🎯 [Dashboard] Buscando metas del onboarding para user:', uid);
+      
+      // user_goals tiene goal_id, no goal (texto)
+      const { data: userGoals, error: goalsError } = await supabase
+        .from('user_goals')
+        .select(`
+          goal_id,
+          goals (
+            id,
+            name
+          )
+        `)
+        .eq('user_id', uid);
+
+      console.log('🎯 [Dashboard] Metas encontradas en user_goals:', userGoals);
+      
+      if (goalsError) {
+        console.error('❌ [Dashboard] Error obteniendo user_goals:', goalsError);
+        return;
+      }
+
+      if (userGoals && userGoals.length > 0) {
+        console.log('✅ [Dashboard] Creando', userGoals.length, 'metas financieras');
+        
+        const goalsToInsert = userGoals.map((ug: any) => ({
+          user_id: uid,
+          goal_type: ug.goals?.name || 'Meta financiera',
+          target_amount: 10000,
+          current_amount: 0,
+          deadline: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+        }));
+
+        const { error: insertError } = await supabase
+          .from('financial_goals')
+          .insert(goalsToInsert);
+        
+        if (insertError) {
+          console.error('❌ [Dashboard] Error insertando financial_goals:', insertError);
+        } else {
+          console.log('✅ [Dashboard] Metas financieras creadas exitosamente');
+        }
+      } else {
+        console.log('⚠️ [Dashboard] No se encontraron metas en user_goals');
+      }
+    } catch (error) {
+      console.error('❌ [Dashboard] Error creating goals from onboarding:', error);
+    }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadDashboardData();
+  };
+
+  const loadDashboardData = async () => {
+    try {
+      const uid = await getCurrentUserId();
+      if (!uid) return;
+      
+      setUserId(uid);
+
+      // Cargar usuario para moneda
+      const { data: userData } = await supabase
+        .from('users')
+        .select('currency')
+        .eq('id', uid)
+        .single();
+      
+      if (userData?.currency) {
+        setCurrency(userData.currency);
+      }
+
+      // Cargar metas financieras
+      console.log('📊 [Dashboard] Cargando metas financieras para user:', uid);
+      
+      const { data: goalsData, error: goalsLoadError } = await supabase
+        .from('financial_goals')
+        .select('*')
+        .eq('user_id', uid)
+        .order('created_at', { ascending: false });
+
+      console.log('📊 [Dashboard] Metas financieras encontradas:', goalsData?.length || 0);
+      
+      if (goalsLoadError) {
+        console.error('❌ [Dashboard] Error cargando financial_goals:', goalsLoadError);
+      }
+
+      // Si no hay metas, crear desde onboarding
+      if (!goalsData || goalsData.length === 0) {
+        console.log('⚠️ [Dashboard] No hay metas, intentando crear desde onboarding');
+        await createGoalsFromOnboarding(uid);
+        
+        const { data: newGoalsData } = await supabase
+          .from('financial_goals')
+          .select('*')
+          .eq('user_id', uid)
+          .order('created_at', { ascending: false });
+        
+        console.log('📊 [Dashboard] Metas después de crear:', newGoalsData?.length || 0);
+        
+        if (newGoalsData && newGoalsData.length > 0) {
+          setGoals(newGoalsData);
+          calculateProjections(newGoalsData);
+        } else {
+          console.log('⚠️ [Dashboard] Aún no hay metas después de intentar crear');
+        }
+      } else {
+        console.log('✅ [Dashboard] Usando metas existentes:', goalsData.length);
+        setGoals(goalsData);
+        calculateProjections(goalsData);
+      }
+
+      // Cargar progreso del usuario
+      let progressData = null;
+      const { data: existingProgress, error: progressError } = await supabase
+        .from('user_progress')
+        .select('*')
+        .eq('user_id', uid)
+        .single();
+
+      if (progressError && progressError.code === 'PGRST116') {
+        const { data: newProgress } = await supabase
+          .from('user_progress')
+          .insert({ user_id: uid })
+          .select()
+          .single();
+        progressData = newProgress;
+      } else {
+        progressData = existingProgress;
+      }
+
+      if (progressData) {
+        setProgress({
+          level: progressData.level || 1,
+          xp: progressData.xp || 0,
+          nextLevelXp: progressData.next_level_xp || 1000,
+          achievements: progressData.achievements_count || 0,
+          streakDays: progressData.streak_days || 0
+        });
+      }
+
+    } catch (error) {
+      console.error('Error loading dashboard:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const calculateProjections = (goalsData: FinancialGoal[]) => {
+    const totalCurrent = goalsData.reduce((sum, goal) => sum + (goal.current_amount || 0), 0);
+    const totalTarget = goalsData.reduce((sum, goal) => sum + (goal.target_amount || 0), 0);
+    
+    // Proyecciones simples basadas en metas
+    const monthlyGrowth = totalCurrent * 0.05; // 5% mensual estimado
+    const yearlyGrowth = totalCurrent * 0.60; // 60% anual estimado
+    const fiveYearGrowth = totalCurrent * 3.5; // 3.5x en 5 años
+
+    setProjections({
+      monthly: totalCurrent + monthlyGrowth,
+      yearly: totalCurrent + yearlyGrowth,
+      fiveYears: totalCurrent + fiveYearGrowth
+    });
+  };
+
+  const getProgressPercentage = () => {
+    return Math.min((progress.xp / progress.nextLevelXp) * 100, 100);
+  };
+
+  const getGoalProgress = (goal: FinancialGoal) => {
+    if (goal.target_amount === 0) return 0;
+    return Math.min((goal.current_amount / goal.target_amount) * 100, 100);
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#6366F1" />
+        <Text style={styles.loadingText}>Cargando tu progreso...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView 
+      style={styles.container} 
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
+      {/* Header con gradiente profesional */}
+      <LinearGradient
+        colors={['#1E40AF', '#3B82F6', '#6366F1']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerGradient}
+      >
+        <View style={styles.headerContent}>
+          <View style={styles.levelBadge}>
+            <Trophy size={20} color="#FFD700" />
+            <Text style={styles.levelText}>Nivel {progress.level}</Text>
+          </View>
+          
+          <View style={styles.xpContainer}>
+            <View style={styles.xpBar}>
+              <View style={[styles.xpFill, { width: `${getProgressPercentage()}%` }]} />
+            </View>
+            <Text style={styles.xpText}>{progress.xp} / {progress.nextLevelXp} XP</Text>
+          </View>
+
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Award size={18} color="#FFD700" />
+              <Text style={styles.statValue}>{progress.achievements}</Text>
+              <Text style={styles.statLabel}>Logros</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Zap size={18} color="#FFD700" />
+              <Text style={styles.statValue}>{progress.streakDays}</Text>
+              <Text style={styles.statLabel}>Días</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Star size={18} color="#FFD700" />
+              <Text style={styles.statValue}>{goals.length}</Text>
+              <Text style={styles.statLabel}>Metas</Text>
+            </View>
+          </View>
+
+          {/* Botón de Missions removido - causa error de navegación */}
+        </View>
+      </LinearGradient>
+
+      {/* Proyecciones */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>📈 Tus Proyecciones</Text>
+        
+        <View style={styles.projectionsGrid}>
+          <View style={[styles.projectionCard, { backgroundColor: '#EEF2FF' }]}>
+            <View style={styles.projectionIcon}>
+              <TrendingUp size={24} color="#6366F1" />
+            </View>
+            <Text style={styles.projectionLabel}>Este Mes</Text>
+            <Text style={[styles.projectionValue, { color: '#6366F1' }]}>
+              {formatCurrency(projections.monthly)}
+            </Text>
+            <Text style={styles.projectionGrowth}>+5% proyectado</Text>
+          </View>
+
+          <View style={[styles.projectionCard, { backgroundColor: '#FEF3C7' }]}>
+            <View style={styles.projectionIcon}>
+              <DollarSign size={24} color="#F59E0B" />
+            </View>
+            <Text style={styles.projectionLabel}>Este Año</Text>
+            <Text style={[styles.projectionValue, { color: '#F59E0B' }]}>
+              {formatCurrency(projections.yearly)}
+            </Text>
+            <Text style={styles.projectionGrowth}>+60% proyectado</Text>
+          </View>
+
+          <View style={[styles.projectionCard, { backgroundColor: '#DCFCE7' }]}>
+            <View style={styles.projectionIcon}>
+              <Target size={24} color="#10B981" />
+            </View>
+            <Text style={styles.projectionLabel}>5 Años</Text>
+            <Text style={[styles.projectionValue, { color: '#10B981' }]}>
+              {formatCurrency(projections.fiveYears)}
+            </Text>
+            <Text style={styles.projectionGrowth}>+350% proyectado</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Metas Activas */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>🎯 Metas Activas</Text>
+        
+        {goals.length > 0 ? (
+          goals.map((goal) => (
+            <View key={goal.id} style={styles.goalCard}>
+              <View style={styles.goalHeader}>
+                <View style={styles.goalIconContainer}>
+                  <Target size={20} color="#6366F1" />
+                </View>
+                <View style={styles.goalInfo}>
+                  <Text style={styles.goalType}>{goal.goal_type}</Text>
+                  <Text style={styles.goalAmount}>
+                    {formatCurrency(goal.current_amount)} / {formatCurrency(goal.target_amount)}
+                  </Text>
+                </View>
+                <Text style={styles.goalPercentage}>{getGoalProgress(goal).toFixed(0)}%</Text>
+              </View>
+              
+              <View style={styles.goalProgressBar}>
+                <LinearGradient
+                  colors={['#6366F1', '#8B5CF6']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[styles.goalProgressFill, { width: `${getGoalProgress(goal)}%` }]}
+                />
+              </View>
+              
+              <Text style={styles.goalDeadline}>
+                Fecha límite: {new Date(goal.deadline).toLocaleDateString('es-NI')}
+              </Text>
+            </View>
+          ))
+        ) : (
+          <View style={styles.emptyState}>
+            <Target size={48} color="#D1D5DB" />
+            <Text style={styles.emptyText}>No tienes metas activas</Text>
+            <Text style={styles.emptySubtext}>Crea tu primera meta financiera</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Logros Recientes */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>🏆 Logros Recientes</Text>
+        
+        <View style={styles.achievementsGrid}>
+          <View style={styles.achievementCard}>
+            <View style={[styles.achievementIcon, { backgroundColor: '#FEF3C7' }]}>
+              <Star size={24} color="#F59E0B" />
+            </View>
+            <Text style={styles.achievementName}>Primera Meta</Text>
+          </View>
+          
+          <View style={styles.achievementCard}>
+            <View style={[styles.achievementIcon, { backgroundColor: '#DCFCE7' }]}>
+              <CheckCircle size={24} color="#10B981" />
+            </View>
+            <Text style={styles.achievementName}>7 Días Activo</Text>
+          </View>
+          
+          <View style={styles.achievementCard}>
+            <View style={[styles.achievementIcon, { backgroundColor: '#EEF2FF' }]}>
+              <TrendingUp size={24} color="#6366F1" />
+            </View>
+            <Text style={styles.achievementName}>Ahorro +10%</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={{ height: 100 }} />
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  headerGradient: {
+    paddingTop: 40,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  headerContent: {
+    gap: 16,
+  },
+  levelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 8,
+  },
+  levelText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  xpContainer: {
+    gap: 8,
+  },
+  xpBar: {
+    height: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  xpFill: {
+    height: '100%',
+    backgroundColor: '#FFD700',
+    borderRadius: 6,
+  },
+  xpText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 8,
+  },
+  statItem: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  statValue: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  statLabel: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+  },
+  missionsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 16,
+    gap: 8,
+  },
+  missionsButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  section: {
+    padding: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 16,
+  },
+  projectionsGrid: {
+    gap: 12,
+  },
+  projectionCard: {
+    padding: 20,
+    borderRadius: 16,
+    gap: 8,
+  },
+  projectionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  projectionLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  projectionValue: {
+    fontSize: 28,
+    fontWeight: '700',
+  },
+  projectionGrowth: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  goalCard: {
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  goalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  goalIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  goalInfo: {
+    flex: 1,
+  },
+  goalType: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  goalAmount: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  goalPercentage: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#6366F1',
+  },
+  goalProgressBar: {
+    height: 8,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  goalProgressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  goalDeadline: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginTop: 12,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    marginTop: 4,
+  },
+  achievementsGrid: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  achievementCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  achievementIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  achievementName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#374151',
+    textAlign: 'center',
+  },
+});

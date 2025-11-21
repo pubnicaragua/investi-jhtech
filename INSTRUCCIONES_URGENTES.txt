@@ -1,0 +1,55 @@
+═══════════════════════════════════════════════════════════
+  INSTRUCCIONES URGENTES - APLICAR CAMBIOS AHORA
+═══════════════════════════════════════════════════════════
+
+✅ CAMBIOS APLICADOS EN EL CÓDIGO:
+
+1. ✅ Encuestas - Agregado poll_options y poll_duration a queries
+2. ✅ SupportTicket - Corregida navegación en SettingsScreen
+3. ✅ CartolaExtractor - Corregida navegación en EducacionScreen
+
+═══════════════════════════════════════════════════════════
+  PASOS PARA VER LOS CAMBIOS (ELIGE UNO):
+═══════════════════════════════════════════════════════════
+
+OPCIÓN A - RÁPIDA (30 segundos):
+─────────────────────────────────
+1. Presiona Ctrl+C en la terminal de Metro
+2. Ejecuta: npx react-native start --reset-cache
+3. En la app presiona 'r' para recargar
+
+OPCIÓN B - AUTOMÁTICA (1 minuto):
+─────────────────────────────────
+1. Ejecuta: REINICIAR_APP.bat
+2. Espera que se abra Metro
+3. Recarga la app
+
+OPCIÓN C - COMPLETA (2 minutos):
+─────────────────────────────────
+1. Cierra la app completamente
+2. Ejecuta: npx expo start -c
+3. Presiona 'a' para Android o 'i' para iOS
+
+═══════════════════════════════════════════════════════════
+  ¿POR QUÉ NO SE VEN LOS CAMBIOS?
+═══════════════════════════════════════════════════════════
+
+React Native cachea el código JavaScript. Los cambios están
+en el código pero tu app está usando la versión cacheada.
+
+DEBES recargar con cache limpio para ver los cambios.
+
+═══════════════════════════════════════════════════════════
+  VERIFICACIÓN DESPUÉS DE RECARGAR:
+═══════════════════════════════════════════════════════════
+
+✓ Encuestas: Crea un post con encuesta y verifica que 
+  aparezca en el feed con las opciones
+
+✓ SupportTicket: Ve a Settings > Soporte
+  Debe abrir sin errores
+
+✓ CartolaExtractor: Ve a Educación > Herramientas > Extractor
+  Debe abrir sin errores
+
+═══════════════════════════════════════════════════════════

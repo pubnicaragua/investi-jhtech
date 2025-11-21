@@ -329,15 +329,44 @@ export function CommunityDetailScreen() {
   // --- Actions ---
   const handleJoinCommunity = async () => {
     try {
-      if (currentUser && community) {
-        await joinCommunity(currentUser.id, community.id)
-        setIsJoined(true)
-        Alert.alert('Éxito', '¡Te has unido a la comunidad!')
-        loadCommunityData()
+      console.log('[CommunityDetail] 🔵 Intentando unirse a la comunidad...', {
+        currentUser: currentUser?.id,
+        community: community?.id,
+        isJoined
+      })
+
+      if (!currentUser) {
+        console.error('[CommunityDetail] ❌ No hay usuario actual')
+        Alert.alert('Error', 'Debes iniciar sesión para unirte a una comunidad')
+        return
       }
-    } catch (error) {
-      console.error('Error joining community:', error)
-      Alert.alert('Error', 'No se pudo unir a la comunidad')
+
+      if (!community) {
+        console.error('[CommunityDetail] ❌ No hay comunidad cargada')
+        Alert.alert('Error', 'No se pudo cargar la información de la comunidad')
+        return
+      }
+
+      console.log('[CommunityDetail] 🔵 Llamando a joinCommunity...')
+      const result = await joinCommunity(currentUser.id, community.id)
+      console.log('[CommunityDetail] ✅ joinCommunity completado:', result)
+      
+      setIsJoined(true)
+      // TODO: Animación de puerta comentada temporalmente
+      // showDoorAnimation()
+      Alert.alert('Éxito', '¡Te has unido a la comunidad!')
+      
+      console.log('[CommunityDetail] 🔄 Recargando datos de la comunidad...')
+      await loadCommunityData()
+      console.log('[CommunityDetail] ✅ Datos recargados')
+    } catch (error: any) {
+      console.error('[CommunityDetail] ❌ Error joining community:', {
+        error,
+        message: error?.message,
+        code: error?.code,
+        details: error?.details
+      })
+      Alert.alert('Error', error?.message || 'No se pudo unir a la comunidad. Por favor, intenta de nuevo.')
     }
   }
 
@@ -828,8 +857,9 @@ export function CommunityDetailScreen() {
             style={styles.tabsScrollView}
             contentContainerStyle={styles.tabsContainer}
             scrollEnabled={true}
+            nestedScrollEnabled={true}
             bounces={true}
-            alwaysBounceHorizontal={true}
+            directionalLockEnabled={true}
           >
             
             <Pressable
