@@ -8,7 +8,7 @@ import { LanguageToggle } from "../components/LanguageToggle"
 import { useAuthGuard } from "../hooks/useAuthGuard"  
 import { getMarketData, getFeaturedStocks } from "../rest/api"  
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { getMarketStocks, getLatinAmericanStocks, searchStocks, MarketStock } from '../services/searchApiService'
+import { getMarketStocks, getLatinAmericanStocks, searchStocks, MarketStock, getTechStocks, getEnergyStocks, getFinanceStocks } from '../services/searchApiService'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase } from '../supabase'  
   
@@ -63,22 +63,25 @@ export function MarketInfoScreen({ navigation }: any) {
       console.log('📊 [MarketInfo] Cargando desde APIs externas...');
       const realStocksPromise = getMarketStocks();
       const latinStocksPromise = getLatinAmericanStocks();
+      const techStocksPromise = getTechStocks();
+      const energyStocksPromise = getEnergyStocks();
+      const financeStocksPromise = getFinanceStocks();
       
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout')), 20000)
+        setTimeout(() => reject(new Error('Timeout')), 120000) // 2 minutos para traer 200+ acciones
       );
       
-      const [realStocks, latinStocks] = await Promise.race([
-        Promise.all([realStocksPromise, latinStocksPromise]),
+      const [realStocks, latinStocks, techStocks, energyStocks, financeStocks] = await Promise.race([
+        Promise.all([realStocksPromise, latinStocksPromise, techStocksPromise, energyStocksPromise, financeStocksPromise]),
         timeoutPromise
-      ]) as [MarketStock[], MarketStock[]];
+      ]) as [MarketStock[], MarketStock[], MarketStock[], MarketStock[], MarketStock[]];
       
-      console.log(`📊 [MarketInfo] API response: ${realStocks.length} US stocks, ${latinStocks.length} Latin stocks`);
+      console.log(`📊 [MarketInfo] API response: ${realStocks.length} US stocks, ${latinStocks.length} Latin stocks, ${techStocks.length} Tech, ${energyStocks.length} Energy, ${financeStocks.length} Finance`);
       
-      if (realStocks.length > 0 || latinStocks.length > 0) {
+      if (realStocks.length > 0 || latinStocks.length > 0 || techStocks.length > 0 || energyStocks.length > 0 || financeStocks.length > 0) {
         // Combinar y eliminar duplicados por símbolo
         const stocksMap = new Map<string, MarketStock>();
-        [...realStocks, ...latinStocks].forEach(stock => {
+        [...realStocks, ...latinStocks, ...techStocks, ...energyStocks, ...financeStocks].forEach(stock => {
           if (!stocksMap.has(stock.symbol)) {
             stocksMap.set(stock.symbol, stock);
           }
@@ -108,34 +111,9 @@ export function MarketInfoScreen({ navigation }: any) {
         }));
       }
     } catch (error) {  
-      console.error('❌ [MarketInfo] Error en todas las fuentes:', error);
-      // Si todo falla, mostrar datos de ejemplo para no dejar pantalla en blanco
-      if (stocks.length === 0) {
-        const fallbackStocks: Stock[] = [
-          {
-            id: '1',
-            symbol: 'AAPL',
-            company_name: 'Apple Inc.',
-            current_price: 150.00,
-            price_change: 2.50,
-            price_change_percent: 1.69,
-            color: '#10B981',
-            is_featured: true,
-          },
-          {
-            id: '2',
-            symbol: 'GOOGL',
-            company_name: 'Alphabet Inc.',
-            current_price: 2800.00,
-            price_change: -15.00,
-            price_change_percent: -0.53,
-            color: '#EF4444',
-            is_featured: true,
-          },
-        ];
-        setStocks(fallbackStocks);
-        setFeaturedStocks(fallbackStocks);
-      }
+      console.error('❌ [MarketInfo] Error al cargar datos:', error);
+      // 100% API - Sin fallbacks
+      Alert.alert('Error', 'No se pudieron cargar los datos del mercado. Verifica tu conexión e intenta de nuevo.');
     } finally {  
       setLoading(false)  
       setRefreshing(false)  
@@ -209,16 +187,22 @@ export function MarketInfoScreen({ navigation }: any) {
     }
   }
 
+  // Definir símbolos por categoría
+  const chileStocks = ['SQM', 'COPEC', 'BCI', 'BSAC', 'ENIC', 'CCU', 'COLO', 'COLG', 'CONCHA', 'CUPRUM', 'ECL', 'FALABELLA', 'FORUS', 'ITAUCORP', 'ITAU'];
+  const techStocksList = ['AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'META', 'NVDA', 'TSLA', 'AMD', 'INTC', 'QCOM', 'AVGO', 'MU', 'MCHP', 'NXPI', 'LRCX', 'ASML', 'ARM', 'ADBE', 'CRM', 'NFLX', 'SNOW', 'CRWD', 'OKTA', 'DDOG', 'NET', 'WDAY', 'VEEV', 'ORCL', 'IBM', 'HPQ', 'DELL', 'KEYS', 'SWKS', 'XLNX', 'INTU', 'RBLX', 'ROKU', 'PALO', 'ZS', 'FTNT', 'CHKP', 'TENB', 'VRNS', 'PANW', 'SPLK', 'SMAR', 'CYBL', 'PLTR', 'AI', 'UPST', 'COIN', 'MSTR', 'MARA', 'RIOT', 'CLSK', 'CIFR', 'GEVO', 'VZ', 'T', 'CMCSA', 'CHTR', 'TMUS', 'S', 'DISH', 'LUMN', 'ATVI', 'EA', 'TTWO', 'TAKE', 'ZNGA', 'UACL', 'BILI', 'BGCP', 'JOYY', 'IQ'];
+  const energyStocksList = ['XOM', 'CVX', 'COP', 'SLB', 'EOG', 'MPC', 'PSX', 'VLO', 'HES', 'OXY', 'APA', 'FANG', 'DVN', 'MRO', 'CDEV', 'VTLE', 'PARR', 'CHRD', 'DINO', 'CROX', 'NEE', 'DUK', 'SO', 'EXC', 'AEP', 'XEL', 'AWK', 'CMS', 'AES', 'PEG', 'ED', 'WEC', 'PPL', 'DTE', 'FE', 'ETR', 'NRG', 'EIX', 'EVRG', 'LNT', 'KMI', 'MMP', 'WMB', 'TRGP', 'OKE', 'LNG', 'PAGP', 'MPLX', 'EPD', 'VICI', 'RUN', 'PLUG', 'FCEL', 'CLNE', 'ICLN', 'TAN', 'QCLN', 'ACES', 'DRIP', 'SHYF'];
+  const financeStocksList = ['JPM', 'BAC', 'WFC', 'GS', 'MS', 'BLK', 'SCHW', 'TROW', 'BK', 'STT', 'USB', 'PNC', 'TFC', 'FITB', 'HBAN', 'KEY', 'CFG', 'ZION', 'WTFC', 'WAFD', 'BRK.B', 'AXP', 'PRU', 'MET', 'AFL', 'LPL', 'HIG', 'ALL', 'TRV', 'CB', 'AMG', 'ESGR', 'VOYA', 'IVZ', 'SSNC', 'SS', 'NWLI', 'MORN', 'CFRA', 'LSCC', 'V', 'MA', 'DFS', 'SQ', 'PYPL', 'COIN', 'SOFI', 'AFRM', 'DLR', 'EQIX', 'PLD', 'PSA', 'AMT', 'CCI', 'WELL', 'STAG', 'REXR', 'RKT', 'UWMC', 'NEW', 'CADE', 'CODI', 'RESI', 'MGIC', 'MTG', 'NRZ', 'INVH'];
+
   const filteredStocks = stocks.filter(stock => {
     const matchesSearch = stock.symbol.toLowerCase().includes(searchQuery.toLowerCase()) || 
       stock.company_name.toLowerCase().includes(searchQuery.toLowerCase())
     
     if (selectedFilter === 'Todos') return matchesSearch
-    if (selectedFilter === 'Chile') return matchesSearch && (stock.symbol.includes('.SN') || ['SQM', 'COPEC'].includes(stock.symbol))
-    if (selectedFilter === 'USA') return matchesSearch && !stock.symbol.includes('.') && !['SQM', 'COPEC'].includes(stock.symbol)
-    if (selectedFilter === 'Tecnología') return matchesSearch && ['AAPL', 'GOOGL', 'MSFT', 'TSLA', 'META', 'NVDA'].includes(stock.symbol)
-    if (selectedFilter === 'Energía') return matchesSearch && ['XOM', 'CVX', 'COP'].includes(stock.symbol)
-    if (selectedFilter === 'Finanzas') return matchesSearch && ['JPM', 'BAC', 'WFC', 'GS'].includes(stock.symbol)
+    if (selectedFilter === 'Chile') return matchesSearch && chileStocks.includes(stock.symbol)
+    if (selectedFilter === 'USA') return matchesSearch && !chileStocks.includes(stock.symbol)
+    if (selectedFilter === 'Tecnología') return matchesSearch && techStocksList.includes(stock.symbol)
+    if (selectedFilter === 'Energía') return matchesSearch && energyStocksList.includes(stock.symbol)
+    if (selectedFilter === 'Finanzas') return matchesSearch && financeStocksList.includes(stock.symbol)
     return matchesSearch
   })  
   
@@ -329,7 +313,10 @@ export function MarketInfoScreen({ navigation }: any) {
         {/* Sección del mercado actual */}  
         <View style={styles.section}>  
           <View style={styles.sectionHeader}>  
-            <Text style={styles.sectionTitle}>Mercado Actual</Text>  
+            <View>
+              <Text style={styles.sectionTitle}>Mercado Actual</Text>
+              <Text style={styles.dataCountText}>📊 {filteredStocks.length} acciones cargadas</Text>
+            </View>
             <TouchableOpacity>  
               <TrendingUp size={20} color="#667" />  
             </TouchableOpacity>  
@@ -773,5 +760,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#374151',
+  },
+  dataCountText: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 4,
+    fontWeight: '500',
   },
 })

@@ -38,31 +38,31 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
   useEffect(() => {
     console.log('🎬 [SplashScreen] Iniciando...');
     
-    // Fade in animation más rápida
+    // Fade in animation
     Animated.timing(fadeAnim, {
       toValue: 1,
-      duration: 300,
+      duration: 500,
       useNativeDriver: true,
     }).start(() => {
       console.log('✅ [SplashScreen] Fade in completado');
     })
 
-    // Auto-finish después de 2.5 segundos (más rápido)
+    // Auto-finish después de 5 segundos
     const timer = setTimeout(() => {
       if (!hasFinished) {
         console.log('⏱️ [SplashScreen] Timeout alcanzado, finalizando...');
         setHasFinished(true)
-        // Fade out más rápido
+        // Fade out antes de terminar
         Animated.timing(fadeAnim, {
           toValue: 0,
-          duration: 200,
+          duration: 300,
           useNativeDriver: true,
         }).start(() => {
           console.log('✅ [SplashScreen] Fade out completado, llamando onFinish');
           onFinish()
         })
       }
-    }, 2500)
+    }, 5000)
 
     return () => {
       console.log('🧹 [SplashScreen] Cleanup');
@@ -78,10 +78,10 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
     if (status.isLoaded && status.didJustFinish && !hasFinished) {
       console.log('🎬 [SplashScreen] Video terminó, finalizando...');
       setHasFinished(true)
-      // Fade out más rápido
+      // Fade out y terminar
       Animated.timing(fadeAnim, {
         toValue: 0,
-        duration: 200,
+        duration: 300,
         useNativeDriver: true,
       }).start(() => {
         console.log('✅ [SplashScreen] Video terminado, llamando onFinish');
@@ -116,14 +116,14 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
           }}
           onError={(error) => {
             console.error('❌ [SplashScreen] Video error:', error)
-            // Si hay error, terminar inmediatamente
+            // Si hay error, terminar después de 2 segundos
             setTimeout(() => {
               if (!hasFinished) {
                 console.log('⚠️ [SplashScreen] Error en video, finalizando...');
                 setHasFinished(true)
                 onFinish()
               }
-            }, 500)
+            }, 2000)
           }}
         />
       </Animated.View>
