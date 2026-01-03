@@ -54,6 +54,7 @@ export function PromotionsScreen() {
   // Función backend-driven para cargar promociones con búsqueda
   const loadPromotions = async (uid: string, query: string) => {
     try {
+      console.log('🎁 [PromotionsScreen] Cargando promociones...', { uid, query })
       const { data, error } = await supabase
         .rpc('get_promotions', {
           p_user_id: uid,
@@ -61,10 +62,11 @@ export function PromotionsScreen() {
         })
       
       if (error) {
-        console.error('Error fetching promotions:', error)
+        console.error('❌ [PromotionsScreen] Error fetching promotions:', error)
         return []
       }
       
+      console.log('✅ [PromotionsScreen] Promociones cargadas:', data?.length || 0)
       return (data || []).map((promo: any) => ({
         ...promo,
         valid_until: promo.valid_until 
@@ -72,7 +74,7 @@ export function PromotionsScreen() {
           : 'Sin fecha'
       }))
     } catch (error) {
-      console.error('Error in loadPromotions:', error)
+      console.error('❌ [PromotionsScreen] Exception in loadPromotions:', error)
       return []
     }
   }
@@ -80,22 +82,33 @@ export function PromotionsScreen() {
   // Carga optimizada de datos en paralelo
   const loadData = useCallback(async () => {
     try {
+      console.log('📊 [PromotionsScreen] Iniciando carga de datos...')
       if (!refreshing) setLoading(true)
       
       const uid = await getCurrentUserId()
       if (!uid) {
+        console.warn('⚠️ [PromotionsScreen] No hay userId')
         setLoading(false)
         return
       }
+      console.log('✅ [PromotionsScreen] UserId obtenido:', uid)
       setUserId(uid)
       
       // Cargar todo en paralelo para mejor rendimiento
+      console.log('🔄 [PromotionsScreen] Cargando datos en paralelo...')
       const [promosRes, peopleRes, commRes, postsRes] = await Promise.all([
         loadPromotions(uid, searchQuery),
         getSuggestedPeople(uid, 10),
         getSuggestedCommunities(uid, 5),
         getRecentPosts(uid, selectedPostFilter, 10)
       ])
+
+      console.log('📦 [PromotionsScreen] Resultados:', {
+        promotions: promosRes?.length || 0,
+        people: peopleRes?.length || 0,
+        communities: commRes?.length || 0,
+        posts: postsRes?.length || 0
+      })
 
       setPromotions(promosRes || [])
       setPeople(peopleRes || [])
@@ -299,6 +312,7 @@ export function PromotionsScreen() {
     container: {
       flex: 1,
       backgroundColor: "#FFFFFF",
+      ...(Platform.OS === 'web' ? { overflow: 'auto' as any } : {}),
     },
     
     header: {

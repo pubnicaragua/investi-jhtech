@@ -338,7 +338,7 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
 const styles = StyleSheet.create({  
   overlayContainer: { ...StyleSheet.absoluteFillObject, zIndex: 1000 },  
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },  
-  sidebar: { position: "absolute", left: 0, top: 0, bottom: 0, width: 320, backgroundColor: "#FFF", shadowColor: "#000", shadowOffset: { width: 2, height: 0 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 10 },
+  sidebar: { position: "absolute", left: 0, top: 0, bottom: 0, width: 320, backgroundColor: "#FFF", shadowColor: "#000", shadowOffset: { width: 2, height: 0 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 10, ...(Platform.OS === 'web' ? { overflow: 'auto' as any } : {}) },
   scrollContent: { paddingHorizontal: 20, paddingTop: 50 },
   profileSection: { flexDirection: "row", alignItems: "flex-start", marginBottom: 12 },  
   avatar: { width: 64, height: 64, borderRadius: 32, marginRight: 12, backgroundColor: '#F3F4F6' },

@@ -330,8 +330,16 @@ export function MarketInfoScreen({ navigation }: any) {
           <View style={styles.stocksList}>  
             {loading ? (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>Cargando datos del mercado...</Text>
-                <Text style={styles.emptyStateSubtext}>Por favor espera un momento</Text>
+                <Text style={styles.emptyStateText}>
+                  {loadingProgress.total > 0 
+                    ? `Cargando ${loadingProgress.current}/${loadingProgress.total} acciones...`
+                    : 'Cargando datos del mercado...'}
+                </Text>
+                <Text style={styles.emptyStateSubtext}>
+                  {loadingProgress.total > 0 
+                    ? `${Math.round((loadingProgress.current / loadingProgress.total) * 100)}% completado`
+                    : 'Por favor espera un momento'}
+                </Text>
               </View>
             ) : filteredStocks.length === 0 ? (
               <View style={styles.emptyState}>
@@ -468,6 +476,10 @@ const styles = StyleSheet.create({
   container: {  
     flex: 1,  
     backgroundColor: "#f7f8fa",  
+  },
+  scrollView: {
+    flex: 1,
+    ...(Platform.OS === 'web' ? { overflow: 'auto' as any } : {}),
   },  
   header: {  
     backgroundColor: "white",  
@@ -500,9 +512,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,  
     fontSize: 16,  
     color: "#111",  
-  },  
-  scrollView: {  
-    flex: 1,
   },  
   section: {  
     paddingHorizontal: 16,  
