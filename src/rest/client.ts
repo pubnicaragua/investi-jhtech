@@ -412,32 +412,17 @@ export async function getSessionInfo() {
   } catch {  
     return null  
   }  
-}  
-  
-// Network status monitoring  
-export async function checkNetworkStatus(): Promise<boolean> {  
-  // En desarrollo, siempre retornar true para evitar errores  
-  if (__DEV__) {  
-    return Promise.resolve(true);  
-  }  
-  
-  try {  
-    const response = await fetch(`${urls.REST_URL}/health`, {  
-      method: 'HEAD',  
-      headers: {  
-        'apikey': ANON_KEY,  
-        'Authorization': `Bearer ${await getValidAccessToken()}`  
-      }  
-    })  
-    return response.ok  
-  } catch (error) {  
-    console.error('Network status check failed:', error)  
-    return false  
-  }  
-}  
-  
+}
+
+// Network status check (simplified - no health endpoint)
+export async function checkNetworkStatus(): Promise<boolean> {
+  // Simplificado: Siempre retornar true (Supabase no tiene endpoint /health)
+  // La conectividad se verifica con las llamadas reales a la API
+  return Promise.resolve(true);
+}
+
 // Batch requests for better performance  
-export async function batchRequest(requests: Array<{  
+export async function batchRequests(requests: Array<{  
   method: string  
   path: string  
   options?: any  

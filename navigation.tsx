@@ -332,19 +332,9 @@ export function RootStack() {
         }
         setLoading(false)
       } else {
-        // Verificar si ya se seleccionó un idioma
-        const languageSelected = await AsyncStorage.getItem('user_language')
-        console.log('🌍 Navigation: Idioma guardado:', languageSelected)
-        
-        if (languageSelected) {
-          // Si ya seleccionó idioma, ir a Welcome
-          console.log('✅ Navigation: Idioma seleccionado, yendo a Welcome')
-          setInitialRoute("Welcome")
-        } else {
-          // Si no ha seleccionado idioma, ir a LanguageSelection
-          console.log('🌍 Navigation: Sin idioma, yendo a LanguageSelection')
-          setInitialRoute("LanguageSelection")
-        }
+        // Usuario NO autenticado - ir directo a Welcome (sin LanguageSelection)
+        console.log('🌍 Navigation: No autenticado, yendo a Welcome')
+        setInitialRoute("Welcome")
       }
     } catch (error) {
       console.error("❌ Navigation: Error determining initial route:", error)

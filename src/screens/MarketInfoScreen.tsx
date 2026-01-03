@@ -33,6 +33,7 @@ export function MarketInfoScreen({ navigation }: any) {
   const [stocks, setStocks] = useState<Stock[]>([])  
   const [featuredStocks, setFeaturedStocks] = useState<Stock[]>([])  
   const [loading, setLoading] = useState(true)  
+  const [loadingProgress, setLoadingProgress] = useState({ current: 0, total: 0 })
   const [refreshing, setRefreshing] = useState(false)
   const [selectedFilter, setSelectedFilter] = useState('all')
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null)

@@ -1384,9 +1384,11 @@ const styles = StyleSheet.create({
   },
   feedContainer: {
     flex: 1,
+    ...(Platform.OS === 'web' ? { overflow: 'auto' as any } : {}),
   },
   feedContent: {
     paddingBottom: 90,
+    ...(Platform.OS === 'web' ? { minHeight: '100%' } : {}),
   },
   postCard: {
     backgroundColor: "#FFFFFF",
