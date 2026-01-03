@@ -550,7 +550,7 @@ export function HomeFeedScreen({ navigation }: any) {
     if (!userId) return
     
     try {
-      const shareUrl = `https://investi.netlify.app/posts/${postId}`;
+      const shareUrl = `https://investii.netlify.app/posts/${postId}`;
       const shareText = postContent ? `${postContent}\n\nMira esta publicación en Investi` : `Mira esta publicación en Investi`;
       
       // En Web, usar Web Share API o copiar al portapapeles

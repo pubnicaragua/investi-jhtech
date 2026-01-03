@@ -53,26 +53,30 @@ export async function getMarketStocks(
 }
 
 // Datos simulados realistas para fallback (cuando Alpha Vantage falla)
+// SIEMPRE incluye logos para evitar imágenes en blanco
 const FALLBACK_STOCKS: { [key: string]: MarketStock } = {
   'AAPL': { symbol: 'AAPL', name: 'Apple Inc.', price: 228.45, change: 2.15, changePercent: 0.95, currency: 'USD', exchange: 'NASDAQ', logo: 'https://logo.clearbit.com/apple.com' },
   'MSFT': { symbol: 'MSFT', name: 'Microsoft Corporation', price: 415.30, change: 3.20, changePercent: 0.78, currency: 'USD', exchange: 'NASDAQ', logo: 'https://logo.clearbit.com/microsoft.com' },
   'GOOGL': { symbol: 'GOOGL', name: 'Alphabet Inc.', price: 142.80, change: 1.50, changePercent: 1.06, currency: 'USD', exchange: 'NASDAQ', logo: 'https://logo.clearbit.com/google.com' },
+  'GOOG': { symbol: 'GOOG', name: 'Alphabet Inc. (Class C)', price: 141.25, change: 1.45, changePercent: 1.04, currency: 'USD', exchange: 'NASDAQ', logo: 'https://logo.clearbit.com/google.com' },
   'AMZN': { symbol: 'AMZN', name: 'Amazon.com Inc.', price: 195.75, change: 2.85, changePercent: 1.48, currency: 'USD', exchange: 'NASDAQ', logo: 'https://logo.clearbit.com/amazon.com' },
   'TSLA': { symbol: 'TSLA', name: 'Tesla Inc.', price: 242.50, change: -1.25, changePercent: -0.51, currency: 'USD', exchange: 'NASDAQ', logo: 'https://logo.clearbit.com/tesla.com' },
   'META': { symbol: 'META', name: 'Meta Platforms Inc.', price: 502.15, change: 5.30, changePercent: 1.07, currency: 'USD', exchange: 'NASDAQ', logo: 'https://logo.clearbit.com/meta.com' },
   'NVDA': { symbol: 'NVDA', name: 'NVIDIA Corporation', price: 875.25, change: 12.50, changePercent: 1.45, currency: 'USD', exchange: 'NASDAQ', logo: 'https://logo.clearbit.com/nvidia.com' },
   'AMD': { symbol: 'AMD', name: 'Advanced Micro Devices', price: 168.90, change: 2.15, changePercent: 1.29, currency: 'USD', exchange: 'NASDAQ', logo: 'https://logo.clearbit.com/amd.com' },
-  'GOOG': { symbol: 'GOOG', name: 'Alphabet Inc. (Class C)', price: 141.25, change: 1.45, changePercent: 1.04, currency: 'USD', exchange: 'NASDAQ', logo: 'https://logo.clearbit.com/google.com' },
+  'NFLX': { symbol: 'NFLX', name: 'Netflix Inc.', price: 485.20, change: 8.50, changePercent: 1.78, currency: 'USD', exchange: 'NASDAQ', logo: 'https://logo.clearbit.com/netflix.com' },
   'XOM': { symbol: 'XOM', name: 'Exxon Mobil Corporation', price: 105.80, change: 0.95, changePercent: 0.91, currency: 'USD', exchange: 'NYSE', logo: 'https://logo.clearbit.com/exxonmobil.com' },
   'CVX': { symbol: 'CVX', name: 'Chevron Corporation', price: 158.45, change: 1.25, changePercent: 0.79, currency: 'USD', exchange: 'NYSE', logo: 'https://logo.clearbit.com/chevron.com' },
   'COP': { symbol: 'COP', name: 'ConocoPhillips', price: 125.30, change: 0.85, changePercent: 0.68, currency: 'USD', exchange: 'NYSE', logo: 'https://logo.clearbit.com/conocophillips.com' },
   'JPM': { symbol: 'JPM', name: 'JPMorgan Chase & Co.', price: 198.75, change: 2.50, changePercent: 1.27, currency: 'USD', exchange: 'NYSE', logo: 'https://logo.clearbit.com/jpmorganchase.com' },
   'BAC': { symbol: 'BAC', name: 'Bank of America', price: 32.15, change: 0.45, changePercent: 1.42, currency: 'USD', exchange: 'NYSE', logo: 'https://logo.clearbit.com/bankofamerica.com' },
   'WFC': { symbol: 'WFC', name: 'Wells Fargo & Company', price: 58.90, change: 0.65, changePercent: 1.11, currency: 'USD', exchange: 'NYSE', logo: 'https://logo.clearbit.com/wellsfargo.com' },
+  'V': { symbol: 'V', name: 'Visa Inc.', price: 275.40, change: 3.20, changePercent: 1.18, currency: 'USD', exchange: 'NYSE', logo: 'https://logo.clearbit.com/visa.com' },
+  'MA': { symbol: 'MA', name: 'Mastercard Inc.', price: 445.60, change: 5.80, changePercent: 1.32, currency: 'USD', exchange: 'NYSE', logo: 'https://logo.clearbit.com/mastercard.com' },
   'SQM': { symbol: 'SQM', name: 'Sociedad Química y Minera', price: 68.50, change: 1.20, changePercent: 1.78, currency: 'USD', exchange: 'NYSE', logo: 'https://logo.clearbit.com/sqm.com' },
-  'COPEC': { symbol: 'COPEC', name: 'Empresas COPEC', price: 42.30, change: -0.85, changePercent: -1.97, currency: 'USD', exchange: 'NYSE', logo: 'https://logo.clearbit.com/copec.com' },
-  'BCI': { symbol: 'BCI', name: 'Banco de Crédito e Inversiones', price: 28.75, change: 0.45, changePercent: 1.59, currency: 'USD', exchange: 'NYSE', logo: 'https://logo.clearbit.com/bci.com' },
-  'BSAC': { symbol: 'BSAC', name: 'Banco Santander Chile', price: 18.90, change: -0.30, changePercent: -1.56, currency: 'USD', exchange: 'NYSE', logo: 'https://logo.clearbit.com/bsac.com' },
+  'COPEC': { symbol: 'COPEC', name: 'Empresas COPEC', price: 42.30, change: -0.85, changePercent: -1.97, currency: 'USD', exchange: 'NYSE', logo: 'https://logo.clearbit.com/copec.cl' },
+  'BCI': { symbol: 'BCI', name: 'Banco de Crédito e Inversiones', price: 28.75, change: 0.45, changePercent: 1.59, currency: 'USD', exchange: 'NYSE', logo: 'https://logo.clearbit.com/bci.cl' },
+  'BSAC': { symbol: 'BSAC', name: 'Banco Santander Chile', price: 18.90, change: -0.30, changePercent: -1.56, currency: 'USD', exchange: 'NYSE', logo: 'https://logo.clearbit.com/santander.cl' },
 };
 
 /**
@@ -115,15 +119,19 @@ async function getMarketStocksFromYahoo(symbols: string[]): Promise<MarketStock[
         const changePercent = parseFloat((quote['10. change percent'] || '0').replace('%', ''));
 
         if (price > 0) {
+          // Obtener logo desde fallback si existe, sino usar Clearbit
+          const fallbackStock = FALLBACK_STOCKS[symbol];
+          const logo = fallbackStock?.logo || `https://logo.clearbit.com/${symbol.toLowerCase()}.com`;
+          
           const stock: MarketStock = {
             symbol: quote['01. symbol'] || symbol,
-            name: symbol,
+            name: fallbackStock?.name || symbol,
             price: price,
             change: change,
             changePercent: changePercent,
             currency: 'USD',
             exchange: 'NASDAQ',
-            logo: `https://logo.clearbit.com/${symbol.toLowerCase()}.com`,
+            logo: logo,
           };
 
           dataCache.set(symbol, stock);

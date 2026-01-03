@@ -2,11 +2,11 @@
 # https://docs.netlify.com/configure-builds/file-based-configuration/
 
 [build]
-  # Comando para construir la app web
-  command = "npx expo export:web"
+  # Comando para construir la app web con Metro bundler
+  command = "npx expo export --platform web"
   
   # Directorio donde se genera el build
-  publish = "web-build"
+  publish = "dist"
   
   # Ignorar builds si solo cambian estos archivos
   ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF . ':!README.md' ':!*.md'"

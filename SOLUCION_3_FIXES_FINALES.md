@@ -30,10 +30,10 @@ const FEEDBACK_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSd0BWdTeeZx9
 **Solución en `HomeFeedScreen.tsx`:**
 ```typescript
 // ANTES
-const shareUrl = `https://investi.app/posts/${postId}`;
+const shareUrl = `https://investii.netlify.app/posts/${postId}`;
 
 // AHORA
-const shareUrl = `https://investi.netlify.app/posts/${postId}`;
+const shareUrl = `https://investii.netlify.app/posts/${postId}`;
 ```
 
 **Resultado:**
