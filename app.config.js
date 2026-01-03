@@ -75,7 +75,12 @@ export default {
     },
     web: {
       bundler: 'metro',
-      favicon: './assets/investi-logo.png'
+      favicon: './assets/investi-logo.png',
+      name: 'Investí - Educación Financiera',
+      shortName: 'Investí',
+      description: 'Plataforma de educación financiera y comunidad para jóvenes',
+      themeColor: '#2673f3',
+      backgroundColor: '#ffffff'
     },
     extra: {
       supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,

@@ -178,6 +178,8 @@ export function RootStack() {
       console.log('🚀 Navigation: Determinando ruta inicial...')
       console.log('🔐 Navigation: isAuthenticated:', isAuthenticated)
       
+      setLoading(true) // Asegurar que loading está activo
+      
       // 🚩 CRÍTICO: Verificar si estamos en proceso de SignUp
       const signupInProgress = await AsyncStorage.getItem('signup_in_progress')
       if (signupInProgress === 'true') {
@@ -346,17 +348,56 @@ export function RootStack() {
     }
   }
   
-  // Mostrar estado de carga mientras se determina la ruta o se verifica la autenticación
+  // Mensajes motivacionales aleatorios
+  const motivationalMessages = [
+    '💰 Cada peso ahorrado es un paso hacia tus metas',
+    '🎯 Tus sueños financieros están más cerca de lo que crees',
+    '📈 Invierte en ti, invierte en tu futuro',
+    '🌟 Pequeños ahorros, grandes logros',
+    '💪 Tu disciplina financiera te llevará lejos',
+    '🚀 El camino a la libertad financiera empieza hoy',
+    '✨ Cada meta cumplida es una victoria',
+    '🎓 Aprender sobre finanzas es invertir en ti'
+  ];
+  const randomMessage = motivationalMessages[Math.floor(Math.random() * motivationalMessages.length)];
+
+  // Mostrar indicador pequeño en esquina mientras carga
   if (loading || authLoading || !initialRoute) {
-    console.log('🔄 Navigation: Showing loading screen - loading:', loading, 'authLoading:', authLoading, 'initialRoute:', initialRoute);
+    console.log('🔄 Navigation: Showing loading - loading:', loading, 'authLoading:', authLoading, 'initialRoute:', initialRoute);
     return (  
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f8fa' }}>  
-        <Image  
-          source={require('./assets/investi-logo.png')}  
-          style={{ width: 120, height: 120, marginBottom: 20 }}  
-          resizeMode="contain"  
-        />  
-        <ActivityIndicator size="large" color="#007AFF" />  
+      <View style={{ flex: 1, backgroundColor: '#f7f8fa' }}>  
+        {/* Indicador pequeño en esquina superior derecha */}
+        <View style={{ 
+          position: 'absolute', 
+          top: 20, 
+          right: 20, 
+          backgroundColor: 'rgba(255,255,255,0.95)', 
+          padding: 12,
+          borderRadius: 12,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+          elevation: 3,
+          zIndex: 9999,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8
+        }}>  
+          <ActivityIndicator size="small" color="#2673f3" />  
+          <Text style={{ fontSize: 11, color: '#666', fontWeight: '500' }}>v1.0.7</Text>
+        </View>
+        {/* Mensaje motivacional centrado */}
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 }}>
+          <Image  
+            source={require('./assets/investi-logo.png')}  
+            style={{ width: 100, height: 100, marginBottom: 16 }}  
+            resizeMode="contain"  
+          />  
+          <Text style={{ fontSize: 15, color: '#2673f3', textAlign: 'center', fontWeight: '600' }}>
+            {randomMessage}
+          </Text>
+        </View>
       </View>  
     )  
   }  
