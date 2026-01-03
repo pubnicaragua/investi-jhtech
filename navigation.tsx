@@ -167,9 +167,11 @@ export function RootStack() {
     checkDeepLink()
   }, [])
   
-  useEffect(() => {  
-    determineInitialRoute()  
-  }, [isAuthenticated, hasDeepLink])  
+  useEffect(() => {
+    if (!loading && !authLoading) {
+      determineInitialRoute()
+    }
+  }, [isAuthenticated, loading, authLoading])
   
   const determineInitialRoute = async () => {
     try {
@@ -284,8 +286,8 @@ export function RootStack() {
           if (userData?.onboarding_step === 'completed') {
             console.log('✅ Navigation: onboarding_step=completed → HomeFeed')
             await AsyncStorage.setItem('onboarding_complete', 'true')
-            setInitialRoute("HomeFeed")
             setLoading(false)
+            setInitialRoute("HomeFeed")
             return
           }
           
@@ -299,8 +301,8 @@ export function RootStack() {
               .update({ onboarding_step: 'completed' })
               .eq('id', userId)
             await AsyncStorage.setItem('onboarding_complete', 'true')
-            setInitialRoute("HomeFeed")
             setLoading(false)
+            setInitialRoute("HomeFeed")
             return
           }
           

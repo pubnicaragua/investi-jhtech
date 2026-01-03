@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    ...(Platform.OS === 'web' ? { overflow: 'auto' as any } : {}),
+    ...(Platform.OS === 'web' ? { overflow: 'auto' as any, height: '100vh' as any } : {}),
   },  
   header: {  
     backgroundColor: "white",  

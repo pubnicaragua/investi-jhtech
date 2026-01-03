@@ -1384,7 +1384,7 @@ const styles = StyleSheet.create({
   },
   feedContainer: {
     flex: 1,
-    ...(Platform.OS === 'web' ? { overflow: 'auto' as any } : {}),
+    ...(Platform.OS === 'web' ? { overflow: 'auto' as any, height: '100vh' } : {}),
   },
   feedContent: {
     paddingBottom: 90,

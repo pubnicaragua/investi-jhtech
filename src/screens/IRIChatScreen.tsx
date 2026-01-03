@@ -258,9 +258,9 @@ export default function IRIChatScreen({ navigation }: any) {
     // Deshabilitar en web - Voice no funciona en navegadores
     if (Platform.OS === 'web') {
       Alert.alert(
-        'No disponible en web',
-        'La función de voz por micrófono solo está disponible en la app móvil.',
-        [{ text: 'OK' }]
+        '🎤 Función no disponible en web',
+        'El reconocimiento de voz por micrófono solo está disponible en la app móvil de Investi. En la versión web, puedes escribir tu mensaje directamente.',
+        [{ text: 'Entendido' }]
       );
       return;
     }
@@ -276,9 +276,9 @@ export default function IRIChatScreen({ navigation }: any) {
         const hasPermission = await requestMicrophonePermission();
         if (!hasPermission) {
           Alert.alert(
-            'Permiso Denegado',
-            'Necesitas habilitar el permiso de micrófono en la configuración de la app para usar esta función.',
-            [{ text: 'OK' }]
+            '🎤 Permiso de Micrófono Requerido',
+            'Para usar el reconocimiento de voz, necesitas habilitar el permiso de micrófono en la configuración de tu dispositivo.\n\nVe a: Configuración > Apps > Investi > Permisos > Micrófono',
+            [{ text: 'Entendido' }]
           );
           return;
         }
@@ -289,12 +289,13 @@ export default function IRIChatScreen({ navigation }: any) {
         setIsListening(true);
         startWaveAnimation();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error toggling voice:', error);
+      const errorMessage = error?.message || 'Error desconocido';
       Alert.alert(
-        'Error de Micrófono',
-        'No se pudo acceder al micrófono. Verifica los permisos de la aplicación.',
-        [{ text: 'OK' }]
+        '❌ Error de Micrófono',
+        `No se pudo acceder al micrófono.\n\nError: ${errorMessage}\n\nAsegúrate de que:\n• Los permisos de micrófono estén habilitados\n• Ninguna otra app esté usando el micrófono\n• Tu dispositivo tenga un micrófono funcional`,
+        [{ text: 'Entendido' }]
       );
       setIsListening(false);
       stopWaveAnimation();

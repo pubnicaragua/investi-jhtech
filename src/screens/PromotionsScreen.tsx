@@ -85,14 +85,17 @@ export function PromotionsScreen() {
       console.log('📊 [PromotionsScreen] Iniciando carga de datos...')
       if (!refreshing) setLoading(true)
       
-      const uid = await getCurrentUserId()
+      let uid = userId
       if (!uid) {
-        console.warn('⚠️ [PromotionsScreen] No hay userId')
-        setLoading(false)
-        return
+        uid = await getCurrentUserId()
+        if (!uid) {
+          console.error('❌ [PromotionsScreen] No hay userId - usuario no autenticado')
+          setLoading(false)
+          return
+        }
+        setUserId(uid)
       }
       console.log('✅ [PromotionsScreen] UserId obtenido:', uid)
-      setUserId(uid)
       
       // Cargar todo en paralelo para mejor rendimiento
       console.log('🔄 [PromotionsScreen] Cargando datos en paralelo...')
@@ -140,7 +143,7 @@ export function PromotionsScreen() {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [searchQuery, selectedPostFilter, refreshing])
+  }, [searchQuery, selectedPostFilter, refreshing, userId])
   
   // Carga inicial
   useEffect(() => {
@@ -312,7 +315,7 @@ export function PromotionsScreen() {
     container: {
       flex: 1,
       backgroundColor: "#FFFFFF",
-      ...(Platform.OS === 'web' ? { overflow: 'auto' as any } : {}),
+      ...(Platform.OS === 'web' ? { overflow: 'auto' as any, height: '100vh' as any } : {}),
     },
     
     header: {
