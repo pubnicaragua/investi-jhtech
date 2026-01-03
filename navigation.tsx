@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { NavigationContainer, type LinkingOptions } from "@react-navigation/native"
 import { createStackNavigator } from "@react-navigation/stack"
 import * as Linking from "expo-linking"
@@ -144,6 +144,8 @@ export function RootStack() {
   const [initialRoute, setInitialRoute] = useState<string | null>(null)  
   const [loading, setLoading] = useState(true)
   const { isAuthenticated, isLoading: authLoading } = useAuth()
+  const isInitializing = useRef(false)
+  const hasInitialized = useRef(false)
   
   // 🔧 Detectar si estamos en una ruta específica (deep link)
   const [hasDeepLink, setHasDeepLink] = useState(false)
@@ -168,15 +170,20 @@ export function RootStack() {
   }, [])
   
   useEffect(() => {
-    determineInitialRoute()
-  }, [isAuthenticated])
+    if (!authLoading && !hasInitialized.current) {
+      determineInitialRoute()
+    }
+  }, [isAuthenticated, authLoading])
   
   const determineInitialRoute = async () => {
     // Evitar múltiples ejecuciones simultáneas
-    if (loading) {
+    if (isInitializing.current) {
       console.log('⏳ Navigation: Ya está determinando ruta, saltando...')
       return
     }
+    
+    isInitializing.current = true
+    hasInitialized.current = true
     
     try {
       console.log('🚀 Navigation: Determinando ruta inicial...')
@@ -349,6 +356,8 @@ export function RootStack() {
       console.error("❌ Navigation: Error determining initial route:", error)
       setLoading(false)
       setInitialRoute("Welcome")
+    } finally {
+      isInitializing.current = false
     }
   }
   
