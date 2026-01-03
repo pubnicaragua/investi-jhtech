@@ -164,16 +164,7 @@ export default function IRIChatScreen({ navigation }: any) {
 
   const loadChatHistory = async () => {
     try {
-      // Mostrar mensaje de bienvenida inmediatamente
-      const welcomeMessage: Message = {
-        id: '1',
-        content: '¡Hola! Soy Irï, tu asistente de educación financiera. ¿En qué puedo ayudarte hoy?',
-        role: 'assistant',
-        timestamp: new Date(),
-      };
-      setMessages([welcomeMessage]);
-
-      // Cargar historial en segundo plano
+      setLoadingHistory(true);
       const currentUserId = await getCurrentUserId();
       
       if (!currentUserId) {
@@ -183,11 +174,8 @@ export default function IRIChatScreen({ navigation }: any) {
 
       setUserId(currentUserId);
       
-      // Cargar historial desde Supabase con timeout
-      const historyPromise = loadIRIChatHistory(currentUserId);
-      const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 2000));
-      
-      const history = await Promise.race([historyPromise, timeoutPromise]);
+      // Cargar historial desde Supabase
+      const history = await loadIRIChatHistory(currentUserId);
       
       if (history && Array.isArray(history) && history.length > 0) {
         // Convertir historial de Supabase a formato de mensajes
@@ -200,12 +188,21 @@ export default function IRIChatScreen({ navigation }: any) {
         setMessages(loadedMessages);
         console.log(`✅ Cargados ${loadedMessages.length} mensajes del historial`);
       } else {
-        // Guardar mensaje de bienvenida si no hay historial
+        // Mostrar mensaje de bienvenida si no hay historial
+        const welcomeMessage: Message = {
+          id: Date.now().toString(),
+          content: '¡Hola! Soy Irï, tu asistente de educación financiera. ¿En qué puedo ayudarte hoy?',
+          role: 'assistant',
+          timestamp: new Date(),
+        };
+        setMessages([welcomeMessage]);
+        // Guardar mensaje de bienvenida
         await saveIRIChatMessage(currentUserId, 'assistant', welcomeMessage.content);
       }
     } catch (error) {
       console.error('Error cargando historial:', error);
-      // Ya tenemos el mensaje de bienvenida mostrado
+    } finally {
+      setLoadingHistory(false);
     }
   };
 
@@ -258,6 +255,16 @@ export default function IRIChatScreen({ navigation }: any) {
   };
 
   const toggleVoiceInput = async () => {
+    // Deshabilitar en web - Voice no funciona en navegadores
+    if (Platform.OS === 'web') {
+      Alert.alert(
+        'No disponible en web',
+        'La función de voz por micrófono solo está disponible en la app móvil.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     try {
       if (isListening) {
         // Detener escucha
@@ -427,15 +434,17 @@ export default function IRIChatScreen({ navigation }: any) {
         await saveIRIChatMessage(userId, 'assistant', assistantMessage.content);
       }
 
-      // Reproducir respuesta con voz
-      try {
-        setIsSpeaking(true);
-        iriVoiceService.setVoicePreferences({ gender: voiceGender });
-        await iriVoiceService.speak(assistantMessage.content);
-        setIsSpeaking(false);
-      } catch (voiceError) {
-        console.error('Error reproduciendo voz:', voiceError);
-        setIsSpeaking(false);
+      // Reproducir respuesta con voz (solo en mobile - ElevenLabs no funciona en web)
+      if (Platform.OS !== 'web') {
+        try {
+          setIsSpeaking(true);
+          iriVoiceService.setVoicePreferences({ gender: voiceGender });
+          await iriVoiceService.speak(assistantMessage.content);
+          setIsSpeaking(false);
+        } catch (voiceError) {
+          console.error('Error reproduciendo voz:', voiceError);
+          setIsSpeaking(false);
+        }
       }
     } catch (error: any) {
       console.error('❌ Error al enviar mensaje:', error);

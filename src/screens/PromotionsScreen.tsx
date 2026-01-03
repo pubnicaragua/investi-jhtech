@@ -849,15 +849,8 @@ export function PromotionsScreen() {
     },
     communityType: {
       fontSize: 14,
-      color: "#6B7280",
     },
-    
-    // Bottom Navigation
     bottomNavigation: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
       flexDirection: 'row',
       justifyContent: 'space-around',
       alignItems: 'center',
@@ -866,11 +859,6 @@ export function PromotionsScreen() {
       borderTopColor: '#E5E7EB',
       paddingVertical: 12,
       paddingBottom: Platform.OS === 'ios' ? 28 : 12,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: -2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 8,
     },
     navItem: {
       padding: 12,
@@ -1394,12 +1382,12 @@ export function PromotionsScreen() {
 
         <TouchableOpacity 
           style={styles.navItem} 
-          onPress={() => handleNavigation("ChatList")} 
+          onPress={() => handleNavigation("News")} 
         >
           <Ionicons 
-            name={currentRoute === "ChatList" ? "chatbubbles" : "chatbubbles-outline"}
+            name={currentRoute === "News" ? "newspaper" : "newspaper-outline"}
             size={26} 
-            color={currentRoute === "ChatList" ? "#2673f3" : "#9CA3AF"} 
+            color={currentRoute === "News" ? "#2673f3" : "#9CA3AF"} 
           />
         </TouchableOpacity>
 

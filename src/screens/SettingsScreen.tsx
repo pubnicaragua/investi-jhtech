@@ -111,13 +111,19 @@ export function SettingsScreen({ navigation: drawerNav }: any) {
     );
   };
 
-  const handleSupport = () => {
-    console.log('🎫 Navegando a SupportTicket...');
+  const handleSupport = async () => {
+    console.log('📝 Abriendo formulario de soporte...');
     try {
-      drawerNav.navigate('SupportTicket');
+      const supportFormUrl = 'https://docs.google.com/forms/d/1aP_FWu1pqx_f9644p701kW_uuPKq4lz13v4hjuHXFOc/viewform';
+      const supported = await Linking.canOpenURL(supportFormUrl);
+      if (supported) {
+        await Linking.openURL(supportFormUrl);
+      } else {
+        Alert.alert('Error', 'No se puede abrir el formulario de soporte');
+      }
     } catch (error) {
-      console.error('❌ Error navegando a SupportTicket:', error);
-      Alert.alert('Error', 'No se pudo abrir Soporte');
+      console.error('❌ Error abriendo formulario de soporte:', error);
+      Alert.alert('Error', 'No se pudo abrir el formulario de soporte');
     }
   };
 

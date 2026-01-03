@@ -72,6 +72,7 @@ export function HomeFeedScreen({ navigation }: any) {
   const { user } = useAuth()
   const [posts, setPosts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(true)
@@ -88,6 +89,7 @@ export function HomeFeedScreen({ navigation }: any) {
   const [unreadCount, setUnreadCount] = useState(0)
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0)
   const [quickActions] = useState<any[]>(DEFAULT_QUICK_ACTIONS)
+  const [navbarReady, setNavbarReady] = useState(true)
   
   // Botón flotante arrastrable
   const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current
@@ -447,8 +449,10 @@ export function HomeFeedScreen({ navigation }: any) {
   }, [userId])
 
   const handleSearch = () => {
-    // Navegar a Promotions sin query para que el usuario busque allí
-    navigation.navigate("Promotions" as never)
+    if (searchQuery.trim()) {
+      // Navegar a Promotions con el query de búsqueda
+      navigation.navigate("Promotions" as never, { searchQuery: searchQuery.trim() } as never)
+    }
   }
 
   const handleLike = async (postId: string) => {
@@ -546,44 +550,75 @@ export function HomeFeedScreen({ navigation }: any) {
     if (!userId) return
     
     try {
-      // Mostrar opciones de compartir
-      Alert.alert(
-        'Compartir publicación',
-        '¿Cómo deseas compartir?',
-        [
-          {
-            text: 'Enviar mensaje',
-            onPress: () => {
-              // Navegar a ChatList con el post para compartir
-              navigation.navigate('ChatList', {
-                sharePost: {
-                  id: postId,
-                  content: postContent || ''
-                }
-              });
-            }
-          },
-          {
-            text: 'Compartir fuera de la app',
-            onPress: async () => {
-              await Share.share({
-                message: postContent ? `${postContent}\n\nMira esta publicación en Investi` : `Mira esta publicación en Investi`,
-                url: `https://investi.app/posts/${postId}`,
-              });
-              
-              await sharePost(postId, userId, 'external');
-              // Incrementar contador de compartidos
-              setPosts(prev => prev.map(p => 
-                p.id === postId ? { ...p, shares: (p.shares || 0) + 1 } : p
-              ));
-            }
-          },
-          {
-            text: 'Cancelar',
-            style: 'cancel'
+      const shareUrl = `https://investi.netlify.app/posts/${postId}`;
+      const shareText = postContent ? `${postContent}\n\nMira esta publicación en Investi` : `Mira esta publicación en Investi`;
+      
+      // En Web, usar Web Share API o copiar al portapapeles
+      if (Platform.OS === 'web') {
+        // Intentar usar Web Share API si está disponible
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: 'Compartir publicación',
+              text: shareText,
+              url: shareUrl,
+            });
+            
+            await sharePost(postId, userId);
+            setPosts(prev => prev.map(p => 
+              p.id === postId ? { ...p, shares: (p.shares || 0) + 1 } : p
+            ));
+          } catch (shareError) {
+            console.log('Share cancelled or failed:', shareError);
           }
-        ]
-      );
+        } else {
+          // Fallback: Copiar al portapapeles
+          const textToCopy = `${shareText}\n${shareUrl}`;
+          if (navigator.clipboard) {
+            await navigator.clipboard.writeText(textToCopy);
+            Alert.alert('¡Copiado!', 'El enlace se copió al portapapeles. Pégalo donde quieras compartirlo.');
+          } else {
+            Alert.alert('Compartir', shareUrl);
+          }
+        }
+      } else {
+        // Mobile: Mostrar opciones de compartir
+        Alert.alert(
+          'Compartir publicación',
+          '¿Cómo deseas compartir?',
+          [
+            {
+              text: 'Enviar mensaje',
+              onPress: () => {
+                navigation.navigate('ChatList', {
+                  sharePost: {
+                    id: postId,
+                    content: postContent || ''
+                  }
+                });
+              }
+            },
+            {
+              text: 'Compartir fuera de la app',
+              onPress: async () => {
+                await Share.share({
+                  message: shareText,
+                  url: shareUrl,
+                });
+                
+                await sharePost(postId, userId);
+                setPosts(prev => prev.map(p => 
+                  p.id === postId ? { ...p, shares: (p.shares || 0) + 1 } : p
+                ));
+              }
+            },
+            {
+              text: 'Cancelar',
+              style: 'cancel'
+            }
+          ]
+        );
+      }
     } catch (err) {
       console.error("Error sharing:", err)
     }
@@ -999,7 +1034,7 @@ export function HomeFeedScreen({ navigation }: any) {
         navigation={navigation} 
       />
 
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
           <TouchableOpacity 
             onPress={() => setIsSidebarOpen(true)}
@@ -1141,6 +1176,7 @@ export function HomeFeedScreen({ navigation }: any) {
         </View>
       </SafeAreaView>
 
+      {/* Navbar fijo FUERA del SafeAreaView */}
       <View style={styles.bottomNavigation}>
         <TouchableOpacity 
           style={styles.navItem} 
@@ -1532,7 +1568,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   bottomNavigation: {
-    position: 'absolute',
+    ...(Platform.OS === 'web' ? { position: 'fixed' as any } : { position: 'absolute' }),
     bottom: 0,
     left: 0,
     right: 0,
@@ -1544,6 +1580,12 @@ const styles = StyleSheet.create({
     borderTopColor: '#E5E7EB',
     paddingVertical: 12,
     paddingBottom: Platform.OS === 'ios' ? 28 : 12,
+    zIndex: 9999,
+    elevation: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   navItem: {
     padding: 12,

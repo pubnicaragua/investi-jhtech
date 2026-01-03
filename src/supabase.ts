@@ -8,6 +8,13 @@ import Constants from 'expo-constants';
 const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl || process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
+// Validate environment variables
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('⚠️ [Supabase] Variables de entorno no configuradas correctamente');
+  console.error('⚠️ [Supabase] URL:', supabaseUrl ? 'OK' : 'FALTA');
+  console.error('⚠️ [Supabase] Key:', supabaseAnonKey ? 'OK' : 'FALTA');
+}
+
 // Create a mock Supabase client that won't fail on initialization
 let supabase: any = {
   auth: {
@@ -42,19 +49,37 @@ if (supabaseUrl && supabaseAnonKey) {
         storage: AsyncStorage,
         autoRefreshToken: true,
         persistSession: true,
-        // Allow the client to detect session in URL for OAuth redirects
-        // This works on both web and mobile when using deep links
         detectSessionInUrl: true,
-        // Flow type for OAuth - use implicit for better mobile support
         flowType: 'implicit',
+        // Configuración de refresh más agresiva para mantener sesión
+        storageKey: 'supabase.auth.token',
+        debug: false, // Desactivar logs de Supabase
+      },
+      global: {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      },
+      // Configuración de reintentos para mantener conexión
+      realtime: {
+        params: {
+          eventsPerSecond: 10,
+        },
       },
     });
-    console.log('✅ Supabase client initialized successfully');
-    console.log('📍 Supabase URL:', supabaseUrl);
-    console.log('🔐 OAuth flow type: implicit');
-    console.log('🔗 Detect session in URL: enabled');
+    
+    // Solo mostrar logs en desarrollo
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('✅ Supabase client initialized successfully');
+      console.log('📍 Supabase URL:', supabaseUrl);
+      console.log('🔄 Auto-refresh: enabled');
+      console.log('💾 Persist session: enabled');
+    }
   } catch (error) {
-    console.error('❌ Failed to initialize Supabase:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('❌ Failed to initialize Supabase:', error);
+    }
   }
 } else {
   console.error('❌ Supabase URL or Anon Key is missing. Using mock client.');

@@ -139,13 +139,25 @@ export function SignUpScreen({ navigation }: any) {
   }
 
   const handleSignUp = async () => {
+    // Validación de campos vacíos
     if (!email || !password || !fullName || !username) {
       Alert.alert("Error", "Por favor completa todos los campos")
       return
     }
 
+    // Validación de formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      Alert.alert(
+        "Email inválido", 
+        "Por favor ingresa un email válido (ejemplo: usuario@dominio.com)"
+      )
+      return
+    }
+
+    // Validación de contraseña
     if (password.length < 6) {
-      Alert.alert("Error", "La contraseña debe tener al menos 6 caracteres")
+      Alert.alert("Contraseña muy corta", "La contraseña debe tener al menos 6 caracteres")
       return
     }
 
@@ -156,7 +168,7 @@ export function SignUpScreen({ navigation }: any) {
         .from('users')
         .select('id, email')
         .eq('email', email.trim().toLowerCase())
-        .single()
+        .maybeSingle()
 
       if (existingUserByEmail) {
         Alert.alert(
@@ -207,7 +219,7 @@ export function SignUpScreen({ navigation }: any) {
         .from('users')
         .select('id, email, onboarding_step')
         .eq('id', authData.user.id)
-        .single()
+        .maybeSingle()
 
       if (existingUser) {
         // Usuario YA EXISTE en BD
@@ -281,20 +293,13 @@ export function SignUpScreen({ navigation }: any) {
         'knowledge_selected'
       ])
       
-      // 4. Pequeño delay para asegurar que BD se actualice
-      console.log("⏳ Esperando propagación de BD...")
-      await new Promise(resolve => setTimeout(resolve, 500))
-      console.log("✅ BD actualizada, procediendo con auto-login")
-
-      // 5. NO hacer auto-login, navegar directamente
-      // El usuario ya está autenticado por el signUp de Supabase
-      console.log('✅ SignUp exitoso - Navegando DIRECTAMENTE a UploadAvatar')
+      // 4. Navegar al onboarding
+      console.log("✅ SignUp exitoso - Navegando a Onboarding")
       
-      // 6. RESETEAR stack de navegación INMEDIATAMENTE
-      console.log('📸 RESETEANDO navegación a UploadAvatar')
+      // Navegar explícitamente al onboarding
       navigation.reset({
         index: 0,
-        routes: [{ name: 'UploadAvatar' }],
+        routes: [{ name: 'Onboarding' as never }],
       })
 
     } catch (error: any) {

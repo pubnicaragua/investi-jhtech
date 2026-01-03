@@ -180,6 +180,11 @@ export function FloatingMicrophone({
       console.log('🎤 Grabación detenida:', uri);
 
       // Mostrar mensaje de próximamente
+      Alert.alert(
+        '🎙️ Función en Desarrollo',
+        'La transcripción de voz está en desarrollo. Pronto podrás usar comandos de voz para controlar las herramientas financieras.',
+        [{ text: 'Entendido', style: 'default' }]
+      );
       setShowComingSoon(true);
 
       setRecording(null);

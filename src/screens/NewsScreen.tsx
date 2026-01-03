@@ -320,7 +320,8 @@ const styles = StyleSheet.create({
   categoriesContent: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    gap: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   categoryChip: {
     paddingHorizontal: 16,
@@ -328,6 +329,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#f3f4f6',
     marginRight: 8,
+    minWidth: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   categoryChipActive: {
     backgroundColor: '#2673f3',
@@ -336,8 +340,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#6b7280',
+    textAlign: 'center',
   },
   categoryChipTextActive: {
     color: '#fff',
+    fontWeight: '600',
   },
 })

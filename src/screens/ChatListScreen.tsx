@@ -997,10 +997,6 @@ const styles = StyleSheet.create({
   },
 
   bottomNavigation: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',

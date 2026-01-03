@@ -2,7 +2,7 @@ export default {
   expo: {
     name: 'Investi App',
     slug: 'investi-app',
-    version: '1.0.0',
+    version: '1.0.7',
     orientation: 'portrait',
     jsEngine: 'hermes',
     userInterfaceStyle: 'light',
@@ -57,8 +57,8 @@ export default {
     },
     android: {
       package: 'com.investi.app',
-      versionCode: 8,
-      runtimeVersion: '1.0.0',
+      versionCode: 10,
+      runtimeVersion: '1.0.7',
       adaptiveIcon: {
         foregroundImage: './assets/investi-logo.png',
         backgroundColor: '#FFFFFF',

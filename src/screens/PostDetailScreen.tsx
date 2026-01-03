@@ -157,10 +157,18 @@ export function PostDetailScreen() {
         const postData = response[0]
         const user = await getCurrentUser()
         if (user) {
+          // Verificar like del usuario
           const likeResponse = await request('GET', '/post_likes', {
             params: { select: 'id', post_id: `eq.${postId}`, user_id: `eq.${user.id}` },
           })
           postData.has_liked = likeResponse && likeResponse.length > 0
+
+          // Recalcular contador real de likes desde la tabla
+          const likesCountResponse = await request('GET', '/post_likes', {
+            params: { select: 'id', post_id: `eq.${postId}` },
+          })
+          postData.likes_count = likesCountResponse ? likesCountResponse.length : 0
+
           const saveResponse = await request('GET', '/post_saves', {
             params: { select: 'id', post_id: `eq.${postId}`, user_id: `eq.${user.id}` },
           })
@@ -275,14 +283,10 @@ export function PostDetailScreen() {
 
   const handleSendToUser = () => {
     if (!post) return
-    // Navegar a ChatList con el contexto de compartir post
-    // Usar getParent() para navegar al Stack padre
-    navigation.getParent()?.navigate('ChatList', {
-      sharePost: {
-        id: post.id,
-        content: post.contenido || post.content || '',
-        author: post.user?.full_name || post.user?.nombre || 'Usuario'
-      }
+    // Navegar a SharePost screen para seleccionar destinatarios
+    (navigation as any).navigate('SharePost', {
+      postId: post.id,
+      postContent: post.contenido || post.content || ''
     });
   }
 

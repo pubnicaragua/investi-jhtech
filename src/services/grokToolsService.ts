@@ -4,9 +4,15 @@
  */
 
 import axios from 'axios';
+import Constants from 'expo-constants';
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_API_KEY = process.env.EXPO_PUBLIC_GROK_API_KEY || '';
+const GROQ_API_KEY = Constants.expoConfig?.extra?.EXPO_PUBLIC_GROK_API_KEY || process.env.EXPO_PUBLIC_GROK_API_KEY || '';
+
+// Validar API key
+if (!GROQ_API_KEY) {
+  console.warn('⚠️ [Groq] API key no configurada. Las funciones de IA no estarán disponibles.');
+}
 
 interface GroqMessage {
   role: 'system' | 'user' | 'assistant';
@@ -33,6 +39,11 @@ interface GroqResponse {
  * Función base para llamar a Groq API
  */
 async function callGroqAPI(messages: GroqMessage[]): Promise<string> {
+  // Validar que la API key esté configurada
+  if (!GROQ_API_KEY) {
+    throw new Error('⚠️ API key de Groq no configurada. Por favor configura EXPO_PUBLIC_GROK_API_KEY en tu archivo .env');
+  }
+
   try {
     console.log('🤖 Llamando a Groq API...');
     const response = await axios.post<GroqResponse>(

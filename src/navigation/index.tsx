@@ -197,14 +197,21 @@ export function RootStack() {
     }
   };
 
-  // Show loading while checking auth or onboarding
-  if (authLoading || isCheckingOnboarding) {
+  // Show loading SOLO si está verificando autenticación
+  // NO mostrar loading si solo está verificando onboarding (para evitar pantalla blanca)
+  if (authLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
         <ActivityIndicator size="large" color="#2673f3" />
       </View>
     );
   }
+  
+  // Si está verificando onboarding pero ya sabemos que está autenticado,
+  // mostrar el stack apropiado (evita pantalla de carga infinita)
+  const showAuthFlow = !isAuthenticated;
+  const showOnboardingFlow = isAuthenticated && (isCheckingOnboarding || !isOnboarded);
+  const showMainApp = isAuthenticated && !isCheckingOnboarding && isOnboarded;
 
   return (
     <Stack.Navigator
@@ -212,83 +219,84 @@ export function RootStack() {
         headerShown: false,
         animation: 'fade',
       }}
-      initialRouteName={
-        !isAuthenticated 
-          ? 'Welcome' 
-          : !isOnboarded 
-            ? 'Onboarding' 
-            : 'HomeFeed'
-      }
     >
-      {/* Auth Flow */}
-      <Stack.Screen 
-        name="Welcome"
-        component={WelcomeScreen}
-        options={{
-          headerShown: false
-        }}
-      />
-      
-      <Stack.Screen 
-        name="SignIn"
-        component={SignInScreen}
-        options={{
-          headerShown: false
-        }}
-      />
-      
-      <Stack.Screen 
-        name="SignUp"
-        component={SignUpScreen}
-        options={{
-          headerShown: false
-        }}
-      />
+      {showAuthFlow ? (
+        <>
+          {/* Auth Flow - Solo cuando NO está autenticado */}
+          <Stack.Screen 
+            name="Welcome"
+            component={WelcomeScreen}
+            options={{
+              headerShown: false
+            }}
+          />
+          
+          <Stack.Screen 
+            name="SignIn"
+            component={SignInScreen}
+            options={{
+              headerShown: false
+            }}
+          />
+          
+          <Stack.Screen 
+            name="SignUp"
+            component={SignUpScreen}
+            options={{
+              headerShown: false
+            }}
+          />
 
-      {/* OAuth Callback Handler */}
-      <Stack.Screen 
-        name="AuthCallback"
-        component={AuthCallbackScreen}
-        options={{
-          headerShown: false
-        }}
-      />
-
-      {/* Onboarding Flow - Always render */}
-      <Stack.Screen 
-        name="Onboarding"
-        options={{
-          headerShown: false
-        }}
-      >
-        {() => <OnboardingScreenWrapper route={{
-          params: {
-            onComplete: handleOnboardingComplete
-          }
-        }} />}
-      </Stack.Screen>
-      
-      <Stack.Screen 
-        name="CommunityRecommendations" 
-        component={CommunityRecommendationsScreen}
-        options={{
-          headerShown: false,
-          gestureEnabled: false
-        }}
-        initialParams={{
-          onComplete: handleOnboardingComplete
-        }}
-      />
-
-      {/* Main App - Always render */}
-      <Stack.Screen 
-        name="HomeFeed" 
-        component={DrawerNavigator}
-        options={{
-          headerShown: false,
-          gestureEnabled: false
-        }}
-      />
+          {/* OAuth Callback Handler */}
+          <Stack.Screen 
+            name="AuthCallback"
+            component={AuthCallbackScreen}
+            options={{
+              headerShown: false
+            }}
+          />
+        </>
+      ) : showOnboardingFlow ? (
+        <>
+          {/* Onboarding Flow - Solo cuando está autenticado pero NO ha completado onboarding */}
+          <Stack.Screen 
+            name="Onboarding"
+            options={{
+              headerShown: false
+            }}
+          >
+            {() => <OnboardingScreenWrapper route={{
+              params: {
+                onComplete: handleOnboardingComplete
+              }
+            }} />}
+          </Stack.Screen>
+          
+          <Stack.Screen 
+            name="CommunityRecommendations" 
+            component={CommunityRecommendationsScreen}
+            options={{
+              headerShown: false,
+              gestureEnabled: false
+            }}
+            initialParams={{
+              onComplete: handleOnboardingComplete
+            }}
+          />
+        </>
+      ) : showMainApp ? (
+        <>
+          {/* Main App - Solo cuando está autenticado Y ha completado onboarding */}
+          <Stack.Screen 
+            name="HomeFeed" 
+            component={DrawerNavigator}
+            options={{
+              headerShown: false,
+              gestureEnabled: false
+            }}
+          />
+        </>
+      ) : null}
       
       {/* Investment Simulator */}
       <Stack.Screen 
@@ -378,6 +386,15 @@ export function RootStack() {
       <Stack.Screen 
         name="Iri" 
         component={IRIChatScreen}
+        options={{
+          headerShown: false
+        }}
+      />
+
+      {/* Support Ticket - Accessible from Settings */}
+      <Stack.Screen 
+        name="SupportTicket" 
+        component={require('../screens/SupportTicketScreen').SupportTicketScreen}
         options={{
           headerShown: false
         }}

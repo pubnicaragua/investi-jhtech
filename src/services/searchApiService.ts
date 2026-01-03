@@ -7,10 +7,9 @@
 
 import { supabase } from '../supabase';
 
-// Yahoo Finance API via RapidAPI (como Fintual)
-// Obtener API key gratis en: https://rapidapi.com/apidojo/api/yahoo-finance1
-const YAHOO_FINANCE_API_KEY = process.env.EXPO_PUBLIC_YAHOO_FINANCE_API_KEY || '';
-const YAHOO_FINANCE_BASE_URL = 'https://yahoo-finance15.p.rapidapi.com/api/v1/markets/quote';
+// Alpha Vantage API (funciona en React Native sin CORS)
+const ALPHA_VANTAGE_API_KEY = process.env.EXPO_PUBLIC_ALPHA_VANTAGE_API_KEY || '';
+const ALPHA_VANTAGE_BASE_URL = 'https://www.alphavantage.co/query';
 const YAHOO_FINANCE_HOST = 'yahoo-finance15.p.rapidapi.com';
 
 // Cache para logos y datos (evitar llamadas repetidas)
@@ -77,147 +76,132 @@ const FALLBACK_STOCKS: { [key: string]: MarketStock } = {
 };
 
 /**
- * Obtener datos desde Yahoo Finance API via RapidAPI (como Fintual)
- * Sin rate limits restrictivos, procesamiento rápido
+ * Obtener datos desde Alpha Vantage API
+ * Rate limit: 5 requests/minuto (12 segundos entre requests)
  */
 async function getMarketStocksFromYahoo(symbols: string[]): Promise<MarketStock[]> {
-  console.log(`📡 [Yahoo Finance] Obteniendo ${symbols.length} acciones...`);
+  console.log(`📡 [Alpha Vantage] Obteniendo ${symbols.length} acciones con timeout de 10s...`);
   const results: MarketStock[] = [];
   
-  if (!YAHOO_FINANCE_API_KEY) {
-    throw new Error('⚠️ [Yahoo Finance] API key no configurada. Configura EXPO_PUBLIC_YAHOO_FINANCE_API_KEY en .env');
+  if (!ALPHA_VANTAGE_API_KEY) {
+    console.warn('⚠️ [Alpha Vantage] API key no configurada, usando fallback');
+    return symbols.map(s => FALLBACK_STOCKS[s]).filter(Boolean);
   }
 
-  // Yahoo Finance via RapidAPI: Sin rate limits restrictivos
-  // Procesamos en paralelo: máximo 5 requests simultáneos
-  const parallelRequests = 5;
-  
-  for (let i = 0; i < symbols.length; i += parallelRequests) {
-    const batch = symbols.slice(i, i + parallelRequests);
-    
-    const batchPromises = batch.map(async (symbol) => {
+  // Timeout de 10 segundos para toda la operación
+  const timeoutPromise = new Promise<MarketStock[]>((_, reject) => 
+    setTimeout(() => reject(new Error('Timeout')), 10000)
+  );
+
+  const fetchPromise = (async () => {
+    // Alpha Vantage: 5 requests/minuto (procesamiento secuencial)
+    for (const symbol of symbols) {
       try {
         // Verificar cache primero
         if (dataCache.has(symbol)) {
-          console.log(`📦 [Cache] ${symbol} encontrado en cache`);
-          return dataCache.get(symbol);
+          results.push(dataCache.get(symbol));
+          continue;
         }
 
-        const url = `${YAHOO_FINANCE_BASE_URL}?symbols=${encodeURIComponent(symbol)}`;
+        const url = `${ALPHA_VANTAGE_BASE_URL}?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(symbol)}&apikey=${ALPHA_VANTAGE_API_KEY}`;
         
-        console.log(`📡 [Yahoo Finance] Obteniendo ${symbol}...`);
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'x-rapidapi-key': YAHOO_FINANCE_API_KEY,
-            'x-rapidapi-host': YAHOO_FINANCE_HOST,
-          },
-        });
-        
+        const response = await fetch(url);
         const data = await response.json();
 
-        // Yahoo Finance retorna un array de resultados
-        if (data && data.body && Array.isArray(data.body) && data.body.length > 0) {
-          const quote = data.body[0];
-          const price = parseFloat(quote.regularMarketPrice || quote.lastPrice || '0');
-          const change = parseFloat(quote.regularMarketChange || quote.change || '0');
-          const changePercent = parseFloat(quote.regularMarketChangePercent || quote.changePercent || '0');
+      if (data['Global Quote']) {
+        const quote = data['Global Quote'];
+        const price = parseFloat(quote['05. price'] || '0');
+        const change = parseFloat(quote['09. change'] || '0');
+        const changePercent = parseFloat((quote['10. change percent'] || '0').replace('%', ''));
 
-          if (price > 0) {
-            const stock: MarketStock = {
-              symbol: quote.symbol || symbol,
-              name: quote.longName || quote.shortName || symbol,
-              price: price,
-              change: change,
-              changePercent: changePercent,
-              currency: quote.currency || 'USD',
-              exchange: quote.exchange || 'NASDAQ',
-              logo: `https://logo.clearbit.com/${symbol.toLowerCase()}.com`,
-            };
+        if (price > 0) {
+          const stock: MarketStock = {
+            symbol: quote['01. symbol'] || symbol,
+            name: symbol,
+            price: price,
+            change: change,
+            changePercent: changePercent,
+            currency: 'USD',
+            exchange: 'NASDAQ',
+            logo: `https://logo.clearbit.com/${symbol.toLowerCase()}.com`,
+          };
 
-            // Guardar en cache
-            dataCache.set(symbol, stock);
-            results.push(stock);
-
-            console.log(`✅ [Yahoo Finance] ${symbol}: $${price}`);
-          } else {
-            console.warn(`⚠️ [Yahoo Finance] ${symbol}: Sin datos de cotización`);
-          }
-        } else {
-          console.warn(`⚠️ [Yahoo Finance] ${symbol}: Respuesta vacía`);
+          dataCache.set(symbol, stock);
+          results.push(stock);
+        }
+      }
+      
+        // Respetar rate limit: 2 segundos entre requests (más rápido)
+        if (symbols.indexOf(symbol) < symbols.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
         }
       } catch (error) {
-        console.warn(`⚠️ [Yahoo Finance] Error obteniendo ${symbol}:`, error);
+        console.warn(`⚠️ [Alpha Vantage] Error obteniendo ${symbol}:`, error);
+        // Usar fallback si existe
+        if (FALLBACK_STOCKS[symbol]) {
+          results.push(FALLBACK_STOCKS[symbol]);
+        }
       }
-    });
-
-    // Esperar a que se completen todos en el grupo
-    await Promise.all(batchPromises);
-    
-    // Pequeña pausa entre lotes (no es necesario con Yahoo Finance)
-    if (i + parallelRequests < symbols.length) {
-      await new Promise(resolve => setTimeout(resolve, 500));
     }
-  }
+    return results;
+  })();
 
-  console.log(`📊 [Yahoo Finance] Obtenidas ${results.length}/${symbols.length} acciones`);
-  return results;
+  try {
+    const apiResults = await Promise.race([fetchPromise, timeoutPromise]);
+    console.log(`📊 [Alpha Vantage] Obtenidas ${apiResults.length}/${symbols.length} acciones`);
+    return apiResults.length > 0 ? apiResults : symbols.map(s => FALLBACK_STOCKS[s]).filter(Boolean);
+  } catch (error) {
+    console.warn('⚠️ [Alpha Vantage] Timeout o error, usando fallback');
+    return symbols.map(s => FALLBACK_STOCKS[s]).filter(Boolean);
+  }
 }
 
 /**
  * Obtener datos de un símbolo específico
- * Usa Yahoo Finance API
+ * Usa Alpha Vantage API
  */
 export async function fetchStockData(symbol: string): Promise<MarketStock> {
-  console.log(`📡 [fetchStockData] Obteniendo ${symbol} con Yahoo Finance`);
+  console.log(`📡 [fetchStockData] Obteniendo ${symbol} con Alpha Vantage`);
 
   // Verificar cache primero
   if (dataCache.has(symbol)) {
-    console.log(`📦 [Cache] ${symbol} encontrado en cache`);
     return dataCache.get(symbol);
   }
 
-  if (!YAHOO_FINANCE_API_KEY) {
-    throw new Error('⚠️ [Yahoo Finance] API key no configurada');
+  if (!ALPHA_VANTAGE_API_KEY) {
+    throw new Error('⚠️ [Alpha Vantage] API key no configurada');
   }
 
-  const url = `${YAHOO_FINANCE_BASE_URL}?symbols=${encodeURIComponent(symbol)}`;
+  const url = `${ALPHA_VANTAGE_BASE_URL}?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(symbol)}&apikey=${ALPHA_VANTAGE_API_KEY}`;
   
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'x-rapidapi-key': YAHOO_FINANCE_API_KEY,
-      'x-rapidapi-host': YAHOO_FINANCE_HOST,
-    },
-  });
+  const response = await fetch(url);
   const data = await response.json();
 
-  if (!data.body || !Array.isArray(data.body) || data.body.length === 0) {
+  if (!data['Global Quote']) {
     throw new Error(`No se encontraron datos para el símbolo ${symbol}`);
   }
 
-  const quote = data.body[0];
-  const price = parseFloat(quote.regularMarketPrice || quote.lastPrice || '0');
+  const quote = data['Global Quote'];
+  const price = parseFloat(quote['05. price'] || '0');
 
   if (!price || price <= 0) {
     throw new Error(`No se encontraron datos de cotización para ${symbol}`);
   }
 
-  const change = parseFloat(quote.regularMarketChange || quote.change || '0');
-  const changePercent = parseFloat(quote.regularMarketChangePercent || quote.changePercent || '0');
+  const change = parseFloat(quote['09. change'] || '0');
+  const changePercent = parseFloat((quote['10. change percent'] || '0').replace('%', ''));
 
   const stock: MarketStock = {
-    symbol: quote.symbol || symbol,
-    name: quote.longName || quote.shortName || symbol,
+    symbol: quote['01. symbol'] || symbol,
+    name: symbol,
     price: price,
     change: change,
     changePercent: changePercent,
-    currency: quote.currency || 'USD',
-    exchange: quote.exchange || 'NASDAQ',
+    currency: 'USD',
+    exchange: 'NASDAQ',
     logo: `https://logo.clearbit.com/${symbol.toLowerCase()}.com`,
   };
 
-  // Guardar en cache
   dataCache.set(symbol, stock);
   return stock;
 }
@@ -255,7 +239,7 @@ export async function getMarketIndices(): Promise<MarketIndex[]> {
 }
 
 /**
- * Buscar acciones por query usando Yahoo Finance API
+ * Buscar acciones por query usando Alpha Vantage API
  */
 export async function searchStocks(query: string): Promise<MarketStock[]> {
   try {
@@ -263,41 +247,35 @@ export async function searchStocks(query: string): Promise<MarketStock[]> {
 
     console.log('🔍 [searchStocks] Buscando:', query);
 
-    if (!YAHOO_FINANCE_API_KEY) {
-      console.warn('⚠️ [Yahoo Finance] API key no configurada');
+    if (!ALPHA_VANTAGE_API_KEY) {
+      console.warn('⚠️ [Alpha Vantage] API key no configurada');
       return [];
     }
 
-    // Usar Yahoo Finance Search
-    const url = `https://yahoo-finance15.p.rapidapi.com/api/v1/markets/search?query=${encodeURIComponent(query)}&type=EQUITY`;
-    console.log('📡 [Yahoo Finance Search] Buscando:', query);
+    // Usar Alpha Vantage Search
+    const url = `${ALPHA_VANTAGE_BASE_URL}?function=SYMBOL_SEARCH&keywords=${encodeURIComponent(query)}&apikey=${ALPHA_VANTAGE_API_KEY}`;
+    console.log('📡 [Alpha Vantage Search] Buscando:', query);
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'x-rapidapi-key': YAHOO_FINANCE_API_KEY,
-        'x-rapidapi-host': YAHOO_FINANCE_HOST,
-      },
-    });
+    const response = await fetch(url);
     const data = await response.json();
 
-    if (data && data.body && Array.isArray(data.body) && data.body.length > 0) {
-      console.log('✅ [Yahoo Finance Search] Resultados encontrados:', data.body.length);
+    if (data && data.bestMatches && Array.isArray(data.bestMatches) && data.bestMatches.length > 0) {
+      console.log('✅ [Alpha Vantage Search] Resultados encontrados:', data.bestMatches.length);
 
-      const results: MarketStock[] = data.body.slice(0, 10).map((stock: any) => ({
-        symbol: stock.symbol,
-        name: stock.longName || stock.shortName || stock.symbol,
-        price: 0, // Se obtendrá después si es necesario
+      const results: MarketStock[] = data.bestMatches.slice(0, 10).map((match: any) => ({
+        symbol: match['1. symbol'],
+        name: match['2. name'],
+        price: 0,
         change: 0,
         changePercent: 0,
-        currency: stock.currency || 'USD',
-        exchange: stock.exchange || 'NASDAQ',
-        logo: `https://logo.clearbit.com/${stock.symbol.toLowerCase()}.com`,
+        currency: match['8. currency'] || 'USD',
+        exchange: match['4. region'] || 'US',
+        logo: `https://logo.clearbit.com/${match['1. symbol'].toLowerCase()}.com`,
       }));
 
       return results;
     } else {
-      console.warn('⚠️ [Yahoo Finance Search] No se encontraron resultados');
+      console.warn('⚠️ [Alpha Vantage Search] No se encontraron resultados');
       return [];
     }
   } catch (error) {

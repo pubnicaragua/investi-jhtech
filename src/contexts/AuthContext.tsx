@@ -4,6 +4,7 @@ import { supabase } from '../supabase';
 import { storage } from '../utils/storage';
 import { migrateStorageKeys } from '../utils/storageMigration';
 import { setupNotificationChannel, showWelcomeNotification } from '../utils/notifications';
+import { FeedbackModal } from '../components/FeedbackModal';
 
 // Helper function to load complete user data from public.users
 async function loadCompleteUserData(userId: string): Promise<User | null> {
@@ -50,15 +51,19 @@ type AuthContextData = {
   signOut: () => Promise<void>;
   updateUser: (user: Partial<User>) => void;
   refreshUser: () => Promise<void>;
+  showFeedbackModal: (type: 'periodic' | 'logout') => void;
 };
 
 const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // Start as false para mostrar UI más rápido
+  const [isLoading, setIsLoading] = useState(false); // Start as false para mostrar UI inmediatamente
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [initialCheckDone, setInitialCheckDone] = useState(false);
+  const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
+  const [feedbackType, setFeedbackType] = useState<'periodic' | 'logout'>('periodic');
 
   // Check for existing session on mount
   useEffect(() => {
@@ -92,41 +97,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
               if (session) {
                 console.log('[AuthProvider] ✅ Session active, saving...');
+                
+                // OPTIMIZACIÓN: Actualizar estado INMEDIATAMENTE (no esperar nada)
                 setSession(session);
-                
-                // Load complete user data from public.users
-                const completeUserData = await loadCompleteUserData(session.user.id);
-                if (completeUserData) {
-                  setUser(completeUserData);
-                } else {
-                  // Fallback to auth user data
-                  setUser(session.user as unknown as User);
-                }
+                setUser(session.user as unknown as User);
                 setIsAuthenticated(true);
+                setIsLoading(false); // ⚡ CRÍTICO: Terminar loading AHORA
                 
-                // Guardar en múltiples formatos para compatibilidad
-                await storage.setItem('access_token', session.access_token);
-                await storage.setItem('auth_token', session.access_token);
-                await storage.setItem('userToken', session.access_token);
-                await storage.setItem('userId', session.user.id);
+                console.log('[AuthProvider] ⚡ Estado actualizado instantáneamente');
                 
-                if (session.refresh_token) {
-                  await storage.setItem('refresh_token', session.refresh_token);
-                }
+                // OPTIMIZACIÓN: Guardar tokens en paralelo (no bloquea UI)
+                Promise.all([
+                  storage.setItem('access_token', session.access_token),
+                  storage.setItem('auth_token', session.access_token),
+                  storage.setItem('userToken', session.access_token),
+                  storage.setItem('userId', session.user.id),
+                  session.refresh_token ? storage.setItem('refresh_token', session.refresh_token) : Promise.resolve(),
+                ]).catch(err => console.warn('[AuthProvider] Error saving tokens:', err));
                 
-                console.log('[AuthProvider] ✅ Tokens saved to AsyncStorage');
+                // OPTIMIZACIÓN: Cargar datos completos en segundo plano (no bloquea)
+                loadCompleteUserData(session.user.id).then(completeUserData => {
+                  if (mounted && completeUserData) {
+                    setUser(completeUserData);
+                    console.log('[AuthProvider] ✅ Datos completos cargados');
+                  }
+                }).catch(err => console.warn('[AuthProvider] Error loading complete data:', err));
               } else {
                 console.log('[AuthProvider] ❌ No session, clearing...');
                 setSession(null);
                 setUser(null);
                 setIsAuthenticated(false);
+                setIsLoading(false);
                 
-                // Limpiar todos los tokens
-                await storage.removeItem('access_token');
-                await storage.removeItem('refresh_token');
-                await storage.removeItem('auth_token');
-                await storage.removeItem('userToken');
-                await storage.removeItem('userId');
+                // OPTIMIZACIÓN: Limpiar tokens en paralelo (no bloquea)
+                Promise.all([
+                  storage.removeItem('access_token'),
+                  storage.removeItem('refresh_token'),
+                  storage.removeItem('auth_token'),
+                  storage.removeItem('userToken'),
+                  storage.removeItem('userId'),
+                ]).catch(err => console.warn('[AuthProvider] Error clearing tokens:', err));
               }
             } catch (error) {
               console.error('[AuthProvider] Error in auth state change:', error);
@@ -139,11 +149,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           unsubscribe = () => authData.subscription.unsubscribe();
         }
 
-        // Check for existing session con timeout de 2 segundos
+        // Check for existing session con timeout reducido a 1 segundo
         console.log('[AuthProvider] Checking existing session from Supabase...');
         const sessionPromise = supabase.auth.getSession();
         const timeoutPromise = new Promise((resolve) => 
-          setTimeout(() => resolve({ data: { session: null }, error: null }), 2000)
+          setTimeout(() => resolve({ data: { session: null }, error: null }), 1000)
         );
         
         const { data: sessionData, error: sessionError } = await Promise.race([
@@ -205,16 +215,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.error('[AuthProvider] ❌ Error restoring session:', restoreError);
           });
         } else {
-          console.log('[AuthProvider] ❌ No session found anywhere');
+          console.log('[AuthProvider] ℹ️ No existing session found, showing auth screens');
         }
+        
+        // Marcar que ya se hizo la verificación inicial
+        setInitialCheckDone(true);
+        // IMPORTANTE: Terminar el estado de carga para que la navegación funcione
+        setIsLoading(false);
       } catch (error) {
         console.error('[AuthProvider] Error in setupAuth:', error);
-      } finally {
-        // Always set loading to false after checking session
-        if (mounted) {
-          setIsLoading(false);
-          console.log('[AuthProvider] ✅ Initial auth check complete');
-        }
+        setInitialCheckDone(true);
+        // IMPORTANTE: Terminar el estado de carga incluso si hay error
+        setIsLoading(false);
       }
     };
 
@@ -258,35 +270,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       console.log('[AuthContext] ✅ Sign in successful');
       
-      // Guardar TODOS los tokens inmediatamente (no esperar al listener)
+      // ⚡ OPTIMIZACIÓN CRÍTICA: Actualizar estado INMEDIATAMENTE
       if (data?.session) {
-        console.log('[AuthContext] 💾 Saving session tokens...');
-        await storage.setItem('auth_token', data.session.access_token);
-        await storage.setItem('userToken', data.session.access_token);
-        await storage.setItem('access_token', data.session.access_token);
-        await storage.setItem('userId', data.user.id);
-        
-        if (data.session.refresh_token) {
-          await storage.setItem('refresh_token', data.session.refresh_token);
-        }
-        
-        // Actualizar estado inmediatamente
+        // 1. Actualizar estado PRIMERO (instantáneo)
         setSession(data.session);
-        
-        // Load complete user data from public.users
-        const completeUserData = await loadCompleteUserData(data.user.id);
-        if (completeUserData) {
-          setUser(completeUserData);
-        } else {
-          // Fallback to auth user data
-          setUser(data.user as unknown as User);
-        }
+        setUser(data.user as unknown as User);
         setIsAuthenticated(true);
-
-        console.log('[AuthContext] ✅ All tokens saved and state updated');
-
-        // Mostrar notificación de bienvenida después del login exitoso
-        await showWelcomeNotification();
+        setIsLoading(false); // ⚡ Terminar loading AHORA para que navegue
+        
+        console.log('[AuthContext] ⚡ Estado actualizado instantáneamente - Usuario puede navegar');
+        
+        // 2. Guardar tokens en paralelo (no bloquea UI)
+        Promise.all([
+          storage.setItem('auth_token', data.session.access_token),
+          storage.setItem('userToken', data.session.access_token),
+          storage.setItem('access_token', data.session.access_token),
+          storage.setItem('userId', data.user.id),
+          storage.setItem('user_language', 'es'),
+          data.session.refresh_token ? storage.setItem('refresh_token', data.session.refresh_token) : Promise.resolve(),
+        ]).then(() => {
+          console.log('[AuthContext] ✅ Tokens guardados');
+        }).catch(err => console.warn('[AuthContext] Error saving tokens:', err));
+        
+        // 3. Cargar datos completos en segundo plano (no bloquea)
+        loadCompleteUserData(data.user.id).then(completeUserData => {
+          if (completeUserData) {
+            setUser(completeUserData);
+            console.log('[AuthContext] ✅ Datos completos cargados');
+          }
+        }).catch(err => console.warn('[AuthContext] Error loading complete data:', err));
+        
+        // 4. Notificación en segundo plano (no bloquea)
+        showWelcomeNotification().catch(err => console.warn('[AuthContext] Error showing notification:', err));
       }
 
       return data;
@@ -294,7 +309,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('[AuthContext] Error signing in:', error);
       throw error;
     } finally {
-      setIsLoading(false);
+      // No hacer nada aquí - el loading ya se terminó arriba para ser más rápido
     }
   };
 
@@ -339,6 +354,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const showFeedbackModal = useCallback((type: 'periodic' | 'logout') => {
+    setFeedbackType(type);
+    setFeedbackModalVisible(true);
+  }, []);
+
+  // Timer para mostrar feedback cada 10 minutos
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const FEEDBACK_INTERVAL = 10 * 60 * 1000; // 10 minutos
+    const timer = setInterval(() => {
+      console.log('[AuthContext] 📝 Mostrando feedback periódico');
+      showFeedbackModal('periodic');
+    }, FEEDBACK_INTERVAL);
+
+    return () => clearInterval(timer);
+  }, [isAuthenticated, showFeedbackModal]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -349,8 +382,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signOut,
         updateUser,
         refreshUser,
+        showFeedbackModal,
       }}>
       {children}
+      <FeedbackModal
+        visible={feedbackModalVisible}
+        onClose={() => setFeedbackModalVisible(false)}
+        type={feedbackType}
+      />
     </AuthContext.Provider>
   );
 };

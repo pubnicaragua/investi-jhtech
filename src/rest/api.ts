@@ -3886,14 +3886,18 @@ IMPORTANTE:
 
 export async function generateLessonWithAI(
   lessonTitle: string,
-  lessonDescription: string
+  lessonDescription: string,
+  retryCount: number = 0
 ): Promise<string> {
+  const MAX_RETRIES = 2;
+  
   try {
     if (!GROK_API_KEY) {
-      throw new Error('API key de Grok no configurada');
+      console.warn('⚠️ API key de Grok no configurada, usando contenido de ejemplo');
+      return generateFallbackLesson(lessonTitle, lessonDescription);
     }
 
-    console.log('🤖 Generando lección con IA:', lessonTitle);
+    console.log(`🤖 Generando lección con IA (intento ${retryCount + 1}/${MAX_RETRIES + 1}):`, lessonTitle);
 
     const userPrompt = `Genera una lección sobre: "${lessonTitle}"
 Descripción: ${lessonDescription}
@@ -3920,13 +3924,26 @@ Crea contenido educativo completo y estructurado.`;
     if (!response.ok) {
       const errorText = await response.text();
       console.error('❌ Error de Groq API:', response.status, errorText);
+      
+      // Retry on server errors (5xx) or rate limits (429)
+      if ((response.status >= 500 || response.status === 429) && retryCount < MAX_RETRIES) {
+        const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff
+        console.log(`⏳ Reintentando en ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return generateLessonWithAI(lessonTitle, lessonDescription, retryCount + 1);
+      }
+      
       throw new Error(`Error de API: ${response.status}`);
     }
 
     const data = await response.json();
-    const aiResponse = data.choices[0].message.content;
+    const aiResponse = data.choices?.[0]?.message?.content;
 
-    console.log('✅ Lección generada por IA');
+    if (!aiResponse) {
+      throw new Error('No se recibió respuesta de la IA');
+    }
+
+    console.log('✅ Lección generada por IA exitosamente');
 
     // Intentar parsear como JSON
     try {
@@ -3938,8 +3955,50 @@ Crea contenido educativo completo y estructurado.`;
     }
   } catch (error: any) {
     console.error('❌ Error generando lección con IA:', error);
+    
+    // Si agotamos los reintentos, usar contenido de respaldo
+    if (retryCount >= MAX_RETRIES) {
+      console.log('⚠️ Usando contenido de respaldo después de agotar reintentos');
+      return generateFallbackLesson(lessonTitle, lessonDescription);
+    }
+    
     throw error;
   }
+}
+
+/**
+ * Genera contenido de lección de respaldo cuando la IA no está disponible
+ */
+function generateFallbackLesson(title: string, description: string): string {
+  return `📚 ${title}
+
+${description}
+
+💡 Conceptos Clave
+
+Esta lección cubre los fundamentos esenciales que necesitas conocer. A continuación encontrarás información estructurada para facilitar tu aprendizaje.
+
+📊 Contenido Principal
+
+El tema abordado en esta lección es fundamental para tu educación financiera. Te recomendamos:
+
+• Leer con atención cada sección
+• Tomar notas de los puntos importantes
+• Aplicar los conceptos a tu situación personal
+• Consultar fuentes adicionales si necesitas más información
+
+✅ Puntos Importantes
+
+1. Comprende los conceptos básicos antes de avanzar
+2. Practica con ejemplos reales
+3. No dudes en revisar el material las veces que necesites
+4. Aplica lo aprendido en tu vida diaria
+
+🎯 Próximos Pasos
+
+Una vez que completes esta lección, estarás mejor preparado para tomar decisiones financieras informadas. Recuerda que el aprendizaje es un proceso continuo.
+
+💪 ¡Sigue aprendiendo y mejorando tus conocimientos financieros!`;
 }
 
 // ============================================================================

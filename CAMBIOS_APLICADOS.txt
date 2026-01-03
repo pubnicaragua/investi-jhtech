@@ -1,0 +1,154 @@
+===============================================================================
+CAMBIOS APLICADOS - OPTIMIZACIÓN WEB Y CORRECCIONES CRÍTICAS
+===============================================================================
+
+✅ PROBLEMAS RESUELTOS:
+
+1. ERROR 406 EN SUPABASE
+   - Archivo: src/screens/SignUpScreen.tsx
+   - Cambio: .single() → .maybeSingle() en queries de users
+   - Resultado: Ya no hay errores 406 al verificar emails
+
+2. NAVEGACIÓN POST-REGISTRO
+   - Archivo: src/screens/SignUpScreen.tsx
+   - Cambio: Navegación explícita a Onboarding después de signup
+   - Resultado: Usuario llega correctamente al onboarding
+
+3. PANTALLA DE SOPORTE NO ABRÍA
+   - Archivo: src/navigation/index.tsx
+   - Cambio: Agregado SupportTicket screen al stack principal
+   - Resultado: Soporte ahora es accesible desde Settings
+
+4. COMPARTIR POST ROTO
+   - Archivo: src/screens/PostDetailScreen.tsx
+   - Cambio: Navega a SharePost screen en lugar de ChatList
+   - Resultado: Usuario puede seleccionar destinatarios correctamente
+
+5. VALIDACIÓN DE EMAIL
+   - Archivo: src/screens/SignUpScreen.tsx
+   - Cambio: Validación de formato con regex y mensaje claro
+   - Resultado: Usuario recibe feedback inmediato si email es inválido
+
+6. MARKETINFO API
+   - Archivo: src/services/searchApiService.ts
+   - Cambio: Yahoo Finance → Alpha Vantage completamente
+   - Resultado: MarketInfo funciona con EXPO_PUBLIC_ALPHA_VANTAGE_API_KEY
+
+7. IRI CHAT VOZ EN WEB
+   - Archivo: src/screens/IRIChatScreen.tsx
+   - Cambios:
+     * Micrófono deshabilitado en web (muestra alerta)
+     * ElevenLabs deshabilitado en web
+     * Log "No hay usuario" solo en desarrollo
+   - Resultado: No más errores de voz en web
+
+8. PERSISTENCIA DE SESIÓN
+   - Archivo: src/supabase.ts
+   - Cambios:
+     * autoRefreshToken: true
+     * persistSession: true
+     * storageKey configurado
+     * Headers Accept/Content-Type agregados
+   - Resultado: Sesión se mantiene entre recargas
+
+9. LOGS EN PRODUCCIÓN
+   - Archivos: src/supabase.ts, src/screens/IRIChatScreen.tsx
+   - Cambio: Logs solo si NODE_ENV !== 'production'
+   - Resultado: Logs de Supabase ocultos en producción
+
+10. SIGNOUT EN SIDEBAR
+    - Archivo: src/components/Sidebar.tsx
+    - Cambios:
+      * Limpia todos los tokens (access_token, auth_token, etc.)
+      * Navega a Welcome screen
+      * Cierra sidebar primero
+    - Resultado: SignOut funciona correctamente
+
+===============================================================================
+⚠️ PROBLEMAS PENDIENTES (REQUIEREN MÁS TRABAJO):
+===============================================================================
+
+1. LIKE/RECOMMEND SYNC EN RELOAD
+   - Problema: Al recargar, el contador de likes baja aunque el botón muestra "liked"
+   - Causa: Posible desincronización entre post_likes y posts.likes_count
+   - Solución sugerida: Revisar triggers de Supabase o recalcular contador al cargar
+
+2. CREATEPOST LENTO
+   - Problema: Tarda mucho en cargar
+   - Causa: Posible carga de imágenes sin optimización
+   - Solución sugerida: Lazy loading, compresión de imágenes, skeleton loaders
+
+3. PROMOTIONS NO CARGA (+10 SEGUNDOS)
+   - Problema: Pantalla no carga o tarda demasiado
+   - Causa: Query de Supabase posiblemente sin índices o muy compleja
+   - Solución sugerida: Agregar índices en BD, limitar resultados, paginación
+
+4. NAVBAR DESAPARECE A VECES
+   - Problema: Bottom navigation bar se oculta aleatoriamente
+   - Causa: Posible conflicto con KeyboardAvoidingView o estado de navegación
+   - Solución sugerida: Revisar lógica de visibilidad del navbar
+
+===============================================================================
+📋 CHECKLIST PARA DESPLEGAR:
+===============================================================================
+
+[✅] Errores 406 resueltos
+[✅] Navegación post-registro funciona
+[✅] Soporte accesible
+[✅] Compartir post funciona
+[✅] Validación de email
+[✅] MarketInfo con Alpha Vantage
+[✅] IRI Chat sin errores en web
+[✅] Persistencia de sesión configurada
+[✅] Logs ocultos en producción
+[✅] SignOut funciona
+
+[⚠️] Like/recommend sync (pendiente)
+[⚠️] CreatePost optimización (pendiente)
+[⚠️] Promotions optimización (pendiente)
+[⚠️] Navbar estabilidad (pendiente)
+
+===============================================================================
+🚀 COMANDOS PARA DESPLEGAR:
+===============================================================================
+
+# 1. Commitear cambios
+git add .
+git commit -m "fix: Multiple critical fixes - 406 errors, navigation, session persistence, web compatibility"
+git push origin main
+
+# 2. Variables de entorno en Netlify:
+EXPO_PUBLIC_SUPABASE_URL=https://paoliakwfoczcallnecf.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=tu_key
+EXPO_PUBLIC_GROK_API_KEY=tu_key
+EXPO_PUBLIC_ALPHA_VANTAGE_API_KEY=RM2VEHDWC96VBAA3
+NODE_ENV=production
+
+# 3. Build command en Netlify:
+npx expo export:web
+
+# 4. Publish directory:
+dist
+
+===============================================================================
+📊 ESTADO ACTUAL:
+===============================================================================
+
+FUNCIONAL:
+✅ Login/Registro
+✅ OAuth (Google, LinkedIn, Facebook)
+✅ SignOut
+✅ MarketInfo
+✅ IRI Chat (sin voz en web)
+✅ Navegación general
+✅ Soporte
+✅ Compartir posts
+✅ Persistencia de sesión
+
+OPTIMIZABLE:
+⚠️ CreatePost (lento)
+⚠️ Promotions (muy lento)
+⚠️ Like sync (desincronización)
+⚠️ Navbar (desaparece a veces)
+
+===============================================================================

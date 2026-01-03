@@ -103,38 +103,61 @@ export function CreatePostScreen({ navigation }: any) {
   const initializeScreen = async () => {
     try {
       setLoadingData(true)
+      console.log('📝 [CreatePost] Inicializando pantalla...')
       
-      // Load user
-      const user = await getCurrentUser()
-      if (!user) {
-        Alert.alert('Error', 'No se pudo cargar el usuario')
+      // Load user from Supabase directly
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+      if (authError || !authUser) {
+        console.error('❌ [CreatePost] Error cargando usuario:', authError)
+        Alert.alert('Error', 'No se pudo cargar el usuario. Por favor, inicia sesión nuevamente.')
         navigation.goBack()
         return
       }
-      setCurrentUser(user)
       
-      // Load draft
-      const draft = await loadDraft()
-      if (draft) {
-        Alert.alert(
-          'Borrador encontrado',
-          '¿Deseas restaurar el borrador guardado?',
-          [
-            {
-              text: 'No',
-              onPress: () => clearDraft(),
-              style: 'cancel',
-            },
-            {
-              text: 'Sí',
-              onPress: () => restoreDraft(draft),
-            },
-          ]
-        )
+      // Get user profile
+      const { data: profile, error: profileError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', authUser.id)
+        .single()
+      
+      if (profileError) {
+        console.error('❌ [CreatePost] Error cargando perfil:', profileError)
       }
+      
+      setCurrentUser(profile || { id: authUser.id, username: authUser.email })
+      console.log('✅ [CreatePost] Usuario cargado')
+      
+      // Load draft (sin bloquear la UI)
+      try {
+        const draft = await loadDraft()
+        if (draft && draft.content) {
+          Alert.alert(
+            'Borrador encontrado',
+            '¿Deseas restaurar el borrador guardado?',
+            [
+              {
+                text: 'No',
+                onPress: () => clearDraft(),
+                style: 'cancel',
+              },
+              {
+                text: 'Sí',
+                onPress: () => restoreDraft(draft),
+              },
+            ]
+          )
+        }
+      } catch (draftError) {
+        console.error('⚠️ [CreatePost] Error cargando borrador:', draftError)
+        // No bloquear si falla el borrador
+      }
+      
+      console.log('✅ [CreatePost] Pantalla inicializada')
     } catch (error) {
-      console.error('Error initializing screen:', error)
+      console.error('❌ [CreatePost] Error inicializando:', error)
       Alert.alert('Error', 'No se pudo inicializar la pantalla')
+      navigation.goBack()
     } finally {
       setLoadingData(false)
     }

@@ -1,0 +1,106 @@
+# Netlify Configuration for Investí Web App
+# https://docs.netlify.com/configure-builds/file-based-configuration/
+
+[build]
+  # Comando para construir la app web
+  command = "npx expo export:web"
+  
+  # Directorio donde se genera el build
+  publish = "web-build"
+  
+  # Ignorar builds si solo cambian estos archivos
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF . ':!README.md' ':!*.md'"
+
+[build.environment]
+  # Versión de Node.js
+  NODE_VERSION = "18"
+  
+  # Aumentar memoria para builds grandes
+  NODE_OPTIONS = "--max-old-space-size=4096"
+
+# Redirects para SPA (Single Page Application)
+# Todas las rutas deben servir index.html para que React Router funcione
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
+
+# Redirect para OAuth callbacks
+[[redirects]]
+  from = "/auth/callback"
+  to = "/index.html"
+  status = 200
+
+# Headers de seguridad
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Prevenir clickjacking
+    X-Frame-Options = "DENY"
+    
+    # Protección XSS
+    X-XSS-Protection = "1; mode=block"
+    
+    # Prevenir MIME sniffing
+    X-Content-Type-Options = "nosniff"
+    
+    # Referrer policy
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    
+    # Permissions policy
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# Headers para assets estáticos (cache largo)
+[[headers]]
+  for = "/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Headers para archivos JS/CSS
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Headers para imágenes
+[[headers]]
+  for = "/*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.jpg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.svg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# No cachear index.html
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Context para diferentes entornos
+[context.production]
+  environment = { NODE_ENV = "production" }
+
+[context.deploy-preview]
+  environment = { NODE_ENV = "development" }
+
+[context.branch-deploy]
+  environment = { NODE_ENV = "development" }
+
+# Configuración de funciones (si las necesitas en el futuro)
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"

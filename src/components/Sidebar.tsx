@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";  
 import {  
   View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions,
-  PanResponder, Image, ScrollView, Alert, Modal, FlatList,
+  PanResponder, Image, ScrollView, Alert, Modal, FlatList, Platform,
 } from "react-native";  
 import { useNavigation } from "@react-navigation/native";  
 import {
@@ -34,7 +34,7 @@ const getAvatarUrl = (user: any) => {
   
 export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) => {
   const navigation = useNavigation();
-  const { signOut, user } = useAuth();
+  const { signOut, user, showFeedbackModal } = useAuth();
   const slideAnim = useRef(new Animated.Value(-width)).current;
   const [communities, setCommunities] = useState<any[]>([]);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -128,19 +128,52 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
     }
   };
 
-  const handleLogout = () => {
-    Alert.alert("Cerrar Sesión", "¿Estás seguro?", [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Cerrar Sesión", style: "destructive",
-        onPress: async () => {
-          await AsyncStorage.multiRemove(['user_language','user_token','user_data','onboarding_completed','quick_access_communities']);
-          await signOut();
-          onClose();
-          navigation.reset({ index: 0, routes: [{ name: 'LanguageSelection' as never }] });
-        }
+  const executeLogout = async () => {
+    try {
+      onClose();
+      
+      await signOut();
+      
+      await AsyncStorage.multiRemove([
+        'user_language','user_token','user_data','onboarding_completed',
+        'quick_access_communities','access_token','auth_token','userToken',
+        'userId','refresh_token','onboarding_complete','supabase.auth.token'
+      ]);
+      
+      if (Platform.OS === 'web') {
+        window.location.href = '/';
+      } else {
+        navigation.reset({ 
+          index: 0, 
+          routes: [{ name: 'Welcome' as never }] 
+        });
       }
-    ]);
+    } catch (error) {
+      console.error('❌ [Logout] Error:', error);
+      if (Platform.OS === 'web') {
+        alert('Error al cerrar sesión. Intenta de nuevo.');
+      } else {
+        Alert.alert('Error', 'No se pudo cerrar sesión. Intenta de nuevo.');
+      }
+    }
+  };
+
+  const handleLogout = () => {
+    if (Platform.OS === 'web') {
+      const confirmed = confirm('¿Estás seguro que deseas cerrar sesión?');
+      if (confirmed) {
+        executeLogout();
+      }
+    } else {
+      Alert.alert("Cerrar Sesión", "¿Estás seguro?", [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Cerrar Sesión", 
+          style: "destructive",
+          onPress: executeLogout
+        }
+      ]);
+    }
   };
 
   const getCountryFlag = (country: string) => FLAGS[country] || '🌎';

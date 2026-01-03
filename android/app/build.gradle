@@ -92,8 +92,9 @@ android {
         applicationId 'com.investi.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 5
-        versionName "1.0.0"
+        // Mantener sincronizado con app.config.js (expo.android.versionCode y expo.version)
+        versionCode 10
+        versionName "1.0.7"
     }
     signingConfigs {
         debug {

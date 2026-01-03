@@ -63,12 +63,19 @@ export function NewMessageScreen({ navigation }: any) {
       const uid = await getCurrentUserId();
       if (!uid) return;
 
+      console.log('🔍 [NewMessageScreen] Loading users for:', uid);
+
       // Get existing conversation participants
       const convs: any[] = await getUserConversations(uid);
+      console.log('📊 [NewMessageScreen] Conversations loaded:', convs.length);
+      console.log('📋 [NewMessageScreen] Conversations data:', JSON.stringify(convs, null, 2));
+
       const participants: User[] = [];
       convs.forEach(c => {
+        console.log('🔄 [NewMessageScreen] Processing conversation:', c.id, 'participants:', c.participants);
         (c.participants || []).forEach((p: any) => {
           if (p && p.id !== uid && !participants.find(u => u.id === p.id)) {
+            console.log('✅ [NewMessageScreen] Adding participant:', p.id, p.nombre);
             participants.push({
               id: p.id,
               nombre: p.nombre || p.full_name || p.username || 'Usuario',
@@ -81,9 +88,13 @@ export function NewMessageScreen({ navigation }: any) {
         });
       });
 
+      console.log('👥 [NewMessageScreen] Total participants from conversations:', participants.length);
+
       // Get suggested people
       try {
         const recs: any[] = await getSuggestedPeople(uid, 20);
+        console.log('💡 [NewMessageScreen] Suggested people:', recs?.length || 0);
+        
         const normalizedRecs = (recs || []).map((u: any) => ({
           id: u.id,
           nombre: u.nombre || u.name || u.full_name || u.username || 'Usuario',
@@ -100,13 +111,15 @@ export function NewMessageScreen({ navigation }: any) {
           }
         });
 
+        console.log('✅ [NewMessageScreen] Total users to display:', combined.length);
         setUsers(combined.length > 0 ? combined : participants);
       } catch (e) {
-        console.error('Error fetching suggested people:', e);
+        console.error('❌ [NewMessageScreen] Error fetching suggested people:', e);
+        console.log('⚠️ [NewMessageScreen] Using only participants:', participants.length);
         setUsers(participants);
       }
     } catch (err) {
-      console.error('Error loading users for new message:', err);
+      console.error('❌ [NewMessageScreen] Error loading users:', err);
       setUsers([]);
     } finally {
       setLoading(false);

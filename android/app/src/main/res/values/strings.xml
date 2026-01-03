@@ -2,7 +2,7 @@
   <string name="app_name">Investi App</string>
   <string name="expo_splash_screen_resize_mode" translatable="false">contain</string>
   <string name="expo_splash_screen_status_bar_translucent" translatable="false">false</string>
-  <string name="expo_runtime_version">1.0.0</string>
+  <string name="expo_runtime_version">1.0.7</string>
   <string name="facebook_app_id">1520057669018241</string>
   <string name="fb_login_protocol_scheme">fb1520057669018241</string>
   <string name="facebook_client_token">6f97d9744ac653fd0eb8c6dce1d8fe37</string>

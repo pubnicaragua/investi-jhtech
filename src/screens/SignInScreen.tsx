@@ -29,6 +29,7 @@ export function SignInScreen({ navigation }: any) {
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [oauthProvider, setOauthProvider] = useState<string | null>(null)
 
   const handleForgotPassword = () => {
     navigation.navigate('ForgotPassword')
@@ -37,6 +38,7 @@ export function SignInScreen({ navigation }: any) {
   const handleOAuth = async (provider: "google" | "apple" | "facebook" | "linkedin_oidc") => {
     try {
       setLoading(true)
+      setOauthProvider(provider === 'linkedin_oidc' ? 'LinkedIn' : provider === 'google' ? 'Google' : 'Facebook')
       console.log('[SignInScreen] 🔐 Initiating OAuth for provider:', provider)
 
       if (provider === "linkedin_oidc") {
@@ -144,6 +146,7 @@ export function SignInScreen({ navigation }: any) {
       Alert.alert("Error", err?.message || "No se pudo iniciar con el proveedor seleccionado")
     } finally {
       setLoading(false)
+      setOauthProvider(null)
     }
   }
 
@@ -171,7 +174,9 @@ export function SignInScreen({ navigation }: any) {
     try {
       console.log("[SignInScreen] Attempting sign in...")
       await signIn(email.trim(), password)
-      console.log("[SignInScreen] SignIn successful - user authenticated")
+      console.log("[SignInScreen] ✅ SignIn successful - RootStack will handle navigation based on user state")
+      // NO navegamos manualmente - el RootStack detectará isAuthenticated=true
+      // y navegará automáticamente a Onboarding o HomeFeed según el estado del usuario
     } catch (error: any) {
       console.error("[SignInScreen] SignIn error:", error)
       Alert.alert(
@@ -275,6 +280,19 @@ export function SignInScreen({ navigation }: any) {
           {/* Social Login Section */}
           <View style={styles.socialLoginSection}>
             <Text style={styles.socialLoginText}>¿No tienes cuenta? <Text style={styles.createLink} onPress={() => navigation.navigate('SignUp')}>Regístrate</Text></Text>
+
+            {/* OAuth Loading Indicator */}
+            {oauthProvider && (
+              <View style={styles.oauthLoadingContainer}>
+                <ActivityIndicator color="#2673f3" size="small" />
+                <Text style={styles.oauthLoadingText}>
+                  Conectando con {oauthProvider}...
+                </Text>
+                <Text style={styles.oauthLoadingSubtext}>
+                  Por favor espera, esto puede tardar unos segundos
+                </Text>
+              </View>
+            )}
 
             {/* Social Icons Row */}
             <View style={styles.socialIconsRow}>
@@ -434,5 +452,27 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  oauthLoadingContainer: {
+    backgroundColor: '#F0F9FF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  oauthLoadingText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1E40AF',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  oauthLoadingSubtext: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 4,
+    textAlign: 'center',
   },
 })
