@@ -168,17 +168,21 @@ export function RootStack() {
   }, [])
   
   useEffect(() => {
-    if (!loading && !authLoading) {
-      determineInitialRoute()
-    }
-  }, [isAuthenticated, loading, authLoading])
+    determineInitialRoute()
+  }, [isAuthenticated])
   
   const determineInitialRoute = async () => {
+    // Evitar múltiples ejecuciones simultáneas
+    if (loading) {
+      console.log('⏳ Navigation: Ya está determinando ruta, saltando...')
+      return
+    }
+    
     try {
       console.log('🚀 Navigation: Determinando ruta inicial...')
       console.log('🔐 Navigation: isAuthenticated:', isAuthenticated)
       
-      setLoading(true) // Asegurar que loading está activo
+      setLoading(true)
       
       // 🚩 CRÍTICO: Verificar si estamos en proceso de SignUp
       const signupInProgress = await AsyncStorage.getItem('signup_in_progress')
@@ -247,9 +251,9 @@ export function RootStack() {
             await AsyncStorage.setItem('userId', userId)
             console.log('✅ Navigation: UserId obtenido de sesión:', userId)
           } else {
-            console.error('❌ Navigation: No se pudo obtener userId')
-            setInitialRoute("Welcome")
+            console.error('❌ Navigation: No se pudo obtener userId, yendo a Welcome')
             setLoading(false)
+            setInitialRoute("Welcome")
             return
           }
         }
@@ -264,8 +268,8 @@ export function RootStack() {
           
           if (userError) {
             console.error('❌ Navigation: Error obteniendo usuario:', userError)
-            setInitialRoute("UploadAvatar")
             setLoading(false)
+            setInitialRoute("UploadAvatar")
             return
           }
           
@@ -338,13 +342,13 @@ export function RootStack() {
       } else {
         // Usuario NO autenticado - ir directo a Welcome (sin LanguageSelection)
         console.log('🌍 Navigation: No autenticado, yendo a Welcome')
+        setLoading(false)
         setInitialRoute("Welcome")
       }
     } catch (error) {
       console.error("❌ Navigation: Error determining initial route:", error)
-      setInitialRoute("LanguageSelection")
-    } finally {
       setLoading(false)
+      setInitialRoute("Welcome")
     }
   }
   
