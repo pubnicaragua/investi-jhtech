@@ -343,11 +343,13 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    width: '100%',
   },
   scrollContent: {
     paddingHorizontal: 24,
     paddingTop: 60,
     paddingBottom: 40,
+    flexGrow: 1,
   },
   welcomeContainer: {
     marginBottom: 48,

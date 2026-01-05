@@ -255,13 +255,104 @@ export default function IRIChatScreen({ navigation }: any) {
   };
 
   const toggleVoiceInput = async () => {
-    // Deshabilitar en web - Voice no funciona en navegadores
+    // Implementar Web Speech API para web
     if (Platform.OS === 'web') {
-      Alert.alert(
-        '🎤 Función no disponible en web',
-        'El reconocimiento de voz por micrófono solo está disponible en la app móvil de Investi. En la versión web, puedes escribir tu mensaje directamente.',
-        [{ text: 'Entendido' }]
-      );
+      try {
+        // @ts-ignore - Web Speech API
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (!SpeechRecognition) {
+          Alert.alert(
+            '🎤 Navegador no compatible',
+            'Tu navegador no soporta reconocimiento de voz. Por favor usa Chrome, Edge o Safari.',
+            [{ text: 'Entendido' }]
+          );
+          return;
+        }
+        
+        if (isListening) {
+          // Detener reconocimiento
+          // @ts-ignore
+          if (window.recognition) {
+            // @ts-ignore
+            window.recognition.stop();
+          }
+          setIsListening(false);
+          stopWaveAnimation();
+          return;
+        }
+        
+        // Solicitar permiso de micrófono
+        try {
+          await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (permError) {
+          Alert.alert(
+            '🎤 Permiso de Micrófono Requerido',
+            'Para usar el reconocimiento de voz, necesitas habilitar el permiso de micrófono en tu navegador.\n\nHaz clic en el icono de candado/información en la barra de direcciones y permite el acceso al micrófono.',
+            [{ text: 'Entendido' }]
+          );
+          return;
+        }
+        
+        // Crear instancia de reconocimiento
+        // @ts-ignore
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'es-ES';
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        
+        recognition.onstart = () => {
+          console.log('🎤 Web Speech: Started');
+          setIsListening(true);
+          startWaveAnimation();
+        };
+        
+        recognition.onresult = (event: any) => {
+          console.log('🎤 Web Speech: Result received');
+          const transcript = event.results[0][0].transcript;
+          setRecognizedText(transcript);
+          setInputText(transcript);
+          setIsListening(false);
+          stopWaveAnimation();
+        };
+        
+        recognition.onerror = (event: any) => {
+          console.error('🎤 Web Speech: Error', event.error);
+          setIsListening(false);
+          stopWaveAnimation();
+          
+          let errorMessage = 'Error al usar el micrófono.';
+          if (event.error === 'not-allowed') {
+            errorMessage = 'Permiso de micrófono denegado. Por favor habilítalo en la configuración de tu navegador.';
+          } else if (event.error === 'no-speech') {
+            errorMessage = 'No se detectó ningún audio. Por favor intenta de nuevo.';
+          }
+          
+          Alert.alert('🎤 Error de Micrófono', errorMessage, [{ text: 'Entendido' }]);
+        };
+        
+        recognition.onend = () => {
+          console.log('🎤 Web Speech: Ended');
+          setIsListening(false);
+          stopWaveAnimation();
+        };
+        
+        // Guardar referencia global para poder detenerlo
+        // @ts-ignore
+        window.recognition = recognition;
+        
+        // Iniciar reconocimiento
+        recognition.start();
+        setRecognizedText('');
+        
+      } catch (error: any) {
+        console.error('❌ Error Web Speech API:', error);
+        Alert.alert(
+          '❌ Error de Micrófono',
+          'No se pudo acceder al micrófono. Asegúrate de que tu navegador tenga permisos de micrófono habilitados.',
+          [{ text: 'Entendido' }]
+        );
+      }
       return;
     }
 

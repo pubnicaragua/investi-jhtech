@@ -284,23 +284,23 @@ export function SignUpScreen({ navigation }: any) {
         console.log("✅ Nuevo usuario creado, iniciará onboarding")
       }
 
-      // 3. Limpiar flags de onboarding anteriores para forzar onboarding completo
-      await AsyncStorage.multiRemove([
+      // 3. NAVEGAR INMEDIATAMENTE (no esperar AsyncStorage)
+      console.log("✅ SignUp exitoso - Navegando a Onboarding INMEDIATAMENTE")
+      
+      // Navegar explícitamente al onboarding SIN ESPERAR
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Onboarding' as never }],
+      })
+      
+      // 4. Limpiar flags de onboarding en segundo plano (no bloquea navegación)
+      AsyncStorage.multiRemove([
         'onboarding_complete',
         'avatar_uploaded',
         'goals_selected',
         'interests_selected',
         'knowledge_selected'
-      ])
-      
-      // 4. Navegar al onboarding
-      console.log("✅ SignUp exitoso - Navegando a Onboarding")
-      
-      // Navegar explícitamente al onboarding
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Onboarding' as never }],
-      })
+      ]).catch(err => console.warn('[SignUp] Error clearing flags:', err))
 
     } catch (error: any) {
       console.error("SignUp error:", error)
@@ -497,11 +497,13 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    width: '100%',
   },
   scrollContent: {
     paddingHorizontal: 24,
     paddingTop: 60,
     paddingBottom: 40,
+    flexGrow: 1,
   },
   welcomeContainer: {
     marginBottom: 48,

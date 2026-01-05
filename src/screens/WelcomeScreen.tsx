@@ -134,6 +134,7 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    width: '100%',
   },
   content: {
     flexGrow: 1,

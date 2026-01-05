@@ -43,95 +43,108 @@ export function RootStack() {
 
   // Check onboarding status when authenticated
   useEffect(() => {
+    console.log('[RootStack] 🔄 useEffect triggered - isAuthenticated:', isAuthenticated);
+    
     const checkOnboardingStatus = async () => {
       try {
+        console.log('[RootStack] 🔍 Checking onboarding status...');
+        
         if (isAuthenticated) {
-          // PRIORIDAD 1: Verificar en la base de datos con TODOS los campos necesarios
+          console.log('[RootStack] ✅ Usuario autenticado, verificando onboarding...');
+          // OPTIMIZACIÓN: Verificar SOLO onboarding_step primero (consulta rápida)
           const { data: { user } } = await supabase.auth.getUser();
           if (user) {
-            // Consultar datos del usuario
+            // Consulta RÁPIDA: Solo onboarding_step
             const { data: userData, error: userError } = await supabase
               .from('users')
-              .select('onboarding_step, avatar_url, photo_url, intereses, nivel_finanzas')
+              .select('onboarding_step')
               .eq('id', user.id)
               .single();
 
-            // Consultar metas del usuario desde user_goals
-            const { data: userGoals, error: goalsError } = await supabase
-              .from('user_goals')
-              .select('goal_id')
-              .eq('user_id', user.id);
-
-            // Consultar comunidades del usuario
-            const { data: userCommunities, error: communitiesError } = await supabase
-              .from('user_communities')
-              .select('community_id')
-              .eq('user_id', user.id)
-              .eq('status', 'active');
-
             if (!userError && userData) {
-              const avatarUrl = userData.avatar_url || userData.photo_url;
-              const goalsCount = userGoals?.length || 0;
-              const communitiesCount = userCommunities?.length || 0;
+              // DECISIÓN RÁPIDA: Si onboarding_step existe y NO es 'completed', mostrar onboarding
+              const isInOnboarding = userData.onboarding_step && userData.onboarding_step !== 'completed';
+              
+              if (isInOnboarding) {
+                console.log('[RootStack] 🔄 Usuario en proceso de onboarding, paso:', userData.onboarding_step);
+                await AsyncStorage.setItem(ONBOARDING_COMPLETE_KEY, 'false');
+                setIsOnboarded(false);
+                setIsCheckingOnboarding(false); // ⚡ TERMINAR INMEDIATAMENTE
+                return;
+              }
+              
+              // Si onboarding_step === 'completed', verificar datos completos en segundo plano
+              if (userData.onboarding_step === 'completed') {
+                console.log('[RootStack] ✅ Onboarding marcado como completado');
+                await AsyncStorage.setItem(ONBOARDING_COMPLETE_KEY, 'true');
+                setIsOnboarded(true);
+                setIsCheckingOnboarding(false); // ⚡ TERMINAR INMEDIATAMENTE
+                return;
+              }
+            }
 
-              console.log('[RootStack] 📊 Datos del usuario desde DB:', {
+            // FALLBACK: Usuario antiguo sin onboarding_step - Verificar datos completos
+            console.log('[RootStack] 📊 Usuario sin onboarding_step, verificando datos...');
+            
+            // Consultar datos completos SOLO para usuarios antiguos
+            const [userDataComplete, userGoals, userCommunities] = await Promise.all([
+              supabase.from('users')
+                .select('avatar_url, photo_url, intereses, nivel_finanzas')
+                .eq('id', user.id)
+                .single(),
+              supabase.from('user_goals')
+                .select('goal_id')
+                .eq('user_id', user.id),
+              supabase.from('user_communities')
+                .select('community_id')
+                .eq('user_id', user.id)
+                .eq('status', 'active')
+            ]);
+
+            // Validar datos completos para usuarios antiguos
+            if (!userDataComplete.error && userDataComplete.data) {
+              const avatarUrl = userDataComplete.data.avatar_url || userDataComplete.data.photo_url;
+              const goalsCount = userGoals.data?.length || 0;
+              const communitiesCount = userCommunities.data?.length || 0;
+
+              console.log('[RootStack] 📊 Datos del usuario antiguo:', {
                 user_id: user.id,
-                onboarding_step: userData.onboarding_step,
                 avatar_url: avatarUrl,
-                intereses: userData.intereses,
-                nivel_finanzas: userData.nivel_finanzas,
+                intereses: userDataComplete.data.intereses,
+                nivel_finanzas: userDataComplete.data.nivel_finanzas,
                 goals_count: goalsCount,
                 communities_count: communitiesCount
               });
 
               // Verificar que el usuario tenga TODOS los datos necesarios
               const hasAvatar = avatarUrl && avatarUrl !== '';
-              const hasInterests = userData.intereses && Array.isArray(userData.intereses) && userData.intereses.length > 0;
-              const hasKnowledge = userData.nivel_finanzas && userData.nivel_finanzas !== 'none' && userData.nivel_finanzas !== '';
+              const hasInterests = userDataComplete.data.intereses && Array.isArray(userDataComplete.data.intereses) && userDataComplete.data.intereses.length > 0;
+              const hasKnowledge = userDataComplete.data.nivel_finanzas && userDataComplete.data.nivel_finanzas !== 'none' && userDataComplete.data.nivel_finanzas !== '';
               const hasGoals = goalsCount > 0;
               const hasCommunities = communitiesCount > 0;
-              const hasCompletedStep = userData.onboarding_step === 'completed';
               
-              // CRÍTICO: Si onboarding_step existe y NO es 'completed', el usuario está en proceso
-              const isInOnboarding = userData.onboarding_step && userData.onboarding_step !== 'completed';
-              
-              // Si está en proceso de onboarding, NO está completo
-              if (isInOnboarding) {
-                console.log('[RootStack] 🔄 Usuario en proceso de onboarding, paso actual:', userData.onboarding_step);
-              }
-              
-              // SOLO para usuarios antiguos (sin onboarding_step): Si tiene TODOS los datos, considerar completo
+              // Usuario antiguo con todos los datos = completo
               const hasAllData = hasAvatar && hasInterests && hasKnowledge && hasGoals && hasCommunities;
-              const isOldUserComplete = !userData.onboarding_step && hasAllData;
+              const isComplete = hasAllData;
               
-              // El onboarding está completo SOLO si:
-              // 1. Tiene el paso marcado como 'completed', O
-              // 2. Es usuario antiguo (sin onboarding_step) con todos los datos
-              const isComplete = hasCompletedStep || isOldUserComplete;
-              
-              console.log('[RootStack] ✅ Validación de onboarding:', {
-                onboarding_step: userData.onboarding_step,
+              console.log('[RootStack] ✅ Validación de onboarding (usuario antiguo):', {
                 hasAvatar,
                 hasInterests,
                 hasKnowledge,
                 hasGoals,
                 hasCommunities,
-                hasCompletedStep,
                 isComplete
               });
               
               // Si no está completo, verificar en qué paso quedó
               if (!isComplete) {
-                console.log('[RootStack] ⚠️ Onboarding incompleto');
+                console.log('[RootStack] ⚠️ Onboarding incompleto (usuario antiguo)');
                 console.log('[RootStack] 📋 Estado actual:', {
-                  onboarding_step: userData.onboarding_step,
                   hasAvatar,
                   hasInterests,
                   hasKnowledge,
                   hasGoals,
-                  hasCommunities,
-                  hasCompletedStep,
-                  hasAllData
+                  hasCommunities
                 });
                 
                 // Determinar a qué pantalla redirigir
@@ -159,8 +172,13 @@ export function RootStack() {
               setIsOnboarded(isComplete);
               setIsCheckingOnboarding(false);
               return;
-            } else if (userError) {
-              console.error('[RootStack] ❌ Error consultando datos del usuario:', userError);
+            } else {
+              console.error('[RootStack] ❌ Error consultando datos del usuario antiguo');
+              // Si hay error, asumir que necesita onboarding
+              await AsyncStorage.setItem(ONBOARDING_COMPLETE_KEY, 'false');
+              setIsOnboarded(false);
+              setIsCheckingOnboarding(false);
+              return;
             }
           }
 
@@ -168,7 +186,9 @@ export function RootStack() {
           const onboarded = await AsyncStorage.getItem(ONBOARDING_COMPLETE_KEY);
           setIsOnboarded(onboarded === 'true');
         } else {
+          console.log('[RootStack] ❌ Usuario NO autenticado');
           setIsOnboarded(null);
+          setIsCheckingOnboarding(false);
         }
       } catch (error) {
         console.error('[RootStack] Error checking onboarding:', error);
@@ -186,6 +206,19 @@ export function RootStack() {
 
     checkOnboardingStatus();
   }, [isAuthenticated]);
+  
+  // Log de estado actual para debug
+  useEffect(() => {
+    console.log('[RootStack] 📊 Estado actual:', {
+      isAuthenticated,
+      authLoading,
+      isOnboarded,
+      isCheckingOnboarding,
+      showAuthFlow: !isAuthenticated,
+      showOnboardingFlow: isAuthenticated && (isCheckingOnboarding || !isOnboarded),
+      showMainApp: isAuthenticated && !isCheckingOnboarding && isOnboarded
+    });
+  }, [isAuthenticated, authLoading, isOnboarded, isCheckingOnboarding]);
 
   const handleOnboardingComplete = async () => {
     try {
