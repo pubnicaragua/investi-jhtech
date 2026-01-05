@@ -48,8 +48,8 @@
     # Referrer policy
     Referrer-Policy = "strict-origin-when-cross-origin"
     
-    # Permissions policy
-    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    # Permissions policy - Permitir micrófono y cámara en el mismo origen
+    Permissions-Policy = "camera=(self), microphone=(self), geolocation=()"
 
 # Headers para assets estáticos (cache largo)
 [[headers]]

@@ -16,36 +16,27 @@ import { useOnlineStatus } from "./src/hooks/useOnlineStatus"
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   const style = document.createElement('style');
   style.innerHTML = `
-    html, body {
+    * {
+      box-sizing: border-box;
+    }
+    
+    html {
       height: 100%;
-      width: 100%;
+      overflow: hidden;
+    }
+    
+    body {
+      height: 100%;
       margin: 0;
       padding: 0;
-      overflow-y: auto;
-      overflow-x: hidden;
+      overflow: auto;
       -webkit-overflow-scrolling: touch;
-      position: fixed;
-      top: 0;
-      left: 0;
     }
     
     #root {
-      height: 100vh;
-      width: 100vw;
-      overflow-y: auto;
-      overflow-x: hidden;
-      position: fixed;
-      top: 0;
-      left: 0;
-    }
-    
-    /* Permitir scroll cuando el drawer está abierto */
-    body.drawer-open {
-      overflow: hidden;
-    }
-    
-    body.drawer-open #root {
-      overflow: hidden;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
     }
   `;
   document.head.appendChild(style);

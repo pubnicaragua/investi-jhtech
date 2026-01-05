@@ -264,7 +264,7 @@ export default function IRIChatScreen({ navigation }: any) {
         if (!SpeechRecognition) {
           Alert.alert(
             '🎤 Navegador no compatible',
-            'Tu navegador no soporta reconocimiento de voz. Por favor usa Chrome, Edge o Safari.',
+            'Tu navegador no soporta reconocimiento de voz.\n\n✅ Navegadores compatibles:\n• Google Chrome\n• Microsoft Edge\n• Safari\n\n❌ No compatible:\n• Firefox\n• Opera',
             [{ text: 'Entendido' }]
           );
           return;
@@ -285,12 +285,23 @@ export default function IRIChatScreen({ navigation }: any) {
         // Solicitar permiso de micrófono
         try {
           await navigator.mediaDevices.getUserMedia({ audio: true });
-        } catch (permError) {
-          Alert.alert(
-            '🎤 Permiso de Micrófono Requerido',
-            'Para usar el reconocimiento de voz, necesitas habilitar el permiso de micrófono en tu navegador.\n\nHaz clic en el icono de candado/información en la barra de direcciones y permite el acceso al micrófono.',
-            [{ text: 'Entendido' }]
-          );
+        } catch (permError: any) {
+          console.error('🎤 Error solicitando permiso de micrófono:', permError);
+          
+          let errorTitle = '🎤 Permiso de Micrófono Requerido';
+          let errorMessage = '';
+          
+          if (permError.name === 'NotAllowedError') {
+            errorMessage = '❌ Permiso denegado\n\nPara usar el micrófono:\n\n1. Haz clic en el icono 🔒 (candado) en la barra de direcciones\n2. Busca "Micrófono" en los permisos\n3. Selecciona "Permitir"\n4. Recarga la página\n\n💡 Tip: También puedes ir a Configuración del navegador > Privacidad > Permisos del sitio';
+          } else if (permError.name === 'NotFoundError') {
+            errorMessage = '❌ No se detectó micrófono\n\nAsegúrate de que:\n• Tu dispositivo tenga un micrófono conectado\n• El micrófono esté habilitado en el sistema\n• Ninguna otra aplicación esté usando el micrófono';
+          } else if (permError.name === 'NotSupportedError' || permError.message?.includes('policy')) {
+            errorMessage = '❌ Micrófono bloqueado por política de seguridad\n\nEsto puede ocurrir si:\n• Estás usando HTTP en lugar de HTTPS\n• El sitio tiene restricciones de seguridad\n• Tu navegador bloquea el acceso al micrófono\n\n💡 Solución: Usa la versión móvil de Investí o escribe tu mensaje directamente.';
+          } else {
+            errorMessage = `❌ Error al acceder al micrófono\n\nError: ${permError.message || 'Desconocido'}\n\n💡 Soluciones:\n• Verifica los permisos del navegador\n• Recarga la página\n• Prueba con otro navegador (Chrome/Edge)\n• Usa la app móvil de Investí`;
+          }
+          
+          Alert.alert(errorTitle, errorMessage, [{ text: 'Entendido' }]);
           return;
         }
         
