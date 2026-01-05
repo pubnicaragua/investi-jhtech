@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { I18nextProvider } from "react-i18next"  
 import { SafeAreaProvider } from 'react-native-safe-area-context'  
 import { NavigationContainer } from '@react-navigation/native';
@@ -10,7 +10,26 @@ import { LanguageProvider } from "./src/contexts/LanguageContext"
 import { SplashScreen } from "./src/components/SplashScreen"
 import { useOnlineStatus } from "./src/hooks/useOnlineStatus"
 // DESHABILITADO: Causa error TurboModuleRegistry al cargar todas las pantallas
-// import { TESTING_CONFIG, TestingScreen } from "./src/utils/screenTesting"  
+// import { TESTING_CONFIG, TestingScreen } from "./src/utils/screenTesting"
+
+// Aplicar estilos globales para web en tiempo de ejecución
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.innerHTML = `
+    html, body {
+      height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    #root {
+      height: 100%;
+      overflow-y: auto;
+    }
+  `;
+  document.head.appendChild(style);
+}  
 
 // Configuración de Deep Linking para OAuth
 const linking = {

@@ -2,9 +2,6 @@ import 'react-native-url-polyfill/auto';
 import { Buffer } from 'buffer';
 global.Buffer = Buffer;
 
-// Importar estilos globales para web (scroll, etc.)
-import './global.css';
-
 import { registerRootComponent } from 'expo';
 
 import App from './App';
