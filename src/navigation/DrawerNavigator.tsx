@@ -94,6 +94,17 @@ export function DrawerNavigator() {
           backgroundColor: '#fff',
         },
         headerShown: false,
+        sceneContainerStyle: {
+          overflow: 'visible',
+        },
+      }}
+      screenListeners={{
+        drawerItemPress: () => {
+          // Permitir scroll cuando se abre/cierra drawer
+          if (typeof document !== 'undefined') {
+            document.body.style.overflow = 'auto';
+          }
+        },
       }}
     >
       <Drawer.Screen 

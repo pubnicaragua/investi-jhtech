@@ -18,14 +18,34 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   style.innerHTML = `
     html, body {
       height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
       overflow-y: auto;
       overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
+      position: fixed;
+      top: 0;
+      left: 0;
     }
     
     #root {
-      height: 100%;
+      height: 100vh;
+      width: 100vw;
       overflow-y: auto;
+      overflow-x: hidden;
+      position: fixed;
+      top: 0;
+      left: 0;
+    }
+    
+    /* Permitir scroll cuando el drawer está abierto */
+    body.drawer-open {
+      overflow: hidden;
+    }
+    
+    body.drawer-open #root {
+      overflow: hidden;
     }
   `;
   document.head.appendChild(style);

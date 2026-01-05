@@ -16,11 +16,16 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
   const [videoUri, setVideoUri] = useState<string | null>(null)
   const fadeAnim = useState(new Animated.Value(0))[0]
 
-  // Precargar el asset del video para producción
+  // Precargar el asset del video INMEDIATAMENTE para producción
   useEffect(() => {
+    // Mostrar video INMEDIATAMENTE sin esperar a descargar
+    console.log('🎬 [SplashScreen] Mostrando video INMEDIATAMENTE');
+    setVideoUri('immediate');
+    
+    // Precargar en segundo plano para futuras cargas
     const loadVideoAsset = async () => {
       try {
-        console.log('📦 [SplashScreen] Precargando video asset...');
+        console.log('📦 [SplashScreen] Precargando video asset en segundo plano...');
         const asset = Asset.fromModule(require('../../assets/gif.mp4'));
         await asset.downloadAsync();
         console.log('✅ [SplashScreen] Video asset precargado:', asset.localUri);
@@ -32,7 +37,10 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
       }
     };
 
-    loadVideoAsset();
+    // Cargar en segundo plano sin bloquear
+    setTimeout(() => {
+      loadVideoAsset();
+    }, 100);
   }, []);
 
   useEffect(() => {
@@ -90,42 +98,40 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
     }
   }
 
-  // No renderizar hasta que el video esté listo
-  if (!videoUri) {
-    return (
-      <View style={styles.container}>
-        <Animated.View style={[styles.videoContainer, { opacity: fadeAnim }]} />
-      </View>
-    );
-  }
-
+  // Mostrar video INMEDIATAMENTE (sin esperar a que esté listo)
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.videoContainer, { opacity: fadeAnim }]}>
-        <Video
-          ref={(ref) => setVideoRef(ref)}
-          source={videoUri === 'fallback' ? require('../../assets/gif.mp4') : { uri: videoUri }}
-          style={styles.video}
-          resizeMode={ResizeMode.CONTAIN}
-          shouldPlay
-          isLooping={false}
-          onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
-          onLoad={() => {
-            console.log('✅ [SplashScreen] Video onLoad callback');
-            setVideoLoaded(true)
-          }}
-          onError={(error) => {
-            console.error('❌ [SplashScreen] Video error:', error)
-            // Si hay error, terminar después de 2 segundos
-            setTimeout(() => {
-              if (!hasFinished) {
-                console.log('⚠️ [SplashScreen] Error en video, finalizando...');
-                setHasFinished(true)
-                onFinish()
-              }
-            }, 2000)
-          }}
-        />
+        {videoUri && (
+          <Video
+            ref={(ref) => setVideoRef(ref)}
+            source={
+              videoUri === 'immediate' || videoUri === 'fallback' 
+                ? require('../../assets/gif.mp4') 
+                : { uri: videoUri }
+            }
+            style={styles.video}
+            resizeMode={ResizeMode.CONTAIN}
+            shouldPlay
+            isLooping={false}
+            onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
+            onLoad={() => {
+              console.log('✅ [SplashScreen] Video onLoad callback');
+              setVideoLoaded(true)
+            }}
+            onError={(error) => {
+              console.error('❌ [SplashScreen] Video error:', error)
+              // Si hay error, terminar después de 2 segundos
+              setTimeout(() => {
+                if (!hasFinished) {
+                  console.log('⚠️ [SplashScreen] Error en video, finalizando...');
+                  setHasFinished(true)
+                  onFinish()
+                }
+              }, 2000)
+            }}
+          />
+        )}
       </Animated.View>
     </View>
   )

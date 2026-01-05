@@ -80,7 +80,11 @@ export default {
       shortName: 'Investí',
       description: 'Plataforma de educación financiera y comunidad para jóvenes',
       themeColor: '#2673f3',
-      backgroundColor: '#ffffff'
+      backgroundColor: '#ffffff',
+      display: 'standalone',
+      scope: '/',
+      startUrl: '/',
+      orientation: 'portrait-primary'
     },
     extra: {
       supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
